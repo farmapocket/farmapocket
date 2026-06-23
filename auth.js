@@ -5,27 +5,54 @@
 
 const Auth = {
     currentUser: null,
+    initialized: false,
 
     // Inicializar módulo de autenticação
     async init() {
+        if (this.initialized) {
+            console.log('🔐 Auth already initialized');
+            return;
+        }
+        this.initialized = true;
+
         console.log('🔐 Auth.init() started');
         console.log('📍 Current URL:', window.location.href);
         console.log('📍 Origin:', window.location.origin);
+        console.log('📍 Pathname:', window.location.pathname);
 
-        // Verificar sessão existente
-        const { data: { session }, error } = await supabase.auth.getSession();
-
-        if (error) {
-            console.error('❌ Auth init error:', error);
+        // Verificar se supabase está disponível
+        if (typeof supabase === 'undefined') {
+            console.error('❌ Supabase not loaded! Check config.js');
+            this.showError('Erro de configuração. Recarregue a página.');
             return;
         }
+        console.log('✅ Supabase client available');
 
-        if (session) {
-            console.log('✅ Session found:', session.user.email);
-            this.currentUser = session.user;
-            this.updateUI();
-        } else {
-            console.log('ℹ️ No active session');
+        // Verificar sessão existente
+        try {
+            const { data: { session }, error } = await supabase.auth.getSession();
+
+            if (error) {
+                console.error('❌ Auth init error:', error);
+                return;
+            }
+
+            if (session) {
+                console.log('✅ Session found:', session.user.email);
+                this.currentUser = session.user;
+                this.updateUI();
+
+                // Se estiver na página de login e já tiver sessão, redirecionar
+                if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
+                    console.log('🔄 Already logged in, redirecting to app.html...');
+                    window.location.href = 'app.html';
+                    return;
+                }
+            } else {
+                console.log('ℹ️ No active session');
+            }
+        } catch (e) {
+            console.error('❌ Error checking session:', e);
         }
 
         // Escutar mudanças de autenticação
@@ -61,6 +88,7 @@ const Auth = {
     // Login com Google
     async signInWithGoogle() {
         console.log('🔑 Starting Google Sign-In...');
+        console.log('🖱️ Button clicked at:', new Date().toISOString());
 
         try {
             this.showLoading(true);
@@ -72,18 +100,14 @@ const Auth = {
 
             let redirectUrl;
             if (isLocalhost) {
-                // Desenvolvimento local
-                redirectUrl = currentOrigin + '/app.html';
-            } else if (currentOrigin.includes('netlify.app')) {
-                // Netlify (subdomínio .netlify.app)
                 redirectUrl = currentOrigin + '/app.html';
             } else {
-                // Domínio próprio (farmapocket.com.br)
                 redirectUrl = currentOrigin + '/app.html';
             }
 
             console.log('🔄 Redirect URL:', redirectUrl);
             console.log('🔄 Is localhost:', isLocalhost);
+            console.log('🔄 Supabase URL:', CONFIG.SUPABASE_URL);
 
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
@@ -101,14 +125,15 @@ const Auth = {
                 throw error;
             }
 
-            console.log('✅ OAuth initiated:', data);
+            console.log('✅ OAuth initiated successfully');
+            console.log('📍 Provider URL:', data?.url);
 
             // O redirecionamento acontece automaticamente
-            // Não precisamos fazer nada aqui - o navegador vai para o Google
             return data;
 
         } catch (error) {
             console.error('❌ Google login error:', error);
+            console.error('❌ Error details:', error.message, error.stack);
             this.showError(error.message || 'Erro ao fazer login. Tente novamente.');
             this.showLoading(false);
         }
@@ -121,7 +146,6 @@ const Auth = {
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
 
-            // Limpar dados locais
             localStorage.removeItem('farma-pocket-lang');
             localStorage.removeItem('farma-pocket-current-dependent');
 
@@ -134,34 +158,20 @@ const Auth = {
         }
     },
 
-    // Obter usuário atual
-    getUser() {
-        return this.currentUser;
-    },
+    getUser() { return this.currentUser; },
+    isAuthenticated() { return !!this.currentUser; },
+    getUserId() { return this.currentUser?.id || null; },
 
-    // Verificar se está autenticado
-    isAuthenticated() {
-        return !!this.currentUser;
-    },
-
-    // Obter ID do usuário
-    getUserId() {
-        return this.currentUser?.id || null;
-    },
-
-    // Obter nome do usuário
     getUserName() {
         return this.currentUser?.user_metadata?.full_name 
             || this.currentUser?.email 
             || 'Usuário';
     },
 
-    // Obter avatar do usuário
     getUserAvatar() {
         return this.currentUser?.user_metadata?.avatar_url || null;
     },
 
-    // Atualizar UI com dados do usuário
     updateUI() {
         const avatarEl = document.getElementById('user-avatar');
         const welcomeEl = document.getElementById('welcome-text');
@@ -179,7 +189,6 @@ const Auth = {
         }
     },
 
-    // Mostrar/esconder loading
     showLoading(show) {
         const loadingEl = document.getElementById('loading');
         if (loadingEl) {
@@ -193,7 +202,6 @@ const Auth = {
         }
     },
 
-    // Mostrar mensagem de erro
     showError(message) {
         const errorEl = document.getElementById('error-msg');
         if (errorEl) {
@@ -212,20 +220,27 @@ function logout() {
     Auth.signOut();
 }
 
-// Inicializar quando DOM estiver pronto
+// Inicializar quando DOM estiver pronto - APENAS UM DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📄 DOM loaded, initializing auth...');
+    console.log('📄 document.readyState:', document.readyState);
+
+    // Inicializar auth
     Auth.init();
 
     // Bind do botão de login Google
     const googleBtn = document.getElementById('google-login');
     if (googleBtn) {
-        googleBtn.addEventListener('click', () => {
+        console.log('✅ Google login button found');
+        googleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             console.log('🖱️ Google login button clicked');
             Auth.signInWithGoogle();
         });
     } else {
-        console.warn('⚠️ Google login button not found');
+        console.error('❌ Google login button NOT found!');
+        console.error('❌ Available buttons:', document.querySelectorAll('button').length);
     }
 });
 

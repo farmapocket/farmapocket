@@ -96,17 +96,9 @@
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
     <script>
-        // Language selector
+        // Language selector (não depende de DOMContentLoaded - elementos já existem)
         document.getElementById('lang-selector').addEventListener('change', (e) => {
             i18n.setLanguage(e.target.value);
-        });
-
-        // Check if already logged in
-        document.addEventListener('DOMContentLoaded', async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                window.location.href = 'app.html';
-            }
         });
 
         // Offline detection
