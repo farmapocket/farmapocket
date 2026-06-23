@@ -1,6 +1,6 @@
 // ============================================================
-// FARMAPOCKET - Authentication Module
-// Google SSO + Session Management
+// FARMAPOCKET - Authentication Module v2
+// Google SSO + Session Management + Debug Logs
 // ============================================================
 
 const Auth = {
@@ -8,45 +8,87 @@ const Auth = {
 
     // Inicializar módulo de autenticação
     async init() {
+        console.log('🔐 Auth.init() started');
+        console.log('📍 Current URL:', window.location.href);
+        console.log('📍 Origin:', window.location.origin);
+
         // Verificar sessão existente
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
-            console.error('Auth init error:', error);
+            console.error('❌ Auth init error:', error);
             return;
         }
 
         if (session) {
+            console.log('✅ Session found:', session.user.email);
             this.currentUser = session.user;
             this.updateUI();
+        } else {
+            console.log('ℹ️ No active session');
         }
 
         // Escutar mudanças de autenticação
         supabase.auth.onAuthStateChange((event, session) => {
+            console.log('🔄 Auth state changed:', event);
+
             if (event === 'SIGNED_IN' && session) {
+                console.log('✅ User signed in:', session.user.email);
                 this.currentUser = session.user;
                 this.updateUI();
+
                 // Redirecionar para app se estiver na página de login
-                if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
+                if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
+                    console.log('🔄 Redirecting to app.html...');
                     window.location.href = 'app.html';
                 }
             } else if (event === 'SIGNED_OUT') {
+                console.log('👋 User signed out');
                 this.currentUser = null;
                 window.location.href = 'index.html';
+            } else if (event === 'INITIAL_SESSION') {
+                console.log('📋 Initial session detected');
+                if (session) {
+                    this.currentUser = session.user;
+                    this.updateUI();
+                }
             }
         });
+
+        console.log('🔐 Auth.init() completed');
     },
 
     // Login com Google
     async signInWithGoogle() {
+        console.log('🔑 Starting Google Sign-In...');
+
         try {
             this.showLoading(true);
             this.showError(null);
 
+            // Detectar URL correta para redirect
+            const currentOrigin = window.location.origin;
+            const isLocalhost = currentOrigin.includes('localhost') || currentOrigin.includes('127.0.0.1');
+
+            let redirectUrl;
+            if (isLocalhost) {
+                // Desenvolvimento local
+                redirectUrl = currentOrigin + '/app.html';
+            } else if (currentOrigin.includes('netlify.app')) {
+                // Netlify (subdomínio .netlify.app)
+                redirectUrl = currentOrigin + '/app.html';
+            } else {
+                // Domínio próprio (farmapocket.com.br)
+                redirectUrl = currentOrigin + '/app.html';
+            }
+
+            console.log('🔄 Redirect URL:', redirectUrl);
+            console.log('🔄 Is localhost:', isLocalhost);
+
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: window.location.origin + '/app.html',
+                    redirectTo: redirectUrl,
                     queryParams: {
                         access_type: 'offline',
                         prompt: 'consent'
@@ -54,13 +96,19 @@ const Auth = {
                 }
             });
 
-            if (error) throw error;
+            if (error) {
+                console.error('❌ OAuth error:', error);
+                throw error;
+            }
+
+            console.log('✅ OAuth initiated:', data);
 
             // O redirecionamento acontece automaticamente
+            // Não precisamos fazer nada aqui - o navegador vai para o Google
             return data;
 
         } catch (error) {
-            console.error('Google login error:', error);
+            console.error('❌ Google login error:', error);
             this.showError(error.message || 'Erro ao fazer login. Tente novamente.');
             this.showLoading(false);
         }
@@ -68,18 +116,20 @@ const Auth = {
 
     // Logout
     async signOut() {
+        console.log('👋 Signing out...');
         try {
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
 
             // Limpar dados locais
             localStorage.removeItem('farma-pocket-lang');
+            localStorage.removeItem('farma-pocket-current-dependent');
 
-            // Redirecionar para login
+            console.log('✅ Signed out successfully');
             window.location.href = 'index.html';
 
         } catch (error) {
-            console.error('Logout error:', error);
+            console.error('❌ Logout error:', error);
             alert('Erro ao sair. Tente novamente.');
         }
     },
@@ -124,7 +174,7 @@ const Auth = {
         }
 
         if (welcomeEl && this.currentUser) {
-            const name = this.getUserName().split(' ')[0]; // Primeiro nome
+            const name = this.getUserName().split(' ')[0];
             welcomeEl.textContent = `Olá, ${name}!`;
         }
     },
@@ -164,12 +214,18 @@ function logout() {
 
 // Inicializar quando DOM estiver pronto
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('📄 DOM loaded, initializing auth...');
     Auth.init();
 
     // Bind do botão de login Google
     const googleBtn = document.getElementById('google-login');
     if (googleBtn) {
-        googleBtn.addEventListener('click', () => Auth.signInWithGoogle());
+        googleBtn.addEventListener('click', () => {
+            console.log('🖱️ Google login button clicked');
+            Auth.signInWithGoogle();
+        });
+    } else {
+        console.warn('⚠️ Google login button not found');
     }
 });
 
