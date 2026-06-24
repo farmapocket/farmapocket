@@ -324,7 +324,7 @@ async function loadTreatments() {
             const startDateText = t.start_date ? new Date(t.start_date).toLocaleDateString('pt-BR') : '';
             const durationText = formatTreatmentDuration(t.start_date, t.end_date);
             const subtitleParts = [
-                `${t.dosage || 0} un à cada ${t.frequency_hours || 0}h`,
+                `${t.dosage || 0}un. / ${t.frequency_hours || 0}h`,
                 prescribedByText,
                 goalText ? `para ${goalText}` : '',
                 startDateText ? `em ${startDateText}` : '',
