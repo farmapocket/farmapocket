@@ -97,7 +97,7 @@ const Auth = {
         console.log('🔐 Auth.init() completed');
     },
 
-    // Verifica se a URL atual contém tokens OAuth (hash ou query)
+    // Verifica se a URL atual contém tokens OAuth ou erros (hash ou query)
     hasOAuthTokensInUrl() {
         const hash = window.location.hash;
         const search = window.location.search;
@@ -105,7 +105,21 @@ const Auth = {
                hash.includes('refresh_token=') ||
                search.includes('access_token=') ||
                search.includes('refresh_token=') ||
-               search.includes('code=');
+               search.includes('code=') ||
+               search.includes('error=') ||
+               hash.includes('error=');
+    },
+
+    // Extrai mensagem de erro da URL, se houver
+    getOAuthErrorFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
+        const error = params.get('error') || hashParams.get('error');
+        const errorDescription = params.get('error_description') || hashParams.get('error_description');
+        if (error) {
+            return `${error}${errorDescription ? ': ' + errorDescription : ''}`;
+        }
+        return null;
     },
 
     // Verifica se está na página de login
@@ -128,10 +142,19 @@ const Auth = {
         console.log('🔄 OAuth callback detected, processing...');
         this.showLoading(true);
 
+        // Verificar se houve erro retornado pelo provedor
+        const oauthError = this.getOAuthErrorFromUrl();
+        if (oauthError) {
+            console.error('❌ OAuth provider error:', oauthError);
+            this.showError('Erro no login: ' + oauthError);
+            this.showLoading(false);
+            return;
+        }
+
         try {
             // O Supabase com detectSessionInUrl:true já processa automaticamente,
             // mas aguardamos um pouco para garantir que a sessão foi estabelecida
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 800));
 
             const { data: { session }, error } = await supabase.auth.getSession();
 
@@ -154,13 +177,17 @@ const Auth = {
                 // Redirecionar para o app se ainda estiver na página de login
                 if (this.isLoginPage()) {
                     console.log('🔄 OAuth callback on login page, redirecting to app.html...');
-                    window.location.href = 'app.html';
+                    window.location.replace('app.html');
                 }
             } else {
                 console.warn('⚠️ OAuth callback detected but no session found');
+                console.log('🔄 URL hash:', window.location.hash);
+                console.log('🔄 URL search:', window.location.search);
+                this.showError('Não foi possível completar o login. Tente novamente.');
             }
         } catch (e) {
             console.error('❌ Error handling OAuth callback:', e);
+            this.showError('Erro inesperado ao processar login.');
         } finally {
             this.showLoading(false);
         }
@@ -177,11 +204,18 @@ const Auth = {
 
             // Detectar URL correta para redirect
             const currentOrigin = window.location.origin;
-            const pathname = window.location.pathname;
+            const currentUrl = window.location.href.split('#')[0].split('?')[0];
             const isLocalhost = currentOrigin.includes('localhost') || currentOrigin.includes('127.0.0.1');
 
-            // Se já estiver em subpasta (ex: /pt/app.html), mantém a estrutura
-            let redirectUrl = currentOrigin + '/app.html';
+            // Estratégia: voltar para a página atual (index.html) e depois
+            // redirecionar para app.html. Isso evita problemas quando app.html
+            // não está autorizada como redirect URL no Supabase.
+            let redirectUrl = currentUrl;
+
+            // Garantir que termina em index.html (não em /)
+            if (redirectUrl.endsWith('/')) {
+                redirectUrl += 'index.html';
+            }
 
             console.log('🔄 Redirect URL:', redirectUrl);
             console.log('🔄 Is localhost:', isLocalhost);
