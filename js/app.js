@@ -317,27 +317,37 @@ async function loadTreatments() {
             return;
         }
 
-        listEl.innerHTML = treatments.map(t => `
-            <div class="bg-white rounded-xl p-4 shadow-sm">
+        listEl.innerHTML = treatments.map(t => {
+            const specialty = t.healthcare_professionals?.specialty || t.prescribed_by_specialty || '';
+            const prescribedByText = specialty ? `prescrito por ${specialty}` : '';
+            const goalText = t.treatment_goal || '';
+            const startDateText = t.start_date ? new Date(t.start_date).toLocaleDateString('pt-BR') : '';
+            const durationText = formatTreatmentDuration(t.start_date, t.end_date);
+            const subtitleParts = [
+                `${t.dosage || 0} un à cada ${t.frequency_hours || 0}h`,
+                prescribedByText,
+                goalText ? `para ${goalText}` : '',
+                startDateText ? `em ${startDateText}` : '',
+                durationText ? `- ${durationText} de tratamento` : ''
+            ].filter(Boolean);
+
+            return `
+            <div class="bg-white rounded-xl p-4 shadow-sm card-hover">
                 <div class="flex items-start justify-between mb-2">
-                    <div>
+                    <div class="flex-1 pr-2">
                         <h3 class="font-semibold text-gray-800">${t.medications?.name || t.medication_name || 'Medicamento'}</h3>
-                        <p class="text-sm text-gray-500">${t.treatment_goal || 'Sem objetivo definido'}</p>
+                        <p class="text-sm text-gray-500">${subtitleParts.join(', ')}</p>
                     </div>
-                    ${t.is_active ? '<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Ativo</span>' : '<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Encerrado</span>'}
-                </div>
-                <div class="flex items-center gap-4 text-xs text-gray-500 mt-3">
-                    <span class="flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        ${t.dosage || 0} un / ${t.frequency_hours || 0}h
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        ${new Date(t.start_date).toLocaleDateString('pt-BR')}
-                    </span>
+                    <div class="flex items-center gap-1">
+                        ${t.is_active ? '<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Ativo</span>' : '<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Encerrado</span>'}
+                        <button onclick="editTreatment('${t.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center ml-1" title="Editar">
+                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
 
     } catch (error) {
         console.error('Error loading treatments:', error);
@@ -368,12 +378,73 @@ async function loadTreatmentOptions() {
     }
 }
 
+// Calcula a duração de um tratamento em anos, meses e dias
+function formatTreatmentDuration(startDate, endDate) {
+    const start = new Date(startDate);
+    const end = endDate ? new Date(endDate) : new Date();
+
+    let years = end.getFullYear() - start.getFullYear();
+    let months = end.getMonth() - start.getMonth();
+    let days = end.getDate() - start.getDate();
+
+    if (days < 0) {
+        months--;
+        const previousMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+        days += previousMonth.getDate();
+    }
+    if (months < 0) {
+        years--;
+        months += 12;
+    }
+
+    const parts = [];
+    if (years > 0) parts.push(`${years}a`);
+    if (months > 0) parts.push(`${months}m`);
+    if (days > 0 || parts.length === 0) parts.push(`${days}d`);
+
+    return parts.join(', ').replace(/, ([^,]*)$/, ' e $1');
+}
+
+let currentEditingTreatmentId = null;
+
 function showAddTreatment() {
     if (!AppState.getCurrentDependent()) {
         alert('Selecione um dependente primeiro');
         return;
     }
+    currentEditingTreatmentId = null;
+    document.querySelector('#form-treatment').reset();
     loadTreatmentOptions();
+    openModal('modal-treatment');
+}
+
+async function editTreatment(id) {
+    event.stopPropagation();
+    const depId = AppState.getCurrentDependent();
+    if (!depId) return;
+
+    const treatments = await DB.getTreatments(depId);
+    const treatment = treatments.find(t => t.id === id);
+    if (!treatment) {
+        alert('Tratamento não encontrado');
+        return;
+    }
+
+    currentEditingTreatmentId = id;
+    await loadTreatmentOptions();
+
+    const form = document.getElementById('form-treatment');
+    form.querySelector('[name="medication_id"]').value = treatment.medication_id || '';
+    form.querySelector('[name="prescribed_by"]').value = treatment.prescribed_by || '';
+    form.querySelector('[name="dosage"]').value = treatment.dosage || '';
+    form.querySelector('[name="frequency_hours"]').value = treatment.frequency_hours || '';
+    form.querySelector('[name="first_dose_time"]').value = treatment.first_dose_time || '';
+    form.querySelector('[name="start_date"]').value = treatment.start_date || '';
+    form.querySelector('[name="end_date"]').value = treatment.end_date || '';
+    form.querySelector('[name="treatment_goal"]').value = treatment.treatment_goal || '';
+    form.querySelector('[name="admin_notes"]').value = treatment.administration_notes || treatment.admin_notes || '';
+    form.querySelector('[name="is_active"]').checked = treatment.is_active !== false;
+
     openModal('modal-treatment');
 }
 
@@ -519,7 +590,12 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
-                await DB.addTreatment(treatment);
+                if (currentEditingTreatmentId) {
+                    await DB.updateTreatment(currentEditingTreatmentId, treatment);
+                } else {
+                    await DB.addTreatment(treatment);
+                }
+                currentEditingTreatmentId = null;
                 closeModal('modal-treatment');
                 treatmentForm.reset();
                 loadTreatments();
