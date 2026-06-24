@@ -417,24 +417,40 @@ const DB = {
         if (freqHours <= 0) return null;
 
         const freqMs = freqHours * 60 * 60 * 1000;
-        let baseTime;
 
-        if (lastScheduling && lastScheduling.schedule_time) {
-            baseTime = new Date(lastScheduling.schedule_time);
-        } else {
-            // Use start_date + first_dose_time
-            if (!treatment.start_date || !treatment.first_dose_time) return null;
-            const [hours, minutes] = treatment.first_dose_time.split(':').map(Number);
-            baseTime = new Date(treatment.start_date);
-            baseTime.setHours(hours, minutes, 0, 0);
-        }
+        // Always base calculation on start_date + first_dose_time
+        if (!treatment.start_date || !treatment.first_dose_time) return null;
+        const [hours, minutes] = treatment.first_dose_time.split(':').map(Number);
+        let baseTime = new Date(treatment.start_date);
+        baseTime.setHours(hours, minutes, 0, 0);
 
         // Advance by frequency intervals until future
         while (baseTime <= now) {
             baseTime = new Date(baseTime.getTime() + freqMs);
         }
 
+        // If the last scheduling was exactly at this calculated time,
+        // advance one more interval (dose already recorded)
+        if (lastScheduling && lastScheduling.schedule_time) {
+            const lastTime = new Date(lastScheduling.schedule_time);
+            if (this._isSameDoseTime(lastTime, baseTime, freqMs)) {
+                baseTime = new Date(baseTime.getTime() + freqMs);
+            }
+        }
+
         return baseTime;
+    },
+
+    _isSameDoseTime(time1, time2, freqMs) {
+        // Check if two times are the same dose slot (within the same frequency interval)
+        const diff = Math.abs(time1.getTime() - time2.getTime());
+        return diff < 60000; // 1 minute tolerance
+    },
+
+    _toLocalISOString(date) {
+        // Returns ISO string preserving local time (no UTC conversion)
+        const offset = date.getTimezoneOffset() * 60000;
+        return new Date(date.getTime() - offset).toISOString().slice(0, 19);
     },
 
     async recordDose(dependentId, scheduleTime, action, treatments, notes) {
@@ -444,7 +460,7 @@ const DB = {
 
         const schedulingPayload = {
             dependent_id: dependentId,
-            schedule_time: scheduleTime,
+            schedule_time: this._toLocalISOString(new Date(scheduleTime)),
             action: action,
             notes: notes || null
         };

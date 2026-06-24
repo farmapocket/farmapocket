@@ -1,9 +1,36 @@
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS)
 -- ============================================================
--- Users can access data where they are the account_owner of the dependent.
--- Reference tables (laboratories, categories, subcategories) are global
--- and do not have user-specific RLS policies in this project.
+-- This script can be run multiple times. It drops existing
+-- policies on the application tables and recreates them.
+-- Reference tables (laboratories, categories, subcategories)
+-- are global and do not have user-specific RLS policies.
+
+-- Helper: drop all existing policies on application tables
+DO $$
+DECLARE
+    pol RECORD;
+BEGIN
+    FOR pol IN
+        SELECT policyname, tablename
+        FROM pg_policies
+        WHERE schemaname = 'public'
+        AND tablename IN (
+            'dependents',
+            'medications',
+            'healthcare_professionals',
+            'treatments',
+            'symptoms',
+            'events',
+            'prescriptions',
+            'scheduling',
+            'treatments_in_schedule'
+        )
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', pol.policyname, pol.tablename);
+    END LOOP;
+END $$;
+
 
 -- Enable RLS on all user-data tables
 ALTER TABLE dependents ENABLE ROW LEVEL SECURITY;
@@ -16,16 +43,6 @@ ALTER TABLE prescriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scheduling ENABLE ROW LEVEL SECURITY;
 ALTER TABLE treatments_in_schedule ENABLE ROW LEVEL SECURITY;
 
--- Helper function: get account_owner_id for a dependent
-CREATE OR REPLACE FUNCTION get_dependent_owner(dep_id UUID)
-RETURNS UUID AS $$
-DECLARE
-    owner_id UUID;
-BEGIN
-    SELECT account_owner_id INTO owner_id FROM dependents WHERE id = dep_id;
-    RETURN owner_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Dependents: owner sees only their dependents
 CREATE POLICY "Users can only access their own dependents"

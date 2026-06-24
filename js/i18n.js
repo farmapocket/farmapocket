@@ -103,7 +103,7 @@ const i18n = {
         'dashboard.activeTreatments': { 'en': 'Active Treatments', 'pt-BR': 'Tratamentos Ativos', 'es': 'Tratamientos Activos' },
         'dashboard.lowStock': { 'en': 'Low Stock Alerts', 'pt-BR': 'Alertas de Estoque Baixo', 'es': 'Alertas de Stock Bajo' },
         'dashboard.expiringPrescriptions': { 'en': 'Expiring Prescriptions', 'pt-BR': 'Receituários Vencendo', 'es': 'Recetas por Vencer' },
-        'dashboard.todaySchedule': { 'en': "Today's Schedule", 'pt-BR': 'Agenda de Hoje', 'es': 'Agenda de Hoy' },
+        'dashboard.nextDoses': { 'en': 'Next Doses', 'pt-BR': 'Próximas Doses', 'es': 'Próximas Dosis' },
         'dashboard.noSchedule': { 'en': 'No medications scheduled for today', 'pt-BR': 'Nenhum medicamento agendado para hoje', 'es': 'Ningún medicamento agendado para hoy' },
 
         // SETTINGS
