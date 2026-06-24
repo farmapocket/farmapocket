@@ -155,6 +155,19 @@ function scrollPageToTop() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function formatDosage(dosage) {
+    if (dosage === null || dosage === undefined || isNaN(dosage)) return '0';
+    const num = parseFloat(dosage);
+    if (Number.isInteger(num)) return num.toString();
+    // Convert decimal to fraction-like string for common values
+    if (num === 0.5) return '1/2';
+    if (num === 0.25) return '1/4';
+    if (num === 0.75) return '3/4';
+    if (num === 0.33 || num === 0.333 || num === 0.3333) return '1/3';
+    if (num === 0.67 || num === 0.667 || num === 0.6667) return '2/3';
+    return num.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
 // ========== DASHBOARD ==========
 
 function safeSetText(id, value) {
@@ -239,51 +252,37 @@ async function loadTodaySchedule() {
     }
 
     try {
-        const schedules = await DB.getNextDoseSchedules(depId, 2);
+        const schedules = await DB.getNextDoseSchedules(depId, 1);
 
         if (schedules.length === 0) {
             scheduleEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4" data-i18n="dashboard.noSchedule">Nenhum medicamento agendado para hoje</p>';
             return;
         }
 
-        scheduleEl.innerHTML = schedules.map((schedule, index) => {
-            const timeStr = schedule.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            const scheduleJson = encodeURIComponent(JSON.stringify(schedule));
+        const schedule = schedules[0];
+        const timeStr = schedule.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const scheduleJson = encodeURIComponent(JSON.stringify(schedule));
 
-            return `
-                <div class="bg-gray-50 rounded-xl p-4">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-2">
-                            <div class="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center">
-                                <span class="text-sm font-bold text-sky-700">${index + 1}ª</span>
-                            </div>
-                            <div>
-                                <p class="text-xs text-gray-500">Próximo horário</p>
-                                <p class="text-xl font-bold text-gray-800">${timeStr}</p>
-                            </div>
-                        </div>
+        scheduleEl.innerHTML = `
+            <div class="bg-gray-50 rounded-xl p-4">
+                <div class="flex items-start gap-4">
+                    <div class="flex flex-col items-center gap-2 flex-shrink-0">
+                        <p class="text-4xl font-bold text-sky-700">${timeStr}</p>
+                        <button onclick="showDoseActionModal('Taken', '${timeStr}', '${scheduleJson}')" class="w-24 py-1.5 bg-emerald-500 text-white rounded-lg font-medium text-sm hover:bg-emerald-600 transition-colors">
+                            TOMAR
+                        </button>
+                        <button onclick="showDoseActionModal('Skipped', '${timeStr}', '${scheduleJson}')" class="w-24 py-1.5 bg-amber-500 text-white rounded-lg font-medium text-sm hover:bg-amber-600 transition-colors">
+                            PULAR
+                        </button>
                     </div>
-                    <div class="space-y-2 mb-4">
+                    <div class="flex-1 pt-1">
                         ${schedule.treatments.map(t => `
-                            <div class="flex items-center justify-between bg-white rounded-lg p-3">
-                                <div>
-                                    <p class="font-medium text-gray-800">${t.medications?.name || t.medication_name || t.name || 'Medicamento'}</p>
-                                    <p class="text-xs text-gray-500">${t.dosage || 0} ${t.dosage == 1 ? 'unidade' : 'unidades'}</p>
-                                </div>
-                            </div>
+                            <p class="text-sm text-gray-800 leading-relaxed">${t.medications?.name || t.medication_name || t.name || 'Medicamento'} (${formatDosage(t.dosage)} un)</p>
                         `).join('')}
                     </div>
-                    <div class="flex gap-3">
-                        <button onclick="showDoseActionModal('Taken', '${timeStr}', '${scheduleJson}')" class="flex-1 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors">
-                            Tomar
-                        </button>
-                        <button onclick="showDoseActionModal('Skipped', '${timeStr}', '${scheduleJson}')" class="flex-1 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 transition-colors">
-                            Pular
-                        </button>
-                    </div>
                 </div>
-            `;
-        }).join('');
+            </div>
+        `;
 
     } catch (error) {
         console.error('Error loading today schedule:', error);
