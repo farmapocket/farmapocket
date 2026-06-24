@@ -94,6 +94,36 @@ const DB = {
         }
     },
 
+    // Cria um dependente "Eu mesmo" automaticamente se o usuário não tiver nenhum
+    async ensureSelfDependent() {
+        const userId = Auth.getUserId();
+        if (!userId) return null;
+
+        try {
+            const existing = await this.getDependents();
+            if (existing && existing.length > 0) {
+                console.log('✅ User already has dependents, skipping auto-create');
+                return existing[0];
+            }
+
+            const userName = Auth.getUserName();
+            const selfDependent = {
+                name: userName,
+                relationship: 'self',
+                account_owner_id: userId,
+                is_active: true,
+                avatar_url: Auth.getUserAvatar() || '👤'
+            };
+
+            console.log('🆕 Creating self dependent:', selfDependent.name);
+            return await this.addDependent(selfDependent);
+
+        } catch (error) {
+            console.error('❌ Error creating self dependent:', error);
+            return null;
+        }
+    },
+
     // ========== MEDICATIONS (now require dependentId) ==========
 
     async getMedications(dependentId) {

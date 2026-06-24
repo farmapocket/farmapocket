@@ -6,7 +6,7 @@
 const OfflineDB = {
     db: null,
     DB_NAME: 'FarmaPocketDB',
-    DB_VERSION: 1,
+    DB_VERSION: 2,
 
     // Inicializar IndexedDB
     async init() {
@@ -23,6 +23,9 @@ const OfflineDB = {
                 const db = event.target.result;
 
                 // Stores para cada tabela
+                if (!db.objectStoreNames.contains('dependents')) {
+                    db.createObjectStore('dependents', { keyPath: 'id' });
+                }
                 if (!db.objectStoreNames.contains('medications')) {
                     db.createObjectStore('medications', { keyPath: 'id' });
                 }
@@ -301,7 +304,7 @@ const OfflineDB = {
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
-            const registration = await navigator.serviceWorker.register('sw.js');
+            const registration = await navigator.serviceWorker.register('js/sw.js');
             console.log('SW registered:', registration.scope);
 
             // Verificar atualizações

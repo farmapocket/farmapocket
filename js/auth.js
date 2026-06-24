@@ -47,6 +47,11 @@ const Auth = {
                 this.currentUser = session.user;
                 this.updateUI();
 
+                // Garantir que o usuário tenha pelo menos um dependente (ele mesmo)
+                if (this.isAppPage()) {
+                    await this.ensureSelfDependent();
+                }
+
                 // Se estiver na página de login e já tiver sessão, redirecionar
                 if (this.isLoginPage()) {
                     console.log('🔄 Already logged in, redirecting to app.html...');
@@ -68,13 +73,18 @@ const Auth = {
         }
 
         // Escutar mudanças de autenticação
-        supabase.auth.onAuthStateChange((event, session) => {
+        supabase.auth.onAuthStateChange(async (event, session) => {
             console.log('🔄 Auth state changed:', event);
 
             if (event === 'SIGNED_IN' && session) {
                 console.log('✅ User signed in:', session.user.email);
                 this.currentUser = session.user;
                 this.updateUI();
+
+                // Garantir dependente "Eu mesmo" ao fazer login
+                if (this.isAppPage()) {
+                    await this.ensureSelfDependent();
+                }
 
                 // Redirecionar para app se estiver na página de login
                 if (this.isLoginPage()) {
@@ -90,6 +100,9 @@ const Auth = {
                 if (session) {
                     this.currentUser = session.user;
                     this.updateUI();
+                    if (this.isAppPage()) {
+                        await this.ensureSelfDependent();
+                    }
                 }
             }
         });
@@ -190,6 +203,21 @@ const Auth = {
             this.showError('Erro inesperado ao processar login.');
         } finally {
             this.showLoading(false);
+        }
+    },
+
+    // Garante que o usuário tenha um dependente "Eu mesmo"
+    async ensureSelfDependent() {
+        if (typeof DB !== 'undefined' && DB.ensureSelfDependent) {
+            try {
+                const dependent = await DB.ensureSelfDependent();
+                if (dependent && typeof AppState !== 'undefined') {
+                    AppState.setCurrentDependent(dependent.id);
+                    console.log('✅ Self dependent selected:', dependent.name);
+                }
+            } catch (error) {
+                console.error('❌ ensureSelfDependent error:', error);
+            }
         }
     },
 
