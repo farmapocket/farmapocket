@@ -209,9 +209,105 @@ async function loadDashboard() {
             expiringEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Nenhum receituário próximo do vencimento</p>';
         }
 
+        // Today's schedule
+        await loadTodaySchedule();
+
     } catch (error) {
         console.error('Error loading dashboard:', error);
     }
+}
+
+// ========== TODAY'S SCHEDULE ==========
+
+let currentDoseSchedule = null;
+
+async function loadTodaySchedule() {
+    const scheduleEl = document.getElementById('today-schedule');
+    const depId = AppState.getCurrentDependent();
+
+    if (!depId) {
+        scheduleEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Selecione um dependente</p>';
+        return;
+    }
+
+    try {
+        const schedules = await DB.getNextDoseSchedules(depId, 2);
+
+        if (schedules.length === 0) {
+            scheduleEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4" data-i18n="dashboard.noSchedule">Nenhum medicamento agendado para hoje</p>';
+            return;
+        }
+
+        scheduleEl.innerHTML = schedules.map((schedule, index) => {
+            const timeStr = schedule.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const scheduleJson = encodeURIComponent(JSON.stringify(schedule));
+
+            return `
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center">
+                                <span class="text-sm font-bold text-sky-700">${index + 1}ª</span>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Próximo horário</p>
+                                <p class="text-xl font-bold text-gray-800">${timeStr}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-2 mb-4">
+                        ${schedule.treatments.map(t => `
+                            <div class="flex items-center justify-between bg-white rounded-lg p-3">
+                                <div>
+                                    <p class="font-medium text-gray-800">${t.medications?.name || t.medication_name || t.name || 'Medicamento'}</p>
+                                    <p class="text-xs text-gray-500">${t.dosage || 0} ${t.dosage == 1 ? 'unidade' : 'unidades'}</p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="showDoseActionModal('Taken', '${timeStr}', '${scheduleJson}')" class="flex-1 py-2 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors">
+                            Tomar
+                        </button>
+                        <button onclick="showDoseActionModal('Skipped', '${timeStr}', '${scheduleJson}')" class="flex-1 py-2 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 transition-colors">
+                            Pular
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error loading today schedule:', error);
+        scheduleEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Erro ao carregar agenda</p>';
+    }
+}
+
+function showDoseActionModal(action, timeStr, scheduleJson) {
+    const schedule = JSON.parse(decodeURIComponent(scheduleJson));
+    currentDoseSchedule = { ...schedule, action };
+
+    const titleEl = document.getElementById('dose-action-title');
+    const timeEl = document.getElementById('dose-action-time');
+    const treatmentsEl = document.getElementById('dose-action-treatments');
+    const scheduleTimeInput = document.getElementById('dose-action-schedule-time');
+    const actionTypeInput = document.getElementById('dose-action-type');
+    const form = document.getElementById('form-dose-action');
+
+    titleEl.textContent = action === 'Taken' ? 'Confirmar Medicação Tomada' : 'Confirmar Medicação Pulada';
+    timeEl.textContent = timeStr;
+    scheduleTimeInput.value = schedule.time;
+    actionTypeInput.value = action;
+
+    treatmentsEl.innerHTML = schedule.treatments.map(t => `
+        <div class="flex items-center justify-between bg-gray-50 rounded-lg p-2">
+            <span class="font-medium text-gray-800">${t.medications?.name || t.medication_name || t.name || 'Medicamento'}</span>
+            <span class="text-sm text-gray-500">${t.dosage || 0} un</span>
+        </div>
+    `).join('');
+
+    form.reset();
+    openModal('modal-dose-action');
 }
 
 // ========== MEDICATIONS ==========
@@ -637,6 +733,38 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Dose action form (Taken/Skipped)
+    const doseActionForm = document.getElementById('form-dose-action');
+    if (doseActionForm) {
+        doseActionForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!currentDoseSchedule) return;
+
+            const formData = new FormData(doseActionForm);
+            const notes = formData.get('notes');
+            const depId = AppState.getCurrentDependent();
+
+            try {
+                await DB.recordDose(
+                    depId,
+                    currentDoseSchedule.time,
+                    currentDoseSchedule.action,
+                    currentDoseSchedule.treatments,
+                    notes
+                );
+                closeModal('modal-dose-action');
+                doseActionForm.reset();
+                currentDoseSchedule = null;
+                loadTodaySchedule();
+                loadDashboard();
+
+            } catch (error) {
+                alert('Erro ao registrar: ' + error.message);
+            }
+        });
+    }
+
     // Settings language
     const settingsLang = document.getElementById('settings-lang');
     if (settingsLang) {
@@ -695,5 +823,8 @@ window.navigateTo = navigateTo;
 window.selectDependent = selectDependent;
 window.showAddDependent = showAddDependent;
 window.showAddMedication = showAddMedication;
+window.showAddTreatment = showAddTreatment;
+window.showAddProfessional = showAddProfessional;
+window.showDoseActionModal = showDoseActionModal;
 window.closeModal = closeModal;
 window.exportData = exportData;

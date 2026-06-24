@@ -352,6 +352,177 @@ const DB = {
         }
     },
 
+    // ========== SCHEDULING ==========
+
+    async getLastScheduling(dependentId) {
+        if (!dependentId) return null;
+
+        try {
+            const { data, error } = await supabase
+                .from('scheduling')
+                .select('*')
+                .eq('dependent_id', dependentId)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error fetching last scheduling:', error);
+            const all = await OfflineDB.getAll('scheduling');
+            const filtered = all.filter(s => s.dependent_id === dependentId);
+            return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
+        }
+    },
+
+    async getNextDoseSchedules(dependentId, limit = 2) {
+        if (!dependentId) return [];
+
+        const treatments = await this.getTreatments(dependentId);
+        const activeTreatments = treatments.filter(t => t.is_active !== false);
+
+        if (activeTreatments.length === 0) return [];
+
+        const lastScheduling = await this.getLastScheduling(dependentId);
+        const now = new Date();
+
+        // Calculate next dose for each treatment
+        const nextDoses = activeTreatments.map(t => {
+            const doseTime = this._calculateNextDoseTime(t, lastScheduling, now);
+            return { treatment: t, doseTime };
+        }).filter(item => item.doseTime !== null);
+
+        // Group by time
+        const grouped = {};
+        nextDoses.forEach(item => {
+            const key = item.doseTime.toISOString();
+            if (!grouped[key]) {
+                grouped[key] = {
+                    time: item.doseTime,
+                    treatments: []
+                };
+            }
+            grouped[key].treatments.push(item.treatment);
+        });
+
+        // Sort by time and take the next N
+        return Object.values(grouped)
+            .sort((a, b) => a.time - b.time)
+            .slice(0, limit);
+    },
+
+    _calculateNextDoseTime(treatment, lastScheduling, now) {
+        const freqHours = treatment.frequency_hours || 0;
+        if (freqHours <= 0) return null;
+
+        const freqMs = freqHours * 60 * 60 * 1000;
+        let baseTime;
+
+        if (lastScheduling && lastScheduling.schedule_time) {
+            baseTime = new Date(lastScheduling.schedule_time);
+        } else {
+            // Use start_date + first_dose_time
+            if (!treatment.start_date || !treatment.first_dose_time) return null;
+            const [hours, minutes] = treatment.first_dose_time.split(':').map(Number);
+            baseTime = new Date(treatment.start_date);
+            baseTime.setHours(hours, minutes, 0, 0);
+        }
+
+        // Advance by frequency intervals until future
+        while (baseTime <= now) {
+            baseTime = new Date(baseTime.getTime() + freqMs);
+        }
+
+        return baseTime;
+    },
+
+    async recordDose(dependentId, scheduleTime, action, treatments, notes) {
+        if (!dependentId) throw new Error('dependent_id is required');
+        if (!scheduleTime) throw new Error('schedule_time is required');
+        if (!['Taken', 'Skipped'].includes(action)) throw new Error('Invalid action');
+
+        const schedulingPayload = {
+            dependent_id: dependentId,
+            schedule_time: scheduleTime,
+            action: action,
+            notes: notes || null
+        };
+
+        try {
+            // Insert scheduling record
+            const { data: schedulingData, error: schedulingError } = await supabase
+                .from('scheduling')
+                .insert(schedulingPayload)
+                .select()
+                .single();
+
+            if (schedulingError) throw schedulingError;
+            await OfflineDB.set('scheduling', schedulingData.id, schedulingData);
+
+            // If Taken, link treatments and update stock
+            if (action === 'Taken' && treatments && treatments.length > 0) {
+                for (const treatment of treatments) {
+                    // Link treatment to scheduling
+                    const linkPayload = {
+                        scheduling_id: schedulingData.id,
+                        treatment_id: treatment.id
+                    };
+
+                    try {
+                        const { data: linkData, error: linkError } = await supabase
+                            .from('treatments_in_schedule')
+                            .insert(linkPayload)
+                            .select()
+                            .single();
+
+                        if (linkError) throw linkError;
+                        await OfflineDB.set('treatments_in_schedule', linkData.id, linkData);
+                    } catch (linkError) {
+                        await OfflineDB.queueForSync('treatments_in_schedule', 'insert', linkPayload);
+                        console.error('Error linking treatment to schedule:', linkError);
+                    }
+
+                    // Update medication stock
+                    try {
+                        const medication = await this.getMedication(treatment.medication_id);
+                        if (medication) {
+                            const newStock = Math.max(0, (medication.stock_quantity || 0) - (treatment.dosage || 0));
+                            await this.updateMedication(treatment.medication_id, {
+                                stock_quantity: newStock,
+                                stock_last_updated: new Date().toISOString()
+                            });
+                        }
+                    } catch (stockError) {
+                        console.error('Error updating medication stock:', stockError);
+                    }
+                }
+            }
+
+            return schedulingData;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('scheduling', 'insert', schedulingPayload);
+            throw error;
+        }
+    },
+
+    async getMedication(id) {
+        if (!id) return null;
+        try {
+            const { data, error } = await supabase
+                .from('medications')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            return await OfflineDB.get('medications', id);
+        }
+    },
+
     // ========== DASHBOARD STATS (aggregated across all dependents) ==========
 
     async getDashboardStats() {

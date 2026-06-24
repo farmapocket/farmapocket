@@ -47,3 +47,24 @@ O que desejo ter no aplicativo:
 		- Unidades do medicamento
 		- Vencimento
 		- Status (Válida, Vencida ou Utilizada)
+
+	- Agenda de Hoje (Dashboard)
+		- Exibir os dois próximos horários de medicamento do dependente ativo
+		- Cada horário é apresentado em um card com:
+			- Horário da dose
+			- Lista de tratamentos agrupados nesse horário (Medicação e quantidade)
+			- Botões: Tomar e Pular
+		- Lógica para calcular os próximos horários:
+			- Considerar a última entrada na tabela scheduling
+			- Com base nos tratamentos ativos, calcular os dois próximos horários e agrupar os tratamentos
+			- Se a tabela scheduling estiver vazia, usar o horário do sistema como referência
+		- Ação Tomar:
+			- Abrir modal com campo "Observações (opcional)", botões OK e Cancelar
+			- Ao confirmar:
+				- Inserir registro em scheduling com schedule_time, action = 'Taken', notes e dependent_id
+				- Inserir registros em treatments_in_schedule vinculando o scheduling a cada tratamento do card
+				- Atualizar medications.stock_quantity subtraindo a dosagem e medications.stock_last_updated com a data atual
+		- Ação Pular:
+			- Abrir modal com campo "Observações (opcional)", botões OK e Cancelar
+			- Ao confirmar:
+				- Inserir registro em scheduling com schedule_time, action = 'Skipped', notes e dependent_id

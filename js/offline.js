@@ -6,7 +6,7 @@
 const OfflineDB = {
     db: null,
     DB_NAME: 'FarmaPocketDB',
-    DB_VERSION: 2,
+    DB_VERSION: 3,
 
     // Inicializar IndexedDB
     async init() {
@@ -43,6 +43,12 @@ const OfflineDB = {
                 }
                 if (!db.objectStoreNames.contains('prescriptions')) {
                     db.createObjectStore('prescriptions', { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains('scheduling')) {
+                    db.createObjectStore('scheduling', { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains('treatments_in_schedule')) {
+                    db.createObjectStore('treatments_in_schedule', { keyPath: 'id' });
                 }
 
                 // Fila de sincronização

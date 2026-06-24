@@ -103,7 +103,7 @@
                     <h3 class="font-semibold text-gray-800" data-i18n="dashboard.todaySchedule">Agenda de Hoje</h3>
                     <span class="text-xs text-gray-400" id="today-date"></span>
                 </div>
-                <div id="today-schedule" class="p-4">
+                <div id="today-schedule" class="p-4 space-y-3">
                     <p class="text-gray-400 text-sm text-center py-4" data-i18n="dashboard.noSchedule">Nenhum medicamento agendado para hoje</p>
                 </div>
             </div>
@@ -367,6 +367,36 @@
                     <input type="email" name="email" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: joao@email.com">
                 </div>
                 <button type="submit" class="w-full py-3 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 transition-colors" data-i18n="common.save">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Dose Action (Taken/Skipped) -->
+    <div id="modal-dose-action" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center">
+        <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-gray-800" id="dose-action-title">Registrar Dose</h3>
+                <button onclick="closeModal('modal-dose-action')" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">✕</button>
+            </div>
+            <div class="mb-4">
+                <p class="text-sm text-gray-500 mb-1">Horário</p>
+                <p class="text-lg font-semibold text-gray-800" id="dose-action-time">--:--</p>
+            </div>
+            <div class="mb-4">
+                <p class="text-sm text-gray-500 mb-2">Tratamentos</p>
+                <div id="dose-action-treatments" class="space-y-1"></div>
+            </div>
+            <form id="form-dose-action" class="space-y-4">
+                <input type="hidden" id="dose-action-schedule-time" name="schedule_time">
+                <input type="hidden" id="dose-action-type" name="action_type">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Observações (opcional)</label>
+                    <textarea name="notes" rows="3" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Adicione uma observação..."></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeModal('modal-dose-action')" class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors">Cancelar</button>
+                    <button type="submit" class="flex-1 py-3 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 transition-colors">OK</button>
+                </div>
             </form>
         </div>
     </div>

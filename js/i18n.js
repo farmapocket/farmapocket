@@ -69,6 +69,15 @@ const i18n = {
         'medication.addNew': { 'en': 'Add New Medication', 'pt-BR': 'Adicionar Novo Medicamento', 'es': 'Agregar Nuevo Medicamento' },
         'medication.lowStock': { 'en': 'Low Stock', 'pt-BR': 'Estoque Baixo', 'es': 'Stock Bajo' },
 
+        // DOSE ACTION
+        'doseAction.confirmTaken': { 'en': 'Confirm Medication Taken', 'pt-BR': 'Confirmar Medicação Tomada', 'es': 'Confirmar Medicamento Tomado' },
+        'doseAction.confirmSkipped': { 'en': 'Confirm Skipped Medication', 'pt-BR': 'Confirmar Medicação Pulada', 'es': 'Confirmar Medicamento Saltado' },
+        'doseAction.time': { 'en': 'Time', 'pt-BR': 'Horário', 'es': 'Horario' },
+        'doseAction.treatments': { 'en': 'Treatments', 'pt-BR': 'Tratamentos', 'es': 'Tratamientos' },
+        'doseAction.notes': { 'en': 'Notes (optional)', 'pt-BR': 'Observações (opcional)', 'es': 'Observaciones (opcional)' },
+        'doseAction.take': { 'en': 'Take', 'pt-BR': 'Tomar', 'es': 'Tomar' },
+        'doseAction.skip': { 'en': 'Skip', 'pt-BR': 'Pular', 'es': 'Saltar' },
+
         // TREATMENTS
         'treatment.prescribedBy': { 'en': 'Prescribed By', 'pt-BR': 'Prescrito Por', 'es': 'Recetado Por' },
         'treatment.medication': { 'en': 'Medication', 'pt-BR': 'Medicação', 'es': 'Medicación' },
