@@ -286,6 +286,72 @@ const DB = {
         }
     },
 
+    async addTreatment(treatment) {
+        if (!treatment.dependent_id) throw new Error('dependent_id is required');
+        if (!treatment.medication_id) throw new Error('medication_id is required');
+
+        const payload = {
+            ...treatment,
+            is_active: treatment.is_active !== false
+        };
+
+        try {
+            const { data, error } = await supabase
+                .from('treatments')
+                .insert(payload)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('treatments', data.id, data);
+            return data;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('treatments', 'insert', payload);
+            throw error;
+        }
+    },
+
+    async updateTreatment(id, updates) {
+        const payload = {
+            ...updates,
+            updated_at: new Date().toISOString()
+        };
+
+        try {
+            const { data, error } = await supabase
+                .from('treatments')
+                .update(payload)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('treatments', id, data);
+            return data;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('treatments', 'update', { id, ...payload });
+            throw error;
+        }
+    },
+
+    async deleteTreatment(id) {
+        try {
+            const { error } = await supabase
+                .from('treatments')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            await OfflineDB.delete('treatments', id);
+
+        } catch (error) {
+            await OfflineDB.queueForSync('treatments', 'delete', { id });
+            throw error;
+        }
+    },
+
     // ========== DASHBOARD STATS (aggregated across all dependents) ==========
 
     async getDashboardStats() {

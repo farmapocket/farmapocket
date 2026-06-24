@@ -304,7 +304,7 @@ async function loadTreatments() {
             <div class="bg-white rounded-xl p-4 shadow-sm">
                 <div class="flex items-start justify-between mb-2">
                     <div>
-                        <h3 class="font-semibold text-gray-800">${t.medications?.name || 'Medicamento'}</h3>
+                        <h3 class="font-semibold text-gray-800">${t.medications?.name || t.medication_name || 'Medicamento'}</h3>
                         <p class="text-sm text-gray-500">${t.treatment_goal || 'Sem objetivo definido'}</p>
                     </div>
                     ${t.is_active ? '<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Ativo</span>' : '<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Encerrado</span>'}
@@ -312,7 +312,7 @@ async function loadTreatments() {
                 <div class="flex items-center gap-4 text-xs text-gray-500 mt-3">
                     <span class="flex items-center gap-1">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        ${t.dosage} un / ${t.frequency_hours}h
+                        ${t.dosage || 0} un / ${t.frequency_hours || 0}h
                     </span>
                     <span class="flex items-center gap-1">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -328,12 +328,36 @@ async function loadTreatments() {
     }
 }
 
+async function loadTreatmentOptions() {
+    const depId = AppState.getCurrentDependent();
+    if (!depId) return;
+
+    const [medications, professionals] = await Promise.all([
+        DB.getMedications(depId),
+        DB.getProfessionals(depId)
+    ]);
+
+    const medSelect = document.querySelector('#form-treatment select[name="medication_id"]');
+    const profSelect = document.querySelector('#form-treatment select[name="prescribed_by"]');
+
+    if (medSelect) {
+        medSelect.innerHTML = '<option value="">Selecione um medicamento...</option>' +
+            medications.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+    }
+
+    if (profSelect) {
+        profSelect.innerHTML = '<option value="">Selecione um profissional...</option>' +
+            professionals.map(p => `<option value="${p.id}">${p.name}${p.specialty ? ' - ' + p.specialty : ''}</option>`).join('');
+    }
+}
+
 function showAddTreatment() {
     if (!AppState.getCurrentDependent()) {
         alert('Selecione um dependente primeiro');
         return;
     }
-    alert('Modal de tratamento - em desenvolvimento');
+    loadTreatmentOptions();
+    document.getElementById('modal-treatment').classList.remove('hidden');
 }
 
 // ========== PROFESSIONALS ==========
@@ -446,6 +470,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeModal('modal-medication');
                 medForm.reset();
                 loadMedications();
+                loadDashboard();
+
+            } catch (error) {
+                alert('Erro ao salvar: ' + error.message);
+            }
+        });
+    }
+
+    // Treatment form
+    const treatmentForm = document.getElementById('form-treatment');
+    if (treatmentForm) {
+        treatmentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(treatmentForm);
+            const treatment = {
+                dependent_id: AppState.getCurrentDependent(),
+                medication_id: formData.get('medication_id'),
+                prescribed_by: formData.get('prescribed_by') || null,
+                dosage: parseFloat(formData.get('dosage')) || 0,
+                frequency_hours: parseInt(formData.get('frequency_hours')) || 0,
+                first_dose_time: formData.get('first_dose_time') || null,
+                start_date: formData.get('start_date') || null,
+                end_date: formData.get('end_date') || null,
+                treatment_goal: formData.get('treatment_goal') || null,
+                admin_notes: formData.get('admin_notes') || null,
+                is_active: formData.has('is_active')
+            };
+
+            try {
+                await DB.addTreatment(treatment);
+                closeModal('modal-treatment');
+                treatmentForm.reset();
+                loadTreatments();
                 loadDashboard();
 
             } catch (error) {

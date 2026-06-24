@@ -283,6 +283,65 @@
         </div>
     </div>
 
+    <!-- Modal: Add Treatment -->
+    <div id="modal-treatment" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center">
+        <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-gray-800" data-i18n="treatment.addNew">Adicionar Tratamento</h3>
+                <button onclick="closeModal('modal-treatment')" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">✕</button>
+            </div>
+            <form id="form-treatment" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.medication">Medicação</label>
+                    <select name="medication_id" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white">
+                        <option value="">Selecione um medicamento...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.prescribedBy">Prescrito Por</label>
+                    <select name="prescribed_by" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white">
+                        <option value="">Selecione um profissional...</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.dosage">Dosagem (unidades)</label>
+                        <input type="number" name="dosage" min="0.1" step="0.1" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: 1">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.frequency">Frequência (a cada X horas)</label>
+                        <input type="number" name="frequency_hours" min="1" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: 8">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.firstDoseTime">Horário da Primeira Dose</label>
+                    <input type="time" name="first_dose_time" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.startDate">Data de Início</label>
+                    <input type="date" name="start_date" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.endDate">Data de Encerramento</label>
+                    <input type="date" name="end_date" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.goal">Objetivo do Tratamento</label>
+                    <input type="text" name="treatment_goal" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: Tratar hipertensão">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.adminNotes">Observações de Administração</label>
+                    <textarea name="admin_notes" rows="2" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: Tomar após as refeições"></textarea>
+                </div>
+                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer">
+                    <input type="checkbox" name="is_active" checked class="w-4 h-4 text-sky-500 rounded">
+                    <span class="text-sm text-gray-700" data-i18n="treatment.isActive">Tratamento Ativo</span>
+                </label>
+                <button type="submit" class="w-full py-3 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 transition-colors" data-i18n="common.save">Salvar</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal: Add Medication -->
     <div id="modal-medication" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center">
         <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
