@@ -414,7 +414,7 @@ function showAddProfessional() {
         alert('Selecione um dependente primeiro');
         return;
     }
-    alert('Modal de profissional - em desenvolvimento');
+    document.getElementById('modal-professional').classList.remove('hidden');
 }
 
 // ========== FORM HANDLERS ==========
@@ -495,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 start_date: formData.get('start_date') || null,
                 end_date: formData.get('end_date') || null,
                 treatment_goal: formData.get('treatment_goal') || null,
-                admin_notes: formData.get('admin_notes') || null,
+                administration_notes: formData.get('admin_notes') || null,
                 is_active: formData.has('is_active')
             };
 
@@ -504,6 +504,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeModal('modal-treatment');
                 treatmentForm.reset();
                 loadTreatments();
+                loadDashboard();
+
+            } catch (error) {
+                alert('Erro ao salvar: ' + error.message);
+            }
+        });
+    }
+
+    // Professional form
+    const profForm = document.getElementById('form-professional');
+    if (profForm) {
+        profForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(profForm);
+            const professional = {
+                dependent_id: AppState.getCurrentDependent(),
+                name: formData.get('name'),
+                specialty: formData.get('specialty') || null,
+                phone: formData.get('phone') || null,
+                email: formData.get('email') || null
+            };
+
+            try {
+                await DB.addProfessional(professional);
+                closeModal('modal-professional');
+                profForm.reset();
+                loadProfessionals();
                 loadDashboard();
 
             } catch (error) {
