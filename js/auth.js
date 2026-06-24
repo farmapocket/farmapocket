@@ -19,6 +19,7 @@ const Auth = {
         console.log('📍 Current URL:', window.location.href);
         console.log('📍 Origin:', window.location.origin);
         console.log('📍 Pathname:', window.location.pathname);
+        console.log('🔎 Has OAuth tokens in URL:', this.hasOAuthTokensInUrl());
 
         // Verificar se supabase está disponível
         if (typeof supabase === 'undefined') {
@@ -27,6 +28,10 @@ const Auth = {
             return;
         }
         console.log('✅ Supabase client available');
+
+        // Primeiro, tentar processar callback OAuth que pode estar na URL
+        // (pode voltar para index.html ou app.html dependendo da configuração)
+        await this.handleOAuthCallback();
 
         // Verificar sessão existente
         try {
@@ -43,13 +48,20 @@ const Auth = {
                 this.updateUI();
 
                 // Se estiver na página de login e já tiver sessão, redirecionar
-                if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
+                if (this.isLoginPage()) {
                     console.log('🔄 Already logged in, redirecting to app.html...');
                     window.location.href = 'app.html';
                     return;
                 }
             } else {
                 console.log('ℹ️ No active session');
+
+                // Se estiver em app.html sem sessão, voltar para login
+                if (this.isAppPage()) {
+                    console.log('🔄 No session on app page, redirecting to index.html...');
+                    window.location.href = 'index.html';
+                    return;
+                }
             }
         } catch (e) {
             console.error('❌ Error checking session:', e);
@@ -65,7 +77,7 @@ const Auth = {
                 this.updateUI();
 
                 // Redirecionar para app se estiver na página de login
-                if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname === '') {
+                if (this.isLoginPage()) {
                     console.log('🔄 Redirecting to app.html...');
                     window.location.href = 'app.html';
                 }
@@ -85,6 +97,75 @@ const Auth = {
         console.log('🔐 Auth.init() completed');
     },
 
+    // Verifica se a URL atual contém tokens OAuth (hash ou query)
+    hasOAuthTokensInUrl() {
+        const hash = window.location.hash;
+        const search = window.location.search;
+        return hash.includes('access_token=') ||
+               hash.includes('refresh_token=') ||
+               search.includes('access_token=') ||
+               search.includes('refresh_token=') ||
+               search.includes('code=');
+    },
+
+    // Verifica se está na página de login
+    isLoginPage() {
+        const path = window.location.pathname;
+        return path.includes('index.html') || path === '/' || path === '' || path.endsWith('/');
+    },
+
+    // Verifica se está na página do app
+    isAppPage() {
+        return window.location.pathname.includes('app.html');
+    },
+
+    // Processa callback OAuth manualmente se necessário
+    async handleOAuthCallback() {
+        if (!this.hasOAuthTokensInUrl()) {
+            return;
+        }
+
+        console.log('🔄 OAuth callback detected, processing...');
+        this.showLoading(true);
+
+        try {
+            // O Supabase com detectSessionInUrl:true já processa automaticamente,
+            // mas aguardamos um pouco para garantir que a sessão foi estabelecida
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const { data: { session }, error } = await supabase.auth.getSession();
+
+            if (error) {
+                console.error('❌ OAuth callback error:', error);
+                this.showError('Erro ao processar login: ' + error.message);
+                return;
+            }
+
+            if (session) {
+                console.log('✅ OAuth callback successful:', session.user.email);
+                this.currentUser = session.user;
+                this.updateUI();
+
+                // Limpar tokens da URL para segurança
+                if (window.history && window.history.replaceState) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+
+                // Redirecionar para o app se ainda estiver na página de login
+                if (this.isLoginPage()) {
+                    console.log('🔄 OAuth callback on login page, redirecting to app.html...');
+                    window.location.href = 'app.html';
+                }
+            } else {
+                console.warn('⚠️ OAuth callback detected but no session found');
+            }
+        } catch (e) {
+            console.error('❌ Error handling OAuth callback:', e);
+        } finally {
+            this.showLoading(false);
+        }
+    },
+
     // Login com Google
     async signInWithGoogle() {
         console.log('🔑 Starting Google Sign-In...');
@@ -96,14 +177,11 @@ const Auth = {
 
             // Detectar URL correta para redirect
             const currentOrigin = window.location.origin;
+            const pathname = window.location.pathname;
             const isLocalhost = currentOrigin.includes('localhost') || currentOrigin.includes('127.0.0.1');
 
-            let redirectUrl;
-            if (isLocalhost) {
-                redirectUrl = currentOrigin + '/app.html';
-            } else {
-                redirectUrl = currentOrigin + '/app.html';
-            }
+            // Se já estiver em subpasta (ex: /pt/app.html), mantém a estrutura
+            let redirectUrl = currentOrigin + '/app.html';
 
             console.log('🔄 Redirect URL:', redirectUrl);
             console.log('🔄 Is localhost:', isLocalhost);
@@ -128,7 +206,13 @@ const Auth = {
             console.log('✅ OAuth initiated successfully');
             console.log('📍 Provider URL:', data?.url);
 
-            // O redirecionamento acontece automaticamente
+            // Se por algum motivo o redirecionamento automático não acontecer,
+            // fazemos manualmente
+            if (data?.url) {
+                console.log('🔄 Redirecting to provider URL...');
+                window.location.href = data.url;
+            }
+
             return data;
 
         } catch (error) {
