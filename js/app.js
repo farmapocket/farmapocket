@@ -131,11 +131,28 @@ function selectDependent(id) {
 }
 
 function showAddDependent() {
-    document.getElementById('modal-dependent').classList.remove('hidden');
+    openModal('modal-dependent');
 }
 
 function closeModal(modalId) {
     document.getElementById(modalId).classList.add('hidden');
+}
+
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('hidden');
+        // Rolar o conteúdo do modal para o topo
+        const content = modal.querySelector('.bg-white');
+        if (content) {
+            content.scrollTop = 0;
+        }
+        modal.scrollTop = 0;
+    }
+}
+
+function scrollPageToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ========== DASHBOARD ==========
@@ -259,7 +276,7 @@ function showAddMedication() {
         alert('Selecione um dependente primeiro');
         return;
     }
-    document.getElementById('modal-medication').classList.remove('hidden');
+    openModal('modal-medication');
 }
 
 function showMedicationDetail(id) {
@@ -357,7 +374,7 @@ function showAddTreatment() {
         return;
     }
     loadTreatmentOptions();
-    document.getElementById('modal-treatment').classList.remove('hidden');
+    openModal('modal-treatment');
 }
 
 // ========== PROFESSIONALS ==========
@@ -414,7 +431,7 @@ function showAddProfessional() {
         alert('Selecione um dependente primeiro');
         return;
     }
-    document.getElementById('modal-professional').classList.remove('hidden');
+    openModal('modal-professional');
 }
 
 // ========== FORM HANDLERS ==========
@@ -442,6 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Atualizar lista e selecionar o novo
                 await loadDependents();
                 selectDependent(newDep.id);
+                scrollPageToTop();
 
             } catch (error) {
                 alert('Erro ao salvar: ' + error.message);
@@ -471,6 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 medForm.reset();
                 loadMedications();
                 loadDashboard();
+                scrollPageToTop();
 
             } catch (error) {
                 alert('Erro ao salvar: ' + error.message);
@@ -505,6 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 treatmentForm.reset();
                 loadTreatments();
                 loadDashboard();
+                scrollPageToTop();
 
             } catch (error) {
                 alert('Erro ao salvar: ' + error.message);
@@ -533,6 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 profForm.reset();
                 loadProfessionals();
                 loadDashboard();
+                scrollPageToTop();
 
             } catch (error) {
                 alert('Erro ao salvar: ' + error.message);
