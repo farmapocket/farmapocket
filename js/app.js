@@ -157,13 +157,23 @@ function scrollPageToTop() {
 
 // ========== DASHBOARD ==========
 
+function safeSetText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+function safeSetHtml(id, html) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+}
+
 async function loadDashboard() {
     try {
         // Stats
         const stats = await DB.getDashboardStats();
-        document.getElementById('stat-dependents').textContent = stats.dependents;
-        document.getElementById('stat-medications').textContent = stats.medications;
-        document.getElementById('stat-treatments').textContent = stats.treatments;
+        safeSetText('stat-dependents', stats.dependents);
+        safeSetText('stat-medications', stats.medications);
+        safeSetText('stat-treatments', stats.treatments);
 
         // Data de hoje
         const today = new Date().toLocaleDateString('pt-BR', { 
@@ -171,13 +181,12 @@ async function loadDashboard() {
             day: 'numeric', 
             month: 'short' 
         });
-        document.getElementById('today-date').textContent = today;
+        safeSetText('today-date', today);
 
         // Low stock alerts
         const lowStock = await DB.getLowStockAlerts();
-        const lowStockEl = document.getElementById('low-stock-list');
         if (lowStock.length > 0) {
-            lowStockEl.innerHTML = lowStock.map(item => `
+            safeSetHtml('low-stock-list', lowStock.map(item => `
                 <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                     <div>
                         <p class="font-medium text-gray-800">${item.medication_name}</p>
@@ -186,16 +195,15 @@ async function loadDashboard() {
                     </div>
                     <span class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">Estoque Baixo</span>
                 </div>
-            `).join('');
+            `).join(''));
         } else {
-            lowStockEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Nenhum alerta no momento</p>';
+            safeSetHtml('low-stock-list', '<p class="text-gray-400 text-sm text-center py-4">Nenhum alerta no momento</p>');
         }
 
         // Expiring prescriptions
         const expiring = await DB.getExpiringPrescriptions();
-        const expiringEl = document.getElementById('expiring-prescriptions');
         if (expiring.length > 0) {
-            expiringEl.innerHTML = expiring.map(item => `
+            safeSetHtml('expiring-prescriptions', expiring.map(item => `
                 <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                     <div>
                         <p class="font-medium text-gray-800">${item.medication_name}</p>
@@ -204,9 +212,9 @@ async function loadDashboard() {
                     </div>
                     <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">Vencendo</span>
                 </div>
-            `).join('');
+            `).join(''));
         } else {
-            expiringEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Nenhum receituário próximo do vencimento</p>';
+            safeSetHtml('expiring-prescriptions', '<p class="text-gray-400 text-sm text-center py-4">Nenhum receituário próximo do vencimento</p>');
         }
 
         // Today's schedule
