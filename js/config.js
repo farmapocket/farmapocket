@@ -18,6 +18,7 @@ const CONFIG = {
     SUPABASE_URL: 'https://ezhzmvbrfepweyuporvk.supabase.co',
     SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6aHptdmJyZmVwd2V5dXBvcnZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MTI1MTAsImV4cCI6MjA5NzM4ODUxMH0.gQXkUCL-lIZZM4QG61rE1tku8FF5AjbSGNPI2jGKQcs',
 
+
     // Configurações do app
     APP_NAME: 'FarmaPocket',
     APP_VERSION: '1.0.0',
@@ -30,18 +31,29 @@ const CONFIG = {
     CACHE_MAX_AGE: 1000 * 60 * 5,  // 5 minutos
 };
 
+// ============================================================
 // Inicializar cliente Supabase
-const supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
-    auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-        storage: localStorage
-    },
-    db: {
-        schema: 'public'
-    }
-});
+// ============================================================
+// O CDN do Supabase cria 'window.supabase' como um namespace.
+// NÃO podemos usar 'const supabase = ...' porque isso redeclararia.
+// Usamos window.supabase diretamente para criar o cliente.
+
+if (typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function') {
+    window.supabase = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
+        auth: {
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: true,
+            storage: localStorage
+        },
+        db: {
+            schema: 'public'
+        }
+    });
+    console.log('✅ Supabase client initialized');
+} else {
+    console.error('❌ Supabase library not loaded. Check if the CDN script is included before config.js');
+}
 
 // Verificar se as configurações foram preenchidas
 if (CONFIG.SUPABASE_URL.includes('SEU-PROJETO')) {
@@ -50,4 +62,3 @@ if (CONFIG.SUPABASE_URL.includes('SEU-PROJETO')) {
 
 // Exportar para uso global
 window.CONFIG = CONFIG;
-window.supabase = supabase;
