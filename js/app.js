@@ -59,6 +59,19 @@ async function loadDependents() {
     }
 }
 
+// Renderiza o avatar de um dependente (URL de imagem ou emoji/texto)
+function renderDependentAvatar(avatarUrl) {
+    if (!avatarUrl) {
+        return '<span class="text-lg">👤</span>';
+    }
+    // Se for uma URL, renderiza como imagem
+    if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://') || avatarUrl.startsWith('data:')) {
+        return `<img src="${avatarUrl}" alt="" class="w-6 h-6 rounded-full object-cover">`;
+    }
+    // Caso contrário, trata como emoji/texto
+    return `<span class="text-lg">${avatarUrl}</span>`;
+}
+
 function renderDependentSelector() {
     const selector = document.getElementById('dependent-selector');
     if (!selector) return;
@@ -91,7 +104,7 @@ function renderDependentSelector() {
                             : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                     }"
                 >
-                    <span class="text-lg">${dep.avatar_url || '👤'}</span>
+                    ${renderDependentAvatar(dep.avatar_url)}
                     <span class="font-medium text-sm whitespace-nowrap">${dep.name}</span>
                 </button>
             `).join('')}
