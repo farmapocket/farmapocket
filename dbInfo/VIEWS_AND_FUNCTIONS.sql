@@ -90,31 +90,7 @@ LEFT JOIN dependents d ON p.dependent_id = d.id
 LEFT JOIN healthcare_professionals hp ON p.prescribed_by = hp.id
 LEFT JOIN medications m ON p.medication_id = m.id;
 
--- NOTE: The following tables are also defined here for convenience.
--- They are dropped and recreated. If you prefer to keep data, move them
--- to TABLES_SCHEMA.sql and use CREATE TABLE IF NOT EXISTS instead.
-DROP TABLE IF EXISTS public.treatments_in_schedule;
-DROP TABLE IF EXISTS public.scheduling;
 
-CREATE TABLE public.scheduling (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  dependent_id uuid,
-  schedule_time text,
-  action text CHECK (action = ANY (ARRAY['Taken'::text, 'Skipped'::text])),
-  notes text,
-  CONSTRAINT scheduling_pkey PRIMARY KEY (id),
-  CONSTRAINT scheduling_dependent_id_fkey FOREIGN KEY (dependent_id) REFERENCES public.dependents(id)
-);
-
-CREATE TABLE public.treatments_in_schedule (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  scheduling_id uuid,
-  treatment_id uuid,
-  CONSTRAINT treatments_in_schedule_pkey PRIMARY KEY (id),
-  CONSTRAINT treatments_in_schedule_scheduling_id_fkey FOREIGN KEY (scheduling_id) REFERENCES public.scheduling(id),
-  CONSTRAINT treatments_in_schedule_treatment_id_fkey FOREIGN KEY (treatment_id) REFERENCES public.treatments(id)
-);
 
 -- ============================================================
 -- FUNCTIONS & TRIGGERS

@@ -65,6 +65,7 @@ const i18n = {
         'medication.activeIngredient': { 'en': 'Active Ingredient', 'pt-BR': 'Princípio Ativo', 'es': 'Principio Activo' },
         'medication.isControlled': { 'en': 'Controlled Substance', 'pt-BR': 'Medicamento Controlado', 'es': 'Medicamento Controlado' },
         'medication.isContinuousUse': { 'en': 'Continuous Use', 'pt-BR': 'Uso Contínuo', 'es': 'Uso Continuo' },
+        'medication.isRescue': { 'en': 'Rescue Medication', 'pt-BR': 'Medicação de Resgate', 'es': 'Medicamento de Rescate' },
         'medication.stockQuantity': { 'en': 'Stock Quantity', 'pt-BR': 'Quantidade em Estoque', 'es': 'Cantidad en Stock' },
         'medication.addNew': { 'en': 'Add New Medication', 'pt-BR': 'Adicionar Novo Medicamento', 'es': 'Agregar Nuevo Medicamento' },
         'medication.edit': { 'en': 'Edit Medication', 'pt-BR': 'Editar Medicamento', 'es': 'Editar Medicamento' },
@@ -92,6 +93,13 @@ const i18n = {
         'doseAction.notes': { 'en': 'Notes (optional)', 'pt-BR': 'Observações (opcional)', 'es': 'Observaciones (opcional)' },
         'doseAction.take': { 'en': 'Take', 'pt-BR': 'Tomar', 'es': 'Tomar' },
         'doseAction.skip': { 'en': 'Skip', 'pt-BR': 'Pular', 'es': 'Saltar' },
+        'doseAction.revert': { 'en': 'Revert', 'pt-BR': 'Reverter', 'es': 'Revertir' },
+        'doseAction.confirmRevert': { 'en': 'Revert last registered dose?', 'pt-BR': 'Deseja reverter a última dose registrada?', 'es': '¿Desea revertir la última dosis registrada?' },
+        'doseAction.noDoseToRevert': { 'en': 'No dose to revert', 'pt-BR': 'Nenhuma dose para reverter', 'es': 'Ninguna dosis para revertir' },
+        'doseAction.extraMedications': { 'en': 'Additional Medications', 'pt-BR': 'Medicações adicionais', 'es': 'Medicamentos adicionales' },
+        'doseAction.addMedication': { 'en': '+ Add Medication', 'pt-BR': '+ Adicionar medicação', 'es': '+ Agregar medicamento' },
+        'doseAction.remove': { 'en': 'Remove', 'pt-BR': 'Remover', 'es': 'Eliminar' },
+        'doseAction.quantity': { 'en': 'Qty', 'pt-BR': 'Qtd', 'es': 'Cant' },
 
         // TREATMENTS
         'treatment.prescribedBy': { 'en': 'Prescribed By', 'pt-BR': 'Prescrito Por', 'es': 'Recetado Por' },

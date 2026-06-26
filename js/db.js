@@ -545,7 +545,7 @@ const DB = {
         return new Date(date.getTime() - offset).toISOString().slice(0, 19);
     },
 
-    async recordDose(dependentId, scheduleTime, action, treatments, notes) {
+    async recordDose(dependentId, scheduleTime, action, treatments, notes, extraMedications = []) {
         if (!dependentId) throw new Error('dependent_id is required');
         if (!scheduleTime) throw new Error('schedule_time is required');
         if (!['Taken', 'Skipped'].includes(action)) throw new Error('Invalid action');
@@ -569,40 +569,87 @@ const DB = {
             await OfflineDB.set('scheduling', schedulingData.id, schedulingData);
 
             // If Taken, link treatments and update stock
-            if (action === 'Taken' && treatments && treatments.length > 0) {
-                for (const treatment of treatments) {
-                    // Link treatment to scheduling
-                    const linkPayload = {
-                        scheduling_id: schedulingData.id,
-                        treatment_id: treatment.id
-                    };
+            if (action === 'Taken') {
+                // Scheduled treatments
+                if (treatments && treatments.length > 0) {
+                    for (const treatment of treatments) {
+                        // Link treatment to scheduling
+                        const linkPayload = {
+                            scheduling_id: schedulingData.id,
+                            treatment_id: treatment.id,
+                            medication_id: treatment.medication_id,
+                            dosage: treatment.dosage || 0
+                        };
 
-                    try {
-                        const { data: linkData, error: linkError } = await supabase
-                            .from('treatments_in_schedule')
-                            .insert(linkPayload)
-                            .select()
-                            .single();
+                        try {
+                            const { data: linkData, error: linkError } = await supabase
+                                .from('treatments_in_schedule')
+                                .insert(linkPayload)
+                                .select()
+                                .single();
 
-                        if (linkError) throw linkError;
-                        await OfflineDB.set('treatments_in_schedule', linkData.id, linkData);
-                    } catch (linkError) {
-                        await OfflineDB.queueForSync('treatments_in_schedule', 'insert', linkPayload);
-                        console.error('Error linking treatment to schedule:', linkError);
-                    }
-
-                    // Update medication stock
-                    try {
-                        const medication = await this.getMedication(treatment.medication_id);
-                        if (medication) {
-                            const newStock = Math.max(0, (medication.stock_quantity || 0) - (treatment.dosage || 0));
-                            await this.updateMedication(treatment.medication_id, {
-                                stock_quantity: newStock,
-                                stock_last_updated: new Date().toISOString()
-                            });
+                            if (linkError) throw linkError;
+                            await OfflineDB.set('treatments_in_schedule', linkData.id, linkData);
+                        } catch (linkError) {
+                            await OfflineDB.queueForSync('treatments_in_schedule', 'insert', linkPayload);
+                            console.error('Error linking treatment to schedule:', linkError);
                         }
-                    } catch (stockError) {
-                        console.error('Error updating medication stock:', stockError);
+
+                        // Update medication stock
+                        try {
+                            const medication = await this.getMedication(treatment.medication_id);
+                            if (medication) {
+                                const newStock = Math.max(0, (medication.stock_quantity || 0) - (treatment.dosage || 0));
+                                await this.updateMedication(treatment.medication_id, {
+                                    stock_quantity: newStock,
+                                    stock_last_updated: new Date().toISOString()
+                                });
+                            }
+                        } catch (stockError) {
+                            console.error('Error updating medication stock:', stockError);
+                        }
+                    }
+                }
+
+                // Extra medications (not linked to an active treatment)
+                if (extraMedications && extraMedications.length > 0) {
+                    for (const extra of extraMedications) {
+                        if (!extra.medication_id || !extra.dosage) continue;
+
+                        const linkPayload = {
+                            scheduling_id: schedulingData.id,
+                            treatment_id: null,
+                            medication_id: extra.medication_id,
+                            dosage: parseFloat(extra.dosage) || 0
+                        };
+
+                        try {
+                            const { data: linkData, error: linkError } = await supabase
+                                .from('treatments_in_schedule')
+                                .insert(linkPayload)
+                                .select()
+                                .single();
+
+                            if (linkError) throw linkError;
+                            await OfflineDB.set('treatments_in_schedule', linkData.id, linkData);
+                        } catch (linkError) {
+                            await OfflineDB.queueForSync('treatments_in_schedule', 'insert', linkPayload);
+                            console.error('Error linking extra medication to schedule:', linkError);
+                        }
+
+                        // Update medication stock
+                        try {
+                            const medication = await this.getMedication(extra.medication_id);
+                            if (medication) {
+                                const newStock = Math.max(0, (medication.stock_quantity || 0) - linkPayload.dosage);
+                                await this.updateMedication(extra.medication_id, {
+                                    stock_quantity: newStock,
+                                    stock_last_updated: new Date().toISOString()
+                                });
+                            }
+                        } catch (stockError) {
+                            console.error('Error updating extra medication stock:', stockError);
+                        }
                     }
                 }
             }
@@ -612,6 +659,108 @@ const DB = {
         } catch (error) {
             await OfflineDB.queueForSync('scheduling', 'insert', schedulingPayload);
             throw error;
+        }
+    },
+
+    async revertLastDose(dependentId) {
+        if (!dependentId) throw new Error('dependent_id is required');
+
+        const lastScheduling = await this.getLastScheduling(dependentId);
+        if (!lastScheduling) {
+            throw new Error('Nenhuma dose para reverter');
+        }
+
+        try {
+            // If Taken, restore medication stock and delete treatment links
+            if (lastScheduling.action === 'Taken') {
+                try {
+                    const { data: links, error: linksError } = await supabase
+                        .from('treatments_in_schedule')
+                        .select('*')
+                        .eq('scheduling_id', lastScheduling.id);
+
+                    if (linksError) throw linksError;
+
+                    if (links && links.length > 0) {
+                        for (const link of links) {
+                            // Restore stock
+                            try {
+                                const medicationId = link.medication_id;
+                                const dosage = parseFloat(link.dosage) || 0;
+
+                                if (medicationId && dosage > 0) {
+                                    const medication = await this.getMedication(medicationId);
+                                    if (medication) {
+                                        const restoredStock = (medication.stock_quantity || 0) + dosage;
+                                        await this.updateMedication(medicationId, {
+                                            stock_quantity: restoredStock,
+                                            stock_last_updated: new Date().toISOString()
+                                        });
+                                    }
+                                }
+                            } catch (stockError) {
+                                console.error('Error restoring medication stock:', stockError);
+                            }
+
+                            // Delete link
+                            try {
+                                const { error: deleteLinkError } = await supabase
+                                    .from('treatments_in_schedule')
+                                    .delete()
+                                    .eq('id', link.id);
+
+                                if (deleteLinkError) throw deleteLinkError;
+                                await OfflineDB.delete('treatments_in_schedule', link.id);
+                            } catch (deleteLinkError) {
+                                await OfflineDB.queueForSync('treatments_in_schedule', 'delete', { id: link.id });
+                                console.error('Error deleting treatment_in_schedule:', deleteLinkError);
+                            }
+                        }
+                    }
+                } catch (linksError) {
+                    console.error('Error fetching treatments_in_schedule:', linksError);
+                }
+            }
+
+            // Delete scheduling record
+            try {
+                const { error: deleteSchedulingError } = await supabase
+                    .from('scheduling')
+                    .delete()
+                    .eq('id', lastScheduling.id);
+
+                if (deleteSchedulingError) throw deleteSchedulingError;
+                await OfflineDB.delete('scheduling', lastScheduling.id);
+
+            } catch (deleteSchedulingError) {
+                await OfflineDB.queueForSync('scheduling', 'delete', { id: lastScheduling.id });
+                throw deleteSchedulingError;
+            }
+
+            return lastScheduling;
+
+        } catch (error) {
+            // If overall Supabase fails, reflect locally and queue individual operations
+            try {
+                await OfflineDB.delete('scheduling', lastScheduling.id);
+            } catch (e) { /* ignore */ }
+            throw error;
+        }
+    },
+
+    async getTreatment(id) {
+        if (!id) return null;
+        try {
+            const { data, error } = await supabase
+                .from('treatments')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            return await OfflineDB.get('treatments', id);
         }
     },
 

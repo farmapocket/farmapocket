@@ -275,6 +275,9 @@ async function loadTodaySchedule() {
                         <button onclick="showDoseActionModal('Skipped', '${timeStr}', '${scheduleJson}')" class="w-24 py-1.5 bg-amber-500 text-white rounded-lg font-medium text-sm hover:bg-amber-600 transition-colors">
                             PULAR
                         </button>
+                        <button onclick="revertLastDose()" class="w-24 py-1.5 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 transition-colors">
+                            REVERTER
+                        </button>
                     </div>
                     <div class="flex-1 pt-1">
                         ${schedule.treatments.map(t => `
@@ -291,13 +294,14 @@ async function loadTodaySchedule() {
     }
 }
 
-function showDoseActionModal(action, timeStr, scheduleJson) {
+async function showDoseActionModal(action, timeStr, scheduleJson) {
     const schedule = JSON.parse(decodeURIComponent(scheduleJson));
     currentDoseSchedule = { ...schedule, action };
 
     const titleEl = document.getElementById('dose-action-title');
     const timeEl = document.getElementById('dose-action-time');
     const treatmentsEl = document.getElementById('dose-action-treatments');
+    const extraContainer = document.getElementById('dose-action-extra-medications');
     const scheduleTimeInput = document.getElementById('dose-action-schedule-time');
     const actionTypeInput = document.getElementById('dose-action-type');
     const form = document.getElementById('form-dose-action');
@@ -314,8 +318,61 @@ function showDoseActionModal(action, timeStr, scheduleJson) {
         </div>
     `).join('');
 
+    // Reset and load extra medications
+    extraContainer.innerHTML = '';
+    await loadDoseActionMedicationOptions();
+
     form.reset();
     openModal('modal-dose-action');
+}
+
+async function loadDoseActionMedicationOptions() {
+    const depId = AppState.getCurrentDependent();
+    if (!depId) return [];
+
+    const medications = await DB.getMedications(depId);
+    window._doseActionMedications = medications;
+    return medications;
+}
+
+function addExtraMedicationRow() {
+    const container = document.getElementById('dose-action-extra-medications');
+    const medications = window._doseActionMedications || [];
+
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2 bg-gray-50 rounded-lg p-2';
+    row.innerHTML = `
+        <select class="extra-medication-id flex-1 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white text-sm">
+            <option value="">Selecione...</option>
+            ${medications.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
+        </select>
+        <input type="number" min="0.1" step="0.1" class="extra-medication-dosage w-20 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm" placeholder="Qtd">
+        <button type="button" onclick="this.closest('.bg-gray-50').remove()" class="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-lg" title="Remover">
+            ✕
+        </button>
+    `;
+    container.appendChild(row);
+}
+
+async function revertLastDose() {
+    const depId = AppState.getCurrentDependent();
+    if (!depId) {
+        alert('Selecione um dependente primeiro');
+        return;
+    }
+
+    if (!confirm(i18n.t('doseAction.confirmRevert'))) {
+        return;
+    }
+
+    try {
+        await DB.revertLastDose(depId);
+        loadTodaySchedule();
+        loadDashboard();
+        scrollPageToTop();
+    } catch (error) {
+        alert(error.message || 'Erro ao reverter dose');
+    }
 }
 
 // ========== MEDICATIONS ==========
@@ -359,6 +416,7 @@ async function loadMedications() {
                         <div class="flex items-center gap-2 mt-2">
                             ${med.is_controlled ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Controlado</span>' : ''}
                             ${med.is_continuous_use ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Uso Contínuo</span>' : ''}
+                            ${med.is_rescue_medication ? '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">Resgate</span>' : ''}
                             <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${med.stock_quantity || 0} un</span>
                         </div>
                     </div>
@@ -408,6 +466,7 @@ async function editMedication(id) {
     form.querySelector('[name="active_ingredient"]').value = medication.active_ingredient || '';
     form.querySelector('[name="is_controlled"]').checked = medication.is_controlled === true;
     form.querySelector('[name="is_continuous_use"]').checked = medication.is_continuous_use === true;
+    form.querySelector('[name="is_rescue_medication"]').checked = medication.is_rescue_medication === true;
     form.querySelector('[name="stock_quantity"]').value = medication.stock_quantity || 0;
 
     document.querySelector('#modal-medication h3').textContent = i18n.t('medication.edit');
@@ -843,6 +902,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 active_ingredient: formData.get('active_ingredient') || null,
                 is_controlled: formData.has('is_controlled'),
                 is_continuous_use: formData.has('is_continuous_use'),
+                is_rescue_medication: formData.has('is_rescue_medication'),
                 stock_quantity: parseInt(formData.get('stock_quantity')) || 0
             };
 
@@ -984,16 +1044,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const notes = formData.get('notes');
             const depId = AppState.getCurrentDependent();
 
+            // Collect extra medications
+            const extraMedications = [];
+            document.querySelectorAll('#dose-action-extra-medications .bg-gray-50').forEach(row => {
+                const medId = row.querySelector('.extra-medication-id')?.value;
+                const dosage = row.querySelector('.extra-medication-dosage')?.value;
+                if (medId && dosage) {
+                    extraMedications.push({ medication_id: medId, dosage: parseFloat(dosage) });
+                }
+            });
+
             try {
                 await DB.recordDose(
                     depId,
                     currentDoseSchedule.time,
                     currentDoseSchedule.action,
                     currentDoseSchedule.treatments,
-                    notes
+                    notes,
+                    extraMedications
                 );
                 closeModal('modal-dose-action');
                 doseActionForm.reset();
+                document.getElementById('dose-action-extra-medications').innerHTML = '';
                 currentDoseSchedule = null;
                 loadTodaySchedule();
                 loadDashboard();
@@ -1069,5 +1141,7 @@ window.editPrescription = editPrescription;
 window.deletePrescription = deletePrescription;
 window.togglePrescriptionUsedDate = togglePrescriptionUsedDate;
 window.showDoseActionModal = showDoseActionModal;
+window.addExtraMedicationRow = addExtraMedicationRow;
+window.revertLastDose = revertLastDose;
 window.closeModal = closeModal;
 window.exportData = exportData;

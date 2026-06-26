@@ -50,6 +50,8 @@ ON dependents FOR ALL
 USING (account_owner_id = auth.uid());
 
 -- Medications: user sees medications of dependents they own
+-- Note: medications includes is_rescue_medication (boolean DEFAULT false).
+-- Row-level access below covers all columns, including new ones.
 CREATE POLICY "Users can only access medications of their dependents"
 ON medications FOR ALL
 USING (
@@ -126,7 +128,7 @@ USING (
     )
 );
 
--- Treatments in schedule: user can only link treatments they own
+-- Treatments in schedule: user can only link treatments or medications they own
 CREATE POLICY "Users can only access treatments_in_schedule of their dependents"
 ON treatments_in_schedule FOR ALL
 USING (
@@ -134,6 +136,13 @@ USING (
         SELECT 1 FROM treatments t
         JOIN dependents d ON t.dependent_id = d.id
         WHERE t.id = treatments_in_schedule.treatment_id
+        AND d.account_owner_id = auth.uid()
+    )
+    OR
+    EXISTS (
+        SELECT 1 FROM medications m
+        JOIN dependents d ON m.dependent_id = d.id
+        WHERE m.id = treatments_in_schedule.medication_id
         AND d.account_owner_id = auth.uid()
     )
 );

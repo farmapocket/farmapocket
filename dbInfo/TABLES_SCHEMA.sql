@@ -43,6 +43,7 @@ CREATE TABLE public.medications (
   leaflet_url text,
   is_controlled boolean DEFAULT false,
   is_continuous_use boolean DEFAULT false,
+  is_rescue_medication boolean DEFAULT false,
   laboratory_id uuid,
   category_id uuid,
   subcategory_id uuid,
@@ -143,11 +144,15 @@ CREATE TABLE public.scheduling (
   CONSTRAINT scheduling_pkey PRIMARY KEY (id),
   CONSTRAINT scheduling_dependent_id_fkey FOREIGN KEY (dependent_id) REFERENCES public.dependents(id)
 );
+
 CREATE TABLE public.treatments_in_schedule (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   scheduling_id uuid,
   treatment_id uuid,
+  medication_id uuid,
+  dosage numeric DEFAULT 0,
   CONSTRAINT treatments_in_schedule_pkey PRIMARY KEY (id),
   CONSTRAINT treatments_in_schedule_scheduling_id_fkey FOREIGN KEY (scheduling_id) REFERENCES public.scheduling(id),
-  CONSTRAINT treatments_in_schedule_treatment_id_fkey FOREIGN KEY (treatment_id) REFERENCES public.treatments(id)
+  CONSTRAINT treatments_in_schedule_treatment_id_fkey FOREIGN KEY (treatment_id) REFERENCES public.treatments(id),
+  CONSTRAINT treatments_in_schedule_medication_id_fkey FOREIGN KEY (medication_id) REFERENCES public.medications(id)
 );
