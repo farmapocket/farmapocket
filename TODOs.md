@@ -2,12 +2,18 @@
 
 ## Próximos passos
 
+- incluir um card abaixo de "Próximas doses". Neste card, aparecerá a última ação registrada em "scheduling" e "treatments_in_schedule". Nos mesmos moldes do card acima, mas abaixo do horário teremos a informação se as medicações foram tomadas ou puladas, e vamos mover o botão "Reverter" para esse card.
+---
+- Incluir dentro da tela de configurações um botão para uma tela de log que mostra os últimos registros das tabelas "scheduling" e "treatments_in_schedule"
+---
 - Nos campos de seleção de medicação, seria interessante uma opção de inclusão rápida para medicações que não existem na tabela. Essa opção abriria a tela de cadastro de medicação e ao final preencheria o seletor com a medicação nova
 ---
 - No card de medicação, incluir a informação de quantas receitas existem para aquela medicação
 ---
 - Implementar cadastro de sintomas
-    - Sinalizar se o sintoma é bom, neutro ou ruim
+    - Sinalizar se o sintoma é bom, neutro ou ruim (botões com carinhas)
+---
+- Implementar cadastro de procedimentos
 ---
 - Implementar a lógica de vencimento das receitas, com:
     - Alerta para marcar consulta
@@ -15,7 +21,9 @@
 - Funcionalidade de estoque baixo
     - Para remédios de uso contínuo
 ---
--  O Aplicativo precisa se auto-explicar
+- O Aplicativo precisa se auto-explicar
+---
+- Implementar visualização da linha do tempo dos tratamentos, sintomas e procedimentos
 ---
 - Importar arquivo com profissionais, medicações, tratamentos e sintomas
 ---

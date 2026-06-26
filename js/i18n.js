@@ -128,6 +128,10 @@ const i18n = {
         'dashboard.expiringPrescriptions': { 'en': 'Expiring Prescriptions', 'pt-BR': 'Receituários Vencendo', 'es': 'Recetas por Vencer' },
         'dashboard.nextDoses': { 'en': 'Next Doses', 'pt-BR': 'Próximas Doses', 'es': 'Próximas Dosis' },
         'dashboard.noSchedule': { 'en': 'No medications scheduled for today', 'pt-BR': 'Nenhum medicamento agendado para hoje', 'es': 'Ningún medicamento agendado para hoy' },
+        'dashboard.lastAction': { 'en': 'Last Action', 'pt-BR': 'Última Ação', 'es': 'Última Acción' },
+        'dashboard.noLastAction': { 'en': 'No action recorded', 'pt-BR': 'Nenhuma ação registrada', 'es': 'Ninguna acción registrada' },
+        'dashboard.taken': { 'en': 'Taken', 'pt-BR': 'Tomadas', 'es': 'Tomadas' },
+        'dashboard.skipped': { 'en': 'Skipped', 'pt-BR': 'Puladas', 'es': 'Saltadas' },
 
         // SETTINGS
         'settings.language': { 'en': 'Language', 'pt-BR': 'Idioma', 'es': 'Idioma' },

@@ -234,6 +234,9 @@ async function loadDashboard() {
         // Today's schedule
         await loadTodaySchedule();
 
+        // Last action
+        await loadLastAction();
+
     } catch (error) {
         console.error('Error loading dashboard:', error);
     }
@@ -275,9 +278,6 @@ async function loadTodaySchedule() {
                         <button onclick="showDoseActionModal('Skipped', '${timeStr}', '${scheduleJson}')" class="w-24 py-1.5 bg-amber-500 text-white rounded-lg font-medium text-sm hover:bg-amber-600 transition-colors">
                             PULAR
                         </button>
-                        <button onclick="revertLastDose()" class="w-24 py-1.5 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 transition-colors">
-                            REVERTER
-                        </button>
                     </div>
                     <div class="flex-1 pt-1">
                         ${schedule.treatments.map(t => `
@@ -291,6 +291,68 @@ async function loadTodaySchedule() {
     } catch (error) {
         console.error('Error loading today schedule:', error);
         scheduleEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Erro ao carregar agenda</p>';
+    }
+}
+
+async function loadLastAction() {
+    const actionEl = document.getElementById('last-action');
+    const depId = AppState.getCurrentDependent();
+
+    if (!depId) {
+        actionEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Selecione um dependente</p>';
+        return;
+    }
+
+    try {
+        const lastAction = await DB.getLastAction(depId);
+
+        if (!lastAction || !lastAction.scheduling) {
+            actionEl.innerHTML = `<p class="text-gray-400 text-sm text-center py-4" data-i18n="dashboard.noLastAction">Nenhuma ação registrada</p>`;
+            return;
+        }
+
+        const scheduling = lastAction.scheduling;
+        const timeStr = scheduling.schedule_time
+            ? new Date(scheduling.schedule_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            : '--:--';
+        const isTaken = scheduling.action === 'Taken';
+        const actionLabel = isTaken ? i18n.t('dashboard.taken') : i18n.t('dashboard.skipped');
+        const actionBadgeClass = isTaken
+            ? 'bg-emerald-100 text-emerald-700'
+            : 'bg-amber-100 text-amber-700';
+
+        const items = lastAction.items || [];
+        const itemsHtml = items.length > 0
+            ? items.map(item => {
+                const name = item.medications?.name
+                    || item.treatments?.medications?.name
+                    || item.treatments?.medication_name
+                    || 'Medicamento';
+                const dosage = item.dosage || item.treatments?.dosage || 0;
+                return `<p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(dosage)} un)</p>`;
+            }).join('')
+            : '<p class="text-sm text-gray-400">Nenhuma medicação vinculada</p>';
+
+        actionEl.innerHTML = `
+            <div class="bg-gray-50 rounded-xl p-4">
+                <div class="flex items-start gap-4">
+                    <div class="flex flex-col items-center gap-2 flex-shrink-0">
+                        <p class="text-4xl font-bold text-sky-700">${timeStr}</p>
+                        <span class="text-xs px-2 py-0.5 rounded-full ${actionBadgeClass}">${actionLabel}</span>
+                        <button onclick="revertLastDose()" class="w-24 py-1.5 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 transition-colors">
+                            REVERTER
+                        </button>
+                    </div>
+                    <div class="flex-1 pt-1">
+                        ${itemsHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+
+    } catch (error) {
+        console.error('Error loading last action:', error);
+        actionEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Erro ao carregar última ação</p>';
     }
 }
 

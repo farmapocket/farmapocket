@@ -468,6 +468,40 @@ const DB = {
         }
     },
 
+    async getLastAction(dependentId) {
+        if (!dependentId) return null;
+
+        const lastScheduling = await this.getLastScheduling(dependentId);
+        if (!lastScheduling) return null;
+
+        try {
+            const { data: links, error: linksError } = await supabase
+                .from('treatments_in_schedule')
+                .select(`
+                    *,
+                    treatments:treatment_id (*, medications:medication_id (name)),
+                    medications:medication_id (name)
+                `)
+                .eq('scheduling_id', lastScheduling.id);
+
+            if (linksError) throw linksError;
+
+            return {
+                scheduling: lastScheduling,
+                items: links || []
+            };
+
+        } catch (error) {
+            console.error('Error fetching last action:', error);
+            const allLinks = await OfflineDB.getAll('treatments_in_schedule');
+            const links = allLinks.filter(l => l.scheduling_id === lastScheduling.id);
+            return {
+                scheduling: lastScheduling,
+                items: links
+            };
+        }
+    },
+
     async getNextDoseSchedules(dependentId, limit = 2) {
         if (!dependentId) return [];
 
