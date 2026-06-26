@@ -477,18 +477,35 @@ const DB = {
         try {
             const { data: links, error: linksError } = await supabase
                 .from('treatments_in_schedule')
-                .select(`
-                    *,
-                    treatments:treatment_id (*, medications:medication_id (name)),
-                    medications:medication_id (name)
-                `)
+                .select('*')
                 .eq('scheduling_id', lastScheduling.id);
 
             if (linksError) throw linksError;
 
+            // Enrich links with medication/treatment details
+            const enrichedLinks = await Promise.all((links || []).map(async (link) => {
+                if (link.treatment_id) {
+                    const treatment = await this.getTreatment(link.treatment_id);
+                    if (treatment) {
+                        return {
+                            ...link,
+                            treatments: {
+                                ...treatment,
+                                medications: treatment.medication_id ? await this.getMedication(treatment.medication_id) : null
+                            }
+                        };
+                    }
+                }
+                if (link.medication_id) {
+                    const medication = await this.getMedication(link.medication_id);
+                    return { ...link, medications: medication };
+                }
+                return link;
+            }));
+
             return {
                 scheduling: lastScheduling,
-                items: links || []
+                items: enrichedLinks
             };
 
         } catch (error) {
@@ -602,34 +619,32 @@ const DB = {
             if (schedulingError) throw schedulingError;
             await OfflineDB.set('scheduling', schedulingData.id, schedulingData);
 
-            // If Taken, link treatments and update stock
-            if (action === 'Taken') {
-                // Scheduled treatments
-                if (treatments && treatments.length > 0) {
-                    for (const treatment of treatments) {
-                        // Link treatment to scheduling
-                        const linkPayload = {
-                            scheduling_id: schedulingData.id,
-                            treatment_id: treatment.id,
-                            medication_id: treatment.medication_id,
-                            dosage: treatment.dosage || 0
-                        };
+            // Link scheduled treatments (for both Taken and Skipped)
+            if (treatments && treatments.length > 0) {
+                for (const treatment of treatments) {
+                    const linkPayload = {
+                        scheduling_id: schedulingData.id,
+                        treatment_id: treatment.id,
+                        medication_id: treatment.medication_id,
+                        dosage: treatment.dosage || 0
+                    };
 
-                        try {
-                            const { data: linkData, error: linkError } = await supabase
-                                .from('treatments_in_schedule')
-                                .insert(linkPayload)
-                                .select()
-                                .single();
+                    try {
+                        const { data: linkData, error: linkError } = await supabase
+                            .from('treatments_in_schedule')
+                            .insert(linkPayload)
+                            .select()
+                            .single();
 
-                            if (linkError) throw linkError;
-                            await OfflineDB.set('treatments_in_schedule', linkData.id, linkData);
-                        } catch (linkError) {
-                            await OfflineDB.queueForSync('treatments_in_schedule', 'insert', linkPayload);
-                            console.error('Error linking treatment to schedule:', linkError);
-                        }
+                        if (linkError) throw linkError;
+                        await OfflineDB.set('treatments_in_schedule', linkData.id, linkData);
+                    } catch (linkError) {
+                        await OfflineDB.queueForSync('treatments_in_schedule', 'insert', linkPayload);
+                        console.error('Error linking treatment to schedule:', linkError);
+                    }
 
-                        // Update medication stock
+                    // Update medication stock only when Taken
+                    if (action === 'Taken') {
                         try {
                             const medication = await this.getMedication(treatment.medication_id);
                             if (medication) {
@@ -644,34 +659,36 @@ const DB = {
                         }
                     }
                 }
+            }
 
-                // Extra medications (not linked to an active treatment)
-                if (extraMedications && extraMedications.length > 0) {
-                    for (const extra of extraMedications) {
-                        if (!extra.medication_id || !extra.dosage) continue;
+            // Extra medications (not linked to an active treatment)
+            if (extraMedications && extraMedications.length > 0) {
+                for (const extra of extraMedications) {
+                    if (!extra.medication_id || !extra.dosage) continue;
 
-                        const linkPayload = {
-                            scheduling_id: schedulingData.id,
-                            treatment_id: null,
-                            medication_id: extra.medication_id,
-                            dosage: parseFloat(extra.dosage) || 0
-                        };
+                    const linkPayload = {
+                        scheduling_id: schedulingData.id,
+                        treatment_id: null,
+                        medication_id: extra.medication_id,
+                        dosage: parseFloat(extra.dosage) || 0
+                    };
 
-                        try {
-                            const { data: linkData, error: linkError } = await supabase
-                                .from('treatments_in_schedule')
-                                .insert(linkPayload)
-                                .select()
-                                .single();
+                    try {
+                        const { data: linkData, error: linkError } = await supabase
+                            .from('treatments_in_schedule')
+                            .insert(linkPayload)
+                            .select()
+                            .single();
 
-                            if (linkError) throw linkError;
-                            await OfflineDB.set('treatments_in_schedule', linkData.id, linkData);
-                        } catch (linkError) {
-                            await OfflineDB.queueForSync('treatments_in_schedule', 'insert', linkPayload);
-                            console.error('Error linking extra medication to schedule:', linkError);
-                        }
+                        if (linkError) throw linkError;
+                        await OfflineDB.set('treatments_in_schedule', linkData.id, linkData);
+                    } catch (linkError) {
+                        await OfflineDB.queueForSync('treatments_in_schedule', 'insert', linkPayload);
+                        console.error('Error linking extra medication to schedule:', linkError);
+                    }
 
-                        // Update medication stock
+                    // Update medication stock only when Taken
+                    if (action === 'Taken') {
                         try {
                             const medication = await this.getMedication(extra.medication_id);
                             if (medication) {
@@ -705,19 +722,19 @@ const DB = {
         }
 
         try {
-            // If Taken, restore medication stock and delete treatment links
-            if (lastScheduling.action === 'Taken') {
-                try {
-                    const { data: links, error: linksError } = await supabase
-                        .from('treatments_in_schedule')
-                        .select('*')
-                        .eq('scheduling_id', lastScheduling.id);
+            // Delete treatment links and restore stock if it was Taken
+            try {
+                const { data: links, error: linksError } = await supabase
+                    .from('treatments_in_schedule')
+                    .select('*')
+                    .eq('scheduling_id', lastScheduling.id);
 
-                    if (linksError) throw linksError;
+                if (linksError) throw linksError;
 
-                    if (links && links.length > 0) {
-                        for (const link of links) {
-                            // Restore stock
+                if (links && links.length > 0) {
+                    for (const link of links) {
+                        // Restore stock only when the action was Taken
+                        if (lastScheduling.action === 'Taken') {
                             try {
                                 const medicationId = link.medication_id;
                                 const dosage = parseFloat(link.dosage) || 0;
@@ -735,25 +752,25 @@ const DB = {
                             } catch (stockError) {
                                 console.error('Error restoring medication stock:', stockError);
                             }
+                        }
 
-                            // Delete link
-                            try {
-                                const { error: deleteLinkError } = await supabase
-                                    .from('treatments_in_schedule')
-                                    .delete()
-                                    .eq('id', link.id);
+                        // Delete link
+                        try {
+                            const { error: deleteLinkError } = await supabase
+                                .from('treatments_in_schedule')
+                                .delete()
+                                .eq('id', link.id);
 
-                                if (deleteLinkError) throw deleteLinkError;
-                                await OfflineDB.delete('treatments_in_schedule', link.id);
-                            } catch (deleteLinkError) {
-                                await OfflineDB.queueForSync('treatments_in_schedule', 'delete', { id: link.id });
-                                console.error('Error deleting treatment_in_schedule:', deleteLinkError);
-                            }
+                            if (deleteLinkError) throw deleteLinkError;
+                            await OfflineDB.delete('treatments_in_schedule', link.id);
+                        } catch (deleteLinkError) {
+                            await OfflineDB.queueForSync('treatments_in_schedule', 'delete', { id: link.id });
+                            console.error('Error deleting treatment_in_schedule:', deleteLinkError);
                         }
                     }
-                } catch (linksError) {
-                    console.error('Error fetching treatments_in_schedule:', linksError);
                 }
+            } catch (linksError) {
+                console.error('Error fetching treatments_in_schedule:', linksError);
             }
 
             // Delete scheduling record

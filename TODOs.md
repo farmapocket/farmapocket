@@ -2,7 +2,7 @@
 
 ## Próximos passos
 
-- incluir um card abaixo de "Próximas doses". Neste card, aparecerá a última ação registrada em "scheduling" e "treatments_in_schedule". Nos mesmos moldes do card acima, mas abaixo do horário teremos a informação se as medicações foram tomadas ou puladas, e vamos mover o botão "Reverter" para esse card.
+- Quando clicamos em "Pular", não podemos ter a opção de adicionar mais medicações, esta opção é exclusiva da ação "Tomar"
 ---
 - Incluir dentro da tela de configurações um botão para uma tela de log que mostra os últimos registros das tabelas "scheduling" e "treatments_in_schedule"
 ---
@@ -40,6 +40,9 @@
 
 ## Últimas implementações:
 
+- [x] BUG FIX: Não estão aparecendo medicações no card "Última ação"
+- [x] incluir um card abaixo de "Próximas doses". Neste card, aparecerá a última ação registrada em "scheduling" e "treatments_in_schedule". Nos mesmos moldes do card acima, mas abaixo do horário teremos a informação se as medicações foram tomadas ou puladas, e vamos mover o botão "Reverter" para esse card.
+---
 - [x] Na modal que abre no botão "Tomar" da área de "Próximas doses", quero ter a opção de incluir medicações adicionais (quantos forem necessários), com suas respectivas quantidades
 ---
 - [x] Na área "Próximas doses", preciso da opção "Reverter" abaixo de "Pular". A Função Reverter Deve desfazer (excluir) a última operação registrada nas tabelas "scheduling" e "treatments_in_schedule", atualizando as quantidades dos medicamentos se a operação for do tipo "TAKEN"
