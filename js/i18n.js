@@ -67,7 +67,22 @@ const i18n = {
         'medication.isContinuousUse': { 'en': 'Continuous Use', 'pt-BR': 'Uso Contínuo', 'es': 'Uso Continuo' },
         'medication.stockQuantity': { 'en': 'Stock Quantity', 'pt-BR': 'Quantidade em Estoque', 'es': 'Cantidad en Stock' },
         'medication.addNew': { 'en': 'Add New Medication', 'pt-BR': 'Adicionar Novo Medicamento', 'es': 'Agregar Nuevo Medicamento' },
+        'medication.edit': { 'en': 'Edit Medication', 'pt-BR': 'Editar Medicamento', 'es': 'Editar Medicamento' },
         'medication.lowStock': { 'en': 'Low Stock', 'pt-BR': 'Estoque Baixo', 'es': 'Stock Bajo' },
+
+        // PRESCRIPTIONS
+        'prescription.addNew': { 'en': 'Add New Prescription', 'pt-BR': 'Adicionar Receituário', 'es': 'Agregar Nueva Receta' },
+        'prescription.edit': { 'en': 'Edit Prescription', 'pt-BR': 'Editar Receituário', 'es': 'Editar Receta' },
+        'prescription.medication': { 'en': 'Medication', 'pt-BR': 'Medicamento', 'es': 'Medicamento' },
+        'prescription.professional': { 'en': 'Prescribed By', 'pt-BR': 'Prescrito Por', 'es': 'Recetado Por' },
+        'prescription.units': { 'en': 'Units', 'pt-BR': 'Unidades', 'es': 'Unidades' },
+        'prescription.expirationDate': { 'en': 'Expiration Date', 'pt-BR': 'Data de Validade', 'es': 'Fecha de Vencimiento' },
+        'prescription.status': { 'en': 'Status', 'pt-BR': 'Status', 'es': 'Estado' },
+        'prescription.statusValid': { 'en': 'Valid', 'pt-BR': 'Válida', 'es': 'Válida' },
+        'prescription.statusExpired': { 'en': 'Expired', 'pt-BR': 'Vencida', 'es': 'Vencida' },
+        'prescription.statusUsed': { 'en': 'Used', 'pt-BR': 'Utilizada', 'es': 'Utilizada' },
+        'prescription.usedDate': { 'en': 'Used Date', 'pt-BR': 'Data de Utilização', 'es': 'Fecha de Uso' },
+        'prescription.noData': { 'en': 'Add the first prescription', 'pt-BR': 'Adicione o primeiro receituário', 'es': 'Agregue la primera receta' },
 
         // DOSE ACTION
         'doseAction.confirmTaken': { 'en': 'Confirm Medication Taken', 'pt-BR': 'Confirmar Medicação Tomada', 'es': 'Confirmar Medicamento Tomado' },

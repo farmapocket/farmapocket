@@ -44,6 +44,7 @@ function navigateTo(page) {
     if (page === 'medications') loadMedications();
     if (page === 'treatments') loadTreatments();
     if (page === 'professionals') loadProfessionals();
+    if (page === 'prescriptions') loadPrescriptions();
 
     window.scrollTo(0, 0);
 }
@@ -379,6 +380,9 @@ function showAddMedication() {
         alert('Selecione um dependente primeiro');
         return;
     }
+    currentEditingMedicationId = null;
+    document.getElementById('form-medication').reset();
+    document.querySelector('#modal-medication h3').textContent = i18n.t('medication.addNew');
     openModal('modal-medication');
 }
 
@@ -386,8 +390,28 @@ function showMedicationDetail(id) {
     console.log('Show detail for medication:', id);
 }
 
-function editMedication(id) {
-    console.log('Edit medication:', id);
+async function editMedication(id) {
+    event.stopPropagation();
+    const depId = AppState.getCurrentDependent();
+    if (!depId) return;
+
+    const medications = await DB.getMedications(depId);
+    const medication = medications.find(m => m.id === id);
+    if (!medication) {
+        alert('Medicamento não encontrado');
+        return;
+    }
+
+    currentEditingMedicationId = id;
+    const form = document.getElementById('form-medication');
+    form.querySelector('[name="name"]').value = medication.name || '';
+    form.querySelector('[name="active_ingredient"]').value = medication.active_ingredient || '';
+    form.querySelector('[name="is_controlled"]').checked = medication.is_controlled === true;
+    form.querySelector('[name="is_continuous_use"]').checked = medication.is_continuous_use === true;
+    form.querySelector('[name="stock_quantity"]').value = medication.stock_quantity || 0;
+
+    document.querySelector('#modal-medication h3').textContent = i18n.t('medication.edit');
+    openModal('modal-medication');
 }
 
 // ========== TREATMENTS ==========
@@ -509,6 +533,8 @@ function formatTreatmentDuration(startDate, endDate) {
 }
 
 let currentEditingTreatmentId = null;
+let currentEditingMedicationId = null;
+let currentEditingPrescriptionId = null;
 
 function showAddTreatment() {
     if (!AppState.getCurrentDependent()) {
@@ -608,6 +634,169 @@ function showAddProfessional() {
     openModal('modal-professional');
 }
 
+// ========== PRESCRIPTIONS ==========
+
+async function loadPrescriptions() {
+    const listEl = document.getElementById('prescriptions-list');
+    const depId = AppState.getCurrentDependent();
+
+    if (!depId) {
+        listEl.innerHTML = `
+            <div class="text-center py-8">
+                <span class="text-4xl mb-2 block">👤</span>
+                <p class="text-gray-500">Selecione um dependente primeiro</p>
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        const prescriptions = await DB.getPrescriptions(depId);
+
+        if (prescriptions.length === 0) {
+            listEl.innerHTML = `
+                <div class="text-center py-8">
+                    <span class="text-4xl mb-2 block">📝</span>
+                    <p class="text-gray-400" data-i18n="common.noData">Nenhum dado encontrado</p>
+                    <p class="text-sm text-gray-400 mt-1" data-i18n="prescription.noData">Adicione o primeiro receituário</p>
+                </div>
+            `;
+            return;
+        }
+
+        const statusClasses = {
+            'Valid': 'bg-emerald-100 text-emerald-700',
+            'Expired': 'bg-red-100 text-red-700',
+            'Used': 'bg-gray-100 text-gray-600'
+        };
+        const statusLabels = {
+            'Valid': i18n.t('prescription.statusValid'),
+            'Expired': i18n.t('prescription.statusExpired'),
+            'Used': i18n.t('prescription.statusUsed')
+        };
+
+        listEl.innerHTML = prescriptions.map(p => {
+            const medName = p.medications?.name || p.medication_name || 'Medicamento';
+            const profName = p.healthcare_professionals?.name || p.professional_name || '';
+            const profSpecialty = p.healthcare_professionals?.specialty || '';
+            const profText = profName ? (profSpecialty ? `${profName} (${profSpecialty})` : profName) : '';
+            const expDate = p.expiration_date ? new Date(p.expiration_date).toLocaleDateString('pt-BR') : '';
+            const usedDate = p.used_date ? new Date(p.used_date).toLocaleDateString('pt-BR') : '';
+            const status = p.status || 'Valid';
+
+            return `
+            <div class="bg-white rounded-xl p-4 shadow-sm card-hover">
+                <div class="flex items-start justify-between mb-2">
+                    <div class="flex-1 pr-2">
+                        <h3 class="font-semibold text-gray-800">${medName}</h3>
+                        <p class="text-sm text-gray-500">${p.units || 0} unidades</p>
+                        ${profText ? `<p class="text-xs text-gray-400 mt-1">👨‍⚕️ ${profText}</p>` : ''}
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs px-2 py-0.5 rounded-full ${statusClasses[status] || statusClasses['Valid']}">${statusLabels[status] || status}</span>
+                        <button onclick="editPrescription('${p.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center ml-1" title="Editar">
+                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        <button onclick="deletePrescription('${p.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center" title="Excluir">
+                            <svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-500">
+                    <span>📅 Vence em ${expDate}</span>
+                    ${usedDate ? `<span>✅ Utilizado em ${usedDate}</span>` : ''}
+                </div>
+            </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error loading prescriptions:', error);
+        listEl.innerHTML = '<p class="text-center text-red-500 py-4">Erro ao carregar receituários</p>';
+    }
+}
+
+async function loadPrescriptionOptions() {
+    const depId = AppState.getCurrentDependent();
+    if (!depId) return;
+
+    const [medications, professionals] = await Promise.all([
+        DB.getMedications(depId),
+        DB.getProfessionals(depId)
+    ]);
+
+    const medSelect = document.querySelector('#form-prescription [name="medication_id"]');
+    const profSelect = document.querySelector('#form-prescription [name="prescribed_by"]');
+
+    medSelect.innerHTML = '<option value="">Selecione um medicamento...</option>' +
+        medications.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+
+    profSelect.innerHTML = '<option value="">Selecione um profissional...</option>' +
+        professionals.map(p => `<option value="${p.id}">${p.name}${p.specialty ? ` (${p.specialty})` : ''}</option>`).join('');
+}
+
+function showAddPrescription() {
+    if (!AppState.getCurrentDependent()) {
+        alert('Selecione um dependente primeiro');
+        return;
+    }
+    currentEditingPrescriptionId = null;
+    document.getElementById('form-prescription').reset();
+    document.querySelector('#modal-prescription h3').textContent = i18n.t('prescription.addNew');
+    document.getElementById('prescription-used-date-wrapper').classList.add('hidden');
+    loadPrescriptionOptions();
+    openModal('modal-prescription');
+}
+
+async function editPrescription(id) {
+    event.stopPropagation();
+    const depId = AppState.getCurrentDependent();
+    if (!depId) return;
+
+    const prescriptions = await DB.getPrescriptions(depId);
+    const prescription = prescriptions.find(p => p.id === id);
+    if (!prescription) {
+        alert('Receituário não encontrado');
+        return;
+    }
+
+    currentEditingPrescriptionId = id;
+    await loadPrescriptionOptions();
+
+    const form = document.getElementById('form-prescription');
+    form.querySelector('[name="medication_id"]').value = prescription.medication_id || '';
+    form.querySelector('[name="prescribed_by"]').value = prescription.prescribed_by || '';
+    form.querySelector('[name="units"]').value = prescription.units || 0;
+    form.querySelector('[name="expiration_date"]').value = prescription.expiration_date || '';
+    form.querySelector('[name="status"]').value = prescription.status || 'Valid';
+    form.querySelector('[name="used_date"]').value = prescription.used_date || '';
+
+    togglePrescriptionUsedDate(form.querySelector('[name="status"]'));
+    document.querySelector('#modal-prescription h3').textContent = i18n.t('prescription.edit');
+    openModal('modal-prescription');
+}
+
+async function deletePrescription(id) {
+    if (!confirm('Tem certeza que deseja excluir este receituário?')) return;
+
+    try {
+        await DB.deletePrescription(id);
+        loadPrescriptions();
+        loadDashboard();
+    } catch (error) {
+        alert('Erro ao excluir: ' + error.message);
+    }
+}
+
+function togglePrescriptionUsedDate(select) {
+    const wrapper = document.getElementById('prescription-used-date-wrapper');
+    if (select.value === 'Used') {
+        wrapper.classList.remove('hidden');
+    } else {
+        wrapper.classList.add('hidden');
+    }
+}
+
 // ========== FORM HANDLERS ==========
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -658,7 +847,12 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
-                await DB.addMedication(medication);
+                if (currentEditingMedicationId) {
+                    await DB.updateMedication(currentEditingMedicationId, medication);
+                } else {
+                    await DB.addMedication(medication);
+                }
+                currentEditingMedicationId = null;
                 closeModal('modal-medication');
                 medForm.reset();
                 loadMedications();
@@ -731,6 +925,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeModal('modal-professional');
                 profForm.reset();
                 loadProfessionals();
+                loadDashboard();
+                scrollPageToTop();
+
+            } catch (error) {
+                alert('Erro ao salvar: ' + error.message);
+            }
+        });
+    }
+
+    // Prescription form
+    const prescriptionForm = document.getElementById('form-prescription');
+    if (prescriptionForm) {
+        prescriptionForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(prescriptionForm);
+            const status = formData.get('status');
+            const prescription = {
+                dependent_id: AppState.getCurrentDependent(),
+                medication_id: formData.get('medication_id'),
+                prescribed_by: formData.get('prescribed_by') || null,
+                units: parseInt(formData.get('units')) || 0,
+                expiration_date: formData.get('expiration_date') || null,
+                status: status || 'Valid',
+                used_date: status === 'Used' ? (formData.get('used_date') || null) : null
+            };
+
+            try {
+                if (currentEditingPrescriptionId) {
+                    await DB.updatePrescription(currentEditingPrescriptionId, prescription);
+                } else {
+                    await DB.addPrescription(prescription);
+                }
+                currentEditingPrescriptionId = null;
+                closeModal('modal-prescription');
+                prescriptionForm.reset();
+                document.getElementById('prescription-used-date-wrapper').classList.add('hidden');
+                loadPrescriptions();
                 loadDashboard();
                 scrollPageToTop();
 
@@ -832,6 +1064,10 @@ window.showAddDependent = showAddDependent;
 window.showAddMedication = showAddMedication;
 window.showAddTreatment = showAddTreatment;
 window.showAddProfessional = showAddProfessional;
+window.showAddPrescription = showAddPrescription;
+window.editPrescription = editPrescription;
+window.deletePrescription = deletePrescription;
+window.togglePrescriptionUsedDate = togglePrescriptionUsedDate;
 window.showDoseActionModal = showDoseActionModal;
 window.closeModal = closeModal;
 window.exportData = exportData;

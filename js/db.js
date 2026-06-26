@@ -352,6 +352,98 @@ const DB = {
         }
     },
 
+    // ========== PRESCRIPTIONS ==========
+
+    async getPrescriptions(dependentId) {
+        if (!dependentId) return [];
+
+        try {
+            const { data, error } = await supabase
+                .from('prescriptions')
+                .select(`
+                    *,
+                    medications:medication_id (name),
+                    healthcare_professionals:prescribed_by (name, specialty)
+                `)
+                .eq('dependent_id', dependentId)
+                .order('expiration_date', { ascending: true });
+
+            if (error) throw error;
+            return data || [];
+
+        } catch (error) {
+            const all = await OfflineDB.getAll('prescriptions');
+            return all.filter(p => p.dependent_id === dependentId);
+        }
+    },
+
+    async addPrescription(prescription) {
+        if (!prescription.dependent_id) throw new Error('dependent_id is required');
+        if (!prescription.medication_id) throw new Error('medication_id is required');
+        if (!prescription.expiration_date) throw new Error('expiration_date is required');
+
+        const payload = {
+            ...prescription,
+            units: parseInt(prescription.units) || 0
+        };
+
+        try {
+            const { data, error } = await supabase
+                .from('prescriptions')
+                .insert(payload)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('prescriptions', data.id, data);
+            return data;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('prescriptions', 'insert', payload);
+            throw error;
+        }
+    },
+
+    async updatePrescription(id, updates) {
+        const payload = {
+            ...updates,
+            units: updates.units !== undefined ? parseInt(updates.units) : undefined
+        };
+
+        try {
+            const { data, error } = await supabase
+                .from('prescriptions')
+                .update(payload)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('prescriptions', id, data);
+            return data;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('prescriptions', 'update', { id, ...payload });
+            throw error;
+        }
+    },
+
+    async deletePrescription(id) {
+        try {
+            const { error } = await supabase
+                .from('prescriptions')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            await OfflineDB.delete('prescriptions', id);
+
+        } catch (error) {
+            await OfflineDB.queueForSync('prescriptions', 'delete', { id });
+            throw error;
+        }
+    },
+
     // ========== SCHEDULING ==========
 
     async getLastScheduling(dependentId) {
