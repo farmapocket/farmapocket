@@ -1017,6 +1017,92 @@ const DB = {
         }
     },
 
+    // ========== PROCEDURES (stored as events with event_type = 'Procedure') ==========
+
+    async getProcedures(dependentId) {
+        if (!dependentId) return [];
+
+        try {
+            const { data, error } = await supabase
+                .from('events')
+                .select('*, healthcare_professionals(name, specialty)')
+                .eq('dependent_id', dependentId)
+                .eq('event_type', 'Procedure')
+                .order('event_date', { ascending: false });
+
+            if (error) throw error;
+            return data || [];
+
+        } catch (error) {
+            const all = await OfflineDB.getAll('events');
+            return all.filter(e => e.dependent_id === dependentId && e.event_type === 'Procedure');
+        }
+    },
+
+    async addProcedure(procedure) {
+        if (!procedure.dependent_id) throw new Error('dependent_id is required');
+        if (!procedure.description) throw new Error('description is required');
+        if (!procedure.event_date) throw new Error('event_date is required');
+
+        const payload = {
+            ...procedure,
+            event_type: 'Procedure'
+        };
+
+        try {
+            const { data, error } = await supabase
+                .from('events')
+                .insert(payload)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('events', data.id, data);
+            return data;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('events', 'insert', payload);
+            throw error;
+        }
+    },
+
+    async updateProcedure(id, updates) {
+        const payload = { ...updates };
+
+        try {
+            const { data, error } = await supabase
+                .from('events')
+                .update(payload)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('events', id, data);
+            return data;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('events', 'update', { id, ...payload });
+            throw error;
+        }
+    },
+
+    async deleteProcedure(id) {
+        try {
+            const { error } = await supabase
+                .from('events')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            await OfflineDB.delete('events', id);
+
+        } catch (error) {
+            await OfflineDB.queueForSync('events', 'delete', { id });
+            throw error;
+        }
+    },
+
     // ========== DASHBOARD STATS (aggregated across all dependents) ==========
 
     async getDashboardStats() {

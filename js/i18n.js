@@ -34,6 +34,8 @@ const i18n = {
         'nav.treatments': { 'en': 'Treatments', 'pt-BR': 'Tratamentos', 'es': 'Tratamientos' },
         'nav.professionals': { 'en': 'Professionals', 'pt-BR': 'Profissionais', 'es': 'Profesionales' },
         'nav.symptoms': { 'en': 'Symptoms', 'pt-BR': 'Sintomas', 'es': 'Síntomas' },
+        'nav.procedures': { 'en': 'Procedures', 'pt-BR': 'Procedimentos', 'es': 'Procedimientos' },
+        'nav.more': { 'en': 'More', 'pt-BR': 'Mais', 'es': 'Más' },
         'nav.events': { 'en': 'Events', 'pt-BR': 'Eventos', 'es': 'Eventos' },
         'nav.prescriptions': { 'en': 'Prescriptions', 'pt-BR': 'Receituários', 'es': 'Recetas' },
         'nav.settings': { 'en': 'Settings', 'pt-BR': 'Configurações', 'es': 'Configuración' },
@@ -97,6 +99,17 @@ const i18n = {
         'symptom.endDate': { 'en': 'End Date', 'pt-BR': 'Data de Fim', 'es': 'Fecha de Fin' },
         'symptom.notes': { 'en': 'Notes', 'pt-BR': 'Observações', 'es': 'Observaciones' },
         'symptom.noData': { 'en': 'Add the first symptom', 'pt-BR': 'Adicione o primeiro sintoma', 'es': 'Agregue el primer síntoma' },
+
+        // PROCEDURES
+        'procedure.addNew': { 'en': 'Add New Procedure', 'pt-BR': 'Adicionar Procedimento', 'es': 'Agregar Procedimiento' },
+        'procedure.edit': { 'en': 'Edit Procedure', 'pt-BR': 'Editar Procedimento', 'es': 'Editar Procedimiento' },
+        'procedure.description': { 'en': 'Description', 'pt-BR': 'Descrição', 'es': 'Descripción' },
+        'procedure.date': { 'en': 'Procedure Date', 'pt-BR': 'Data do Procedimento', 'es': 'Fecha del Procedimiento' },
+        'procedure.goal': { 'en': 'Procedure Goal', 'pt-BR': 'Objetivo do Procedimento', 'es': 'Objetivo del Procedimiento' },
+        'procedure.professional': { 'en': 'Responsible Professional', 'pt-BR': 'Profissional Responsável', 'es': 'Profesional Responsable' },
+        'procedure.location': { 'en': 'Location', 'pt-BR': 'Local', 'es': 'Lugar' },
+        'procedure.notes': { 'en': 'Notes', 'pt-BR': 'Observações', 'es': 'Observaciones' },
+        'procedure.noData': { 'en': 'Add the first procedure', 'pt-BR': 'Adicione o primeiro procedimento', 'es': 'Agregue el primer procedimiento' },
 
         // DOSE ACTION
         'doseAction.confirmTaken': { 'en': 'Confirm Medication Taken', 'pt-BR': 'Confirmar Medicação Tomada', 'es': 'Confirmar Medicamento Tomado' },

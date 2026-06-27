@@ -156,3 +156,16 @@ CREATE TABLE public.treatments_in_schedule (
   CONSTRAINT treatments_in_schedule_treatment_id_fkey FOREIGN KEY (treatment_id) REFERENCES public.treatments(id),
   CONSTRAINT treatments_in_schedule_medication_id_fkey FOREIGN KEY (medication_id) REFERENCES public.medications(id)
 );
+
+CREATE TABLE public.medical_procedures (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  dependent_id uuid NOT NULL,
+  prescribed_by uuid,
+  description text,
+  date date NOT NULL,
+  time time with time zone,
+  CONSTRAINT medical_procedures_pkey PRIMARY KEY (id),
+  CONSTRAINT medical_procedures_dependent_id_fkey FOREIGN KEY (dependent_id) REFERENCES public.dependents(id),
+  CONSTRAINT medical_procedures_prescribed_by_fkey FOREIGN KEY (prescribed_by) REFERENCES public.healthcare_professionals(id)
+);

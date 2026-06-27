@@ -3,6 +3,14 @@
 ## Próximos passos
 
 - Implementar cadastro de procedimentos
+    - Incluir o cadastro de procedimentos na bandeja
+    - Já criei a tabela e atualizei o arquivo TABLES_SCHEMA.sql
+---
+- Nos campos de seleção de profissionais, seria interessante uma opção de inclusão rápida para profissionais que não existem na tabela. Essa opção abriria a tela de cadastro de profissionais e ao final preencheria o seletor com o profissional novo
+---
+-  Permitir que o usuário defina horários fixos para o tratamento, ao invés de informar apenas o intervalo em horas
+---
+-  Permitir que tratamentos tenham espaçamentos maiores (Ex. Um tratamento onde o remédio é ingerido apenas uma vez por semana)
 ---
 - Implementar a lógica de vencimento das receitas, com:
     - Alerta para marcar consulta
@@ -18,13 +26,9 @@
 ---
 - Importar arquivo com profissionais, medicações, tratamentos e sintomas
 ---
--  As operações estão lentas e dá um aspecto de travamento. Poderíamos ter ações assíncronas?
+- As operações estão lentas e dá um aspecto de travamento. Poderíamos ter ações assíncronas?
 ---
 -  Uma splash screen para o carregamento do painel, o aplicativo abre com a tela sem informações, parece que não está funcionando
----
--  Permitir que o usuário defina horários fixos para o tratamento, ao invés de informar apenas o intervalo em horas
----
--  Permitir que tratamentos tenham espaçamentos maiores (Ex. Um tratamento onde o remédio é ingerido apenas uma vez por semana)
 ---
 - É possível fazer com que o aplicativo envie notificações e alarmes?
 ---

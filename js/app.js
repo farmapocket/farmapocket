@@ -33,9 +33,13 @@ function navigateTo(page) {
         targetPage.classList.add('active');
     }
 
+    const morePages = ['professionals', 'prescriptions', 'symptoms', 'procedures'];
     document.querySelectorAll('.bottom-nav-item').forEach(btn => {
         btn.classList.remove('active');
         if (btn.dataset.page === page) {
+            btn.classList.add('active');
+        }
+        if (btn.dataset.page === 'more' && morePages.includes(page)) {
             btn.classList.add('active');
         }
     });
@@ -46,9 +50,15 @@ function navigateTo(page) {
     if (page === 'professionals') loadProfessionals();
     if (page === 'prescriptions') loadPrescriptions();
     if (page === 'symptoms') loadSymptoms();
+    if (page === 'procedures') loadProcedures();
+    if (page === 'more') loadMore();
     if (page === 'activity-log') loadActivityLog();
 
     window.scrollTo(0, 0);
+}
+
+function loadMore() {
+    // Página "Mais" é estática; nada a carregar dinamicamente
 }
 
 // ========== DEPENDENT SELECTOR ==========
@@ -867,6 +877,7 @@ let currentEditingTreatmentId = null;
 let currentEditingMedicationId = null;
 let currentEditingPrescriptionId = null;
 let currentEditingSymptomId = null;
+let currentEditingProcedureId = null;
 
 function showAddTreatment() {
     if (!AppState.getCurrentDependent()) {
@@ -1247,6 +1258,131 @@ async function deleteSymptom(id) {
     }
 }
 
+// ========== PROCEDURES ==========
+
+async function loadProcedures() {
+    const listEl = document.getElementById('procedures-list');
+    const depId = AppState.getCurrentDependent();
+
+    if (!depId) {
+        listEl.innerHTML = `
+            <div class="text-center py-8">
+                <span class="text-4xl mb-2 block">👤</span>
+                <p class="text-gray-500">Selecione um dependente primeiro</p>
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        const procedures = await DB.getProcedures(depId);
+
+        if (procedures.length === 0) {
+            listEl.innerHTML = `
+                <div class="text-center py-8">
+                    <span class="text-4xl mb-2 block">🩺</span>
+                    <p class="text-gray-400" data-i18n="common.noData">Nenhum dado encontrado</p>
+                    <p class="text-sm text-gray-400 mt-1" data-i18n="procedure.noData">Adicione o primeiro procedimento</p>
+                </div>
+            `;
+            return;
+        }
+
+        listEl.innerHTML = procedures.map(p => {
+            const eventDate = p.event_date ? new Date(p.event_date).toLocaleDateString('pt-BR') : '';
+            const prof = p.healthcare_professionals;
+            const profText = prof ? (prof.specialty ? `${prof.name} (${prof.specialty})` : prof.name) : '';
+            return `
+            <div class="bg-white rounded-xl p-4 shadow-sm card-hover">
+                <div class="flex items-start justify-between mb-2">
+                    <div class="flex-1 pr-2">
+                        <h3 class="font-semibold text-gray-800">${p.description}</h3>
+                        <p class="text-sm text-gray-500">📅 ${eventDate}</p>
+                        ${p.procedure_goal ? `<p class="text-xs text-gray-500 mt-1">🎯 ${p.procedure_goal}</p>` : ''}
+                        ${profText ? `<p class="text-xs text-gray-400 mt-1">👨‍⚕️ ${profText}</p>` : ''}
+                        ${p.location ? `<p class="text-xs text-gray-400 mt-1">📍 ${p.location}</p>` : ''}
+                        ${p.notes ? `<p class="text-xs text-gray-400 mt-1">📝 ${p.notes}</p>` : ''}
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="editProcedure('${p.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center ml-1" title="Editar">
+                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        <button onclick="deleteProcedure('${p.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center" title="Excluir">
+                            <svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error loading procedures:', error);
+        listEl.innerHTML = '<p class="text-center text-red-500 py-4">Erro ao carregar procedimentos</p>';
+    }
+}
+
+async function loadProcedureOptions() {
+    const depId = AppState.getCurrentDependent();
+    if (!depId) return;
+
+    const professionals = await DB.getProfessionals(depId);
+    const profSelect = document.querySelector('#form-procedure [name="prescribed_by"]');
+
+    profSelect.innerHTML = '<option value="">Selecione um profissional...</option>' +
+        professionals.map(p => `<option value="${p.id}">${p.name}${p.specialty ? ` (${p.specialty})` : ''}</option>`).join('');
+}
+
+function showAddProcedure() {
+    if (!AppState.getCurrentDependent()) {
+        alert('Selecione um dependente primeiro');
+        return;
+    }
+    currentEditingProcedureId = null;
+    document.getElementById('form-procedure').reset();
+    document.querySelector('#modal-procedure h3').textContent = i18n.t('procedure.addNew');
+    loadProcedureOptions();
+    openModal('modal-procedure');
+}
+
+async function editProcedure(id) {
+    event.stopPropagation();
+    const depId = AppState.getCurrentDependent();
+    if (!depId) return;
+
+    const procedures = await DB.getProcedures(depId);
+    const procedure = procedures.find(p => p.id === id);
+    if (!procedure) {
+        alert('Procedimento não encontrado');
+        return;
+    }
+
+    currentEditingProcedureId = id;
+    await loadProcedureOptions();
+
+    const form = document.getElementById('form-procedure');
+    form.querySelector('[name="description"]').value = procedure.description || '';
+    form.querySelector('[name="event_date"]').value = procedure.event_date || '';
+    form.querySelector('[name="procedure_goal"]').value = procedure.procedure_goal || '';
+    form.querySelector('[name="prescribed_by"]').value = procedure.prescribed_by || '';
+    form.querySelector('[name="location"]').value = procedure.location || '';
+    form.querySelector('[name="notes"]').value = procedure.notes || '';
+
+    document.querySelector('#modal-procedure h3').textContent = i18n.t('procedure.edit');
+    openModal('modal-procedure');
+}
+
+async function deleteProcedure(id) {
+    if (!confirm('Tem certeza que deseja excluir este procedimento?')) return;
+
+    try {
+        await DB.deleteProcedure(id);
+        loadProcedures();
+    } catch (error) {
+        alert('Erro ao excluir: ' + error.message);
+    }
+}
+
 // ========== FORM HANDLERS ==========
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1457,6 +1593,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeModal('modal-symptom');
                 symptomForm.reset();
                 loadSymptoms();
+                scrollPageToTop();
+
+            } catch (error) {
+                alert('Erro ao salvar: ' + error.message);
+            }
+        });
+    }
+
+    // Procedure form
+    const procedureForm = document.getElementById('form-procedure');
+    if (procedureForm) {
+        procedureForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(procedureForm);
+            const procedure = {
+                dependent_id: AppState.getCurrentDependent(),
+                description: formData.get('description'),
+                event_date: formData.get('event_date') || null,
+                procedure_goal: formData.get('procedure_goal') || null,
+                prescribed_by: formData.get('prescribed_by') || null,
+                location: formData.get('location') || null,
+                notes: formData.get('notes') || null
+            };
+
+            try {
+                if (currentEditingProcedureId) {
+                    await DB.updateProcedure(currentEditingProcedureId, procedure);
+                } else {
+                    await DB.addProcedure(procedure);
+                }
+                currentEditingProcedureId = null;
+                closeModal('modal-procedure');
+                procedureForm.reset();
+                loadProcedures();
                 scrollPageToTop();
 
             } catch (error) {
