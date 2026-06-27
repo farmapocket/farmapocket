@@ -343,7 +343,7 @@
             <form id="form-treatment" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.medication">Medicação</label>
-                    <select name="medication_id" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white">
+                    <select name="medication_id" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white medication-select" onchange="handleMedicationSelectChange(this)">
                         <option value="">Selecione um medicamento...</option>
                     </select>
                 </div>
@@ -431,7 +431,7 @@
             <form id="form-prescription" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="prescription.medication">Medicamento</label>
-                    <select name="medication_id" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white">
+                    <select name="medication_id" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white medication-select" onchange="handleMedicationSelectChange(this)">
                         <option value="">Selecione um medicamento...</option>
                     </select>
                 </div>

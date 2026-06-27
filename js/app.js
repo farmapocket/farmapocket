@@ -570,9 +570,10 @@ function addExtraMedicationRow() {
     const row = document.createElement('div');
     row.className = 'flex items-center gap-2 bg-gray-50 rounded-lg p-2';
     row.innerHTML = `
-        <select class="extra-medication-id flex-1 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white text-sm">
+        <select class="extra-medication-id flex-1 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white text-sm" onchange="handleMedicationSelectChange(this)">
             <option value="">Selecione...</option>
             ${medications.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
+            <option value="__new__">+ ${i18n.t('medication.addNew')}</option>
         </select>
         <input type="number" min="0.1" step="0.1" class="extra-medication-dosage w-20 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm" placeholder="Qtd">
         <button type="button" onclick="this.closest('.bg-gray-50').remove()" class="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-lg" title="Remover">
@@ -661,15 +662,47 @@ async function loadMedications() {
     }
 }
 
-function showAddMedication() {
+function showAddMedication(callback) {
     if (!AppState.getCurrentDependent()) {
         alert('Selecione um dependente primeiro');
         return;
     }
     currentEditingMedicationId = null;
+    window._medicationSaveCallback = callback || null;
     document.getElementById('form-medication').reset();
     document.querySelector('#modal-medication h3').textContent = i18n.t('medication.addNew');
     openModal('modal-medication');
+}
+
+function handleMedicationSelectChange(select) {
+    if (select.value === '__new__') {
+        // Reset select to empty while modal opens
+        select.value = '';
+        openQuickAddMedication(select);
+    }
+}
+
+function openQuickAddMedication(targetSelect) {
+    window._pendingMedicationSelect = targetSelect;
+    showAddMedication((newMedication) => {
+        if (window._pendingMedicationSelect) {
+            const select = window._pendingMedicationSelect;
+            const option = document.createElement('option');
+            option.value = newMedication.id;
+            option.textContent = newMedication.name;
+
+            // Insert before the "+ New" option
+            const newOption = select.querySelector('option[value="__new__"]');
+            if (newOption) {
+                select.insertBefore(option, newOption);
+            } else {
+                select.appendChild(option);
+            }
+
+            select.value = newMedication.id;
+            window._pendingMedicationSelect = null;
+        }
+    });
 }
 
 function showMedicationDetail(id) {
@@ -783,7 +816,8 @@ async function loadTreatmentOptions() {
 
     if (medSelect) {
         medSelect.innerHTML = '<option value="">Selecione um medicamento...</option>' +
-            medications.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+            medications.map(m => `<option value="${m.id}">${m.name}</option>`).join('') +
+            `<option value="__new__">+ ${i18n.t('medication.addNew')}</option>`;
     }
 
     if (profSelect) {
@@ -1016,7 +1050,8 @@ async function loadPrescriptionOptions() {
     const profSelect = document.querySelector('#form-prescription [name="prescribed_by"]');
 
     medSelect.innerHTML = '<option value="">Selecione um medicamento...</option>' +
-        medications.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+        medications.map(m => `<option value="${m.id}">${m.name}</option>`).join('') +
+        `<option value="__new__">+ ${i18n.t('medication.addNew')}</option>`;
 
     profSelect.innerHTML = '<option value="">Selecione um profissional...</option>' +
         professionals.map(p => `<option value="${p.id}">${p.name}${p.specialty ? ` (${p.specialty})` : ''}</option>`).join('');
@@ -1135,11 +1170,19 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
+                let savedMedication;
                 if (currentEditingMedicationId) {
-                    await DB.updateMedication(currentEditingMedicationId, medication);
+                    savedMedication = await DB.updateMedication(currentEditingMedicationId, medication);
                 } else {
-                    await DB.addMedication(medication);
+                    savedMedication = await DB.addMedication(medication);
                 }
+
+                // Call callback if exists (quick add from select)
+                if (window._medicationSaveCallback) {
+                    window._medicationSaveCallback(savedMedication);
+                    window._medicationSaveCallback = null;
+                }
+
                 currentEditingMedicationId = null;
                 closeModal('modal-medication');
                 medForm.reset();
@@ -1364,6 +1407,7 @@ window.navigateTo = navigateTo;
 window.selectDependent = selectDependent;
 window.showAddDependent = showAddDependent;
 window.showAddMedication = showAddMedication;
+window.handleMedicationSelectChange = handleMedicationSelectChange;
 window.showAddTreatment = showAddTreatment;
 window.showAddProfessional = showAddProfessional;
 window.showAddPrescription = showAddPrescription;
