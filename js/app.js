@@ -623,7 +623,10 @@ async function loadMedications() {
     listEl.innerHTML = '<div class="skeleton h-20 rounded-xl"></div>'.repeat(3);
 
     try {
-        const medications = await DB.getMedications(depId);
+        const [medications, prescriptionCounts] = await Promise.all([
+            DB.getMedications(depId),
+            DB.getPrescriptionCountsByMedication(depId)
+        ]);
 
         if (medications.length === 0) {
             listEl.innerHTML = `
@@ -636,17 +639,20 @@ async function loadMedications() {
             return;
         }
 
-        listEl.innerHTML = medications.map(med => `
+        listEl.innerHTML = medications.map(med => {
+            const prescriptionCount = prescriptionCounts[med.id] || 0;
+            return `
             <div class="bg-white rounded-xl p-4 shadow-sm card-hover" onclick="showMedicationDetail('${med.id}')">
                 <div class="flex items-start justify-between">
                     <div class="flex-1">
                         <h3 class="font-semibold text-gray-800">${med.name}</h3>
                         <p class="text-sm text-gray-500">${med.active_ingredient || 'Sem princípio ativo'}</p>
-                        <div class="flex items-center gap-2 mt-2">
+                        <div class="flex items-center gap-2 mt-2 flex-wrap">
                             ${med.is_controlled ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Controlado</span>' : ''}
                             ${med.is_continuous_use ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Uso Contínuo</span>' : ''}
                             ${med.is_rescue_medication ? '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">Resgate</span>' : ''}
                             <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${med.stock_quantity || 0} un</span>
+                            ${prescriptionCount > 0 ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${prescriptionCount} receita${prescriptionCount > 1 ? 's' : ''}</span>` : ''}
                         </div>
                     </div>
                     <button class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center" onclick="event.stopPropagation(); editMedication('${med.id}')">
@@ -654,7 +660,8 @@ async function loadMedications() {
                     </button>
                 </div>
             </div>
-        `).join('');
+            `;
+        }).join('');
 
     } catch (error) {
         console.error('Error loading medications:', error);

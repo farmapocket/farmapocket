@@ -377,6 +377,37 @@ const DB = {
         }
     },
 
+    async getPrescriptionCountsByMedication(dependentId) {
+        if (!dependentId) return {};
+
+        try {
+            const { data, error } = await supabase
+                .from('prescriptions')
+                .select('medication_id')
+                .eq('dependent_id', dependentId);
+
+            if (error) throw error;
+
+            const counts = {};
+            (data || []).forEach(p => {
+                if (p.medication_id) {
+                    counts[p.medication_id] = (counts[p.medication_id] || 0) + 1;
+                }
+            });
+            return counts;
+
+        } catch (error) {
+            const all = await OfflineDB.getAll('prescriptions');
+            const counts = {};
+            all.filter(p => p.dependent_id === dependentId).forEach(p => {
+                if (p.medication_id) {
+                    counts[p.medication_id] = (counts[p.medication_id] || 0) + 1;
+                }
+            });
+            return counts;
+        }
+    },
+
     async addPrescription(prescription) {
         if (!prescription.dependent_id) throw new Error('dependent_id is required');
         if (!prescription.medication_id) throw new Error('medication_id is required');

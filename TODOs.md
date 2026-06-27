@@ -2,8 +2,6 @@
 
 ## Próximos passos
 
-- Nos campos de seleção de medicação, seria interessante uma opção de inclusão rápida para medicações que não existem na tabela. Essa opção abriria a tela de cadastro de medicação e ao final preencheria o seletor com a medicação nova
----
 - No card de medicação, incluir a informação de quantas receitas existem para aquela medicação
 ---
 - Implementar cadastro de sintomas
@@ -38,6 +36,8 @@
 
 ## Últimas implementações:
 
+- [x] Nos campos de seleção de medicação, seria interessante uma opção de inclusão rápida para medicações que não existem na tabela. Essa opção abriria a tela de cadastro de medicação e ao final preencheria o seletor com a medicação nova
+---
 - [x] Incluir dentro da tela de configurações um botão para uma tela de log que mostra os últimos 10 registros das tabelas "scheduling" e "treatments_in_schedule". Gostaria de uma mecânica de carrossel. Ao abrir a tela de log apareceria o últomo registro e ao arrastar para a esquerda passaria para o penúltimo, e assim por diante
 ---
 - [x] Quando clicamos em "Pular", não podemos ter a opção de adicionar mais medicações, esta opção é exclusiva da ação "Tomar"
