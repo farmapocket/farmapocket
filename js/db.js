@@ -468,6 +468,69 @@ const DB = {
         }
     },
 
+    async getRecentSchedules(dependentId, limit = 10) {
+        if (!dependentId) return [];
+
+        try {
+            const { data: schedules, error: schedulesError } = await supabase
+                .from('scheduling')
+                .select('*')
+                .eq('dependent_id', dependentId)
+                .order('created_at', { ascending: false })
+                .limit(limit);
+
+            if (schedulesError) throw schedulesError;
+            if (!schedules || schedules.length === 0) return [];
+
+            const enriched = await Promise.all(schedules.map(async (schedule) => {
+                try {
+                    const { data: links, error: linksError } = await supabase
+                        .from('treatments_in_schedule')
+                        .select('*')
+                        .eq('scheduling_id', schedule.id);
+
+                    if (linksError) throw linksError;
+
+                    const enrichedLinks = await Promise.all((links || []).map(async (link) => {
+                        if (link.treatment_id) {
+                            const treatment = await this.getTreatment(link.treatment_id);
+                            if (treatment) {
+                                return {
+                                    ...link,
+                                    treatments: {
+                                        ...treatment,
+                                        medications: treatment.medication_id ? await this.getMedication(treatment.medication_id) : null
+                                    }
+                                };
+                            }
+                        }
+                        if (link.medication_id) {
+                            const medication = await this.getMedication(link.medication_id);
+                            return { ...link, medications: medication };
+                        }
+                        return link;
+                    }));
+
+                    return { scheduling: schedule, items: enrichedLinks };
+                } catch (error) {
+                    return { scheduling: schedule, items: [] };
+                }
+            }));
+
+            return enriched;
+
+        } catch (error) {
+            console.error('Error fetching recent schedules:', error);
+            const all = await OfflineDB.getAll('scheduling');
+            const filtered = all
+                .filter(s => s.dependent_id === dependentId)
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .slice(0, limit);
+
+            return filtered.map(schedule => ({ scheduling: schedule, items: [] }));
+        }
+    },
+
     async getLastAction(dependentId) {
         if (!dependentId) return null;
 

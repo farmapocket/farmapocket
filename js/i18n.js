@@ -137,7 +137,13 @@ const i18n = {
         'settings.language': { 'en': 'Language', 'pt-BR': 'Idioma', 'es': 'Idioma' },
         'settings.notifications': { 'en': 'Notifications', 'pt-BR': 'Notificações', 'es': 'Notificaciones' },
         'settings.enableReminders': { 'en': 'Enable Medication Reminders', 'pt-BR': 'Ativar Lembretes de Medicamento', 'es': 'Activar Recordatorios de Medicamentos' },
-        'settings.dataExport': { 'en': 'Export Data', 'pt-BR': 'Exportar Dados', 'es': 'Exportar Datos' }
+        'settings.dataExport': { 'en': 'Export Data', 'pt-BR': 'Exportar Dados', 'es': 'Exportar Datos' },
+        'settings.log': { 'en': 'Activity Log', 'pt-BR': 'Registro de Atividades', 'es': 'Registro de Actividades' },
+
+        // LOG
+        'log.title': { 'en': 'Activity Log', 'pt-BR': 'Registro de Atividades', 'es': 'Registro de Actividades' },
+        'log.loading': { 'en': 'Loading...', 'pt-BR': 'Carregando...', 'es': 'Cargando...' },
+        'log.noData': { 'en': 'No records found', 'pt-BR': 'Nenhum registro encontrado', 'es': 'No se encontraron registros' }
     },
 
     t(key, replacements = {}) {

@@ -45,6 +45,7 @@ function navigateTo(page) {
     if (page === 'treatments') loadTreatments();
     if (page === 'professionals') loadProfessionals();
     if (page === 'prescriptions') loadPrescriptions();
+    if (page === 'activity-log') loadActivityLog();
 
     window.scrollTo(0, 0);
 }
@@ -356,6 +357,164 @@ async function loadLastAction() {
     }
 }
 
+// ========== ACTIVITY LOG CAROUSEL ==========
+
+let activityLogData = [];
+let currentLogIndex = 0;
+let logTouchStartX = 0;
+let logTouchEndX = 0;
+
+function showActivityLog() {
+    navigateTo('activity-log');
+}
+
+async function loadActivityLog() {
+    const container = document.getElementById('activity-log-container');
+    const dotsContainer = document.getElementById('activity-log-dots');
+    const depId = AppState.getCurrentDependent();
+
+    if (!depId) {
+        container.innerHTML = '<p class="text-gray-400 text-sm text-center py-8">Selecione um dependente primeiro</p>';
+        dotsContainer.innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = '<p class="text-gray-400 text-sm text-center py-8" data-i18n="log.loading">Carregando...</p>';
+    dotsContainer.innerHTML = '';
+
+    try {
+        activityLogData = await DB.getRecentSchedules(depId, 10);
+        currentLogIndex = 0;
+
+        if (activityLogData.length === 0) {
+            container.innerHTML = `<p class="text-gray-400 text-sm text-center py-8" data-i18n="log.noData">Nenhum registro encontrado</p>`;
+            return;
+        }
+
+        renderLogCarousel();
+    } catch (error) {
+        console.error('Error loading activity log:', error);
+        container.innerHTML = '<p class="text-gray-400 text-sm text-center py-8">Erro ao carregar registro</p>';
+    }
+}
+
+function renderLogCarousel() {
+    const container = document.getElementById('activity-log-container');
+    const dotsContainer = document.getElementById('activity-log-dots');
+
+    const slidesHtml = activityLogData.map((entry, index) => {
+        const schedule = entry.scheduling;
+        const timeStr = schedule.schedule_time
+            ? new Date(schedule.schedule_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            : '--:--';
+        const dateStr = schedule.created_at
+            ? new Date(schedule.created_at).toLocaleDateString('pt-BR')
+            : '';
+        const isTaken = schedule.action === 'Taken';
+        const actionLabel = isTaken ? i18n.t('dashboard.taken') : i18n.t('dashboard.skipped');
+        const actionBadgeClass = isTaken
+            ? 'bg-emerald-100 text-emerald-700'
+            : 'bg-amber-100 text-amber-700';
+
+        const items = entry.items || [];
+        const itemsHtml = items.length > 0
+            ? items.map(item => {
+                const name = item.medications?.name
+                    || item.treatments?.medications?.name
+                    || item.treatments?.medication_name
+                    || 'Medicamento';
+                const dosage = item.dosage || item.treatments?.dosage || 0;
+                return `
+                    <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                        <span class="text-sm text-gray-800">${name}</span>
+                        <span class="text-xs text-gray-500">${formatDosage(dosage)} un</span>
+                    </div>
+                `;
+            }).join('')
+            : '<p class="text-sm text-gray-400 py-2">Nenhuma medicação vinculada</p>';
+
+        return `
+            <div class="log-slide">
+                <div class="text-center mb-4">
+                    <p class="text-5xl font-bold text-sky-700">${timeStr}</p>
+                    <p class="text-sm text-gray-400 mt-1">${dateStr}</p>
+                    <span class="inline-block mt-2 text-xs px-3 py-1 rounded-full ${actionBadgeClass}">${actionLabel}</span>
+                </div>
+                ${schedule.notes ? `<p class="text-sm text-gray-600 italic mb-3">"${schedule.notes}"</p>` : ''}
+                <div class="bg-gray-50 rounded-xl p-3">
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Medicações</p>
+                    ${itemsHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="log-carousel" id="log-carousel" ontouchstart="handleLogTouchStart(event)" ontouchend="handleLogTouchEnd(event)">
+            ${slidesHtml}
+        </div>
+    `;
+
+    dotsContainer.innerHTML = activityLogData.map((_, index) => `
+        <div class="log-dot ${index === currentLogIndex ? 'active' : ''}" onclick="goToLogSlide(${index})"></div>
+    `).join('');
+
+    updateLogCarouselPosition();
+}
+
+function updateLogCarouselPosition() {
+    const carousel = document.getElementById('log-carousel');
+    if (carousel) {
+        carousel.style.transform = `translateX(-${currentLogIndex * 100}%)`;
+    }
+
+    document.querySelectorAll('.log-dot').forEach((dot, index) => {
+        dot.classList.toggle('active', index === currentLogIndex);
+    });
+}
+
+function goToLogSlide(index) {
+    if (index < 0 || index >= activityLogData.length) return;
+    currentLogIndex = index;
+    updateLogCarouselPosition();
+}
+
+function nextLogSlide() {
+    if (currentLogIndex < activityLogData.length - 1) {
+        currentLogIndex++;
+        updateLogCarouselPosition();
+    }
+}
+
+function prevLogSlide() {
+    if (currentLogIndex > 0) {
+        currentLogIndex--;
+        updateLogCarouselPosition();
+    }
+}
+
+function handleLogTouchStart(event) {
+    logTouchStartX = event.changedTouches[0].screenX;
+}
+
+function handleLogTouchEnd(event) {
+    logTouchEndX = event.changedTouches[0].screenX;
+    handleLogSwipe();
+}
+
+function handleLogSwipe() {
+    const swipeThreshold = 50;
+    const diff = logTouchStartX - logTouchEndX;
+
+    if (Math.abs(diff) > swipeThreshold) {
+        if (diff > 0) {
+            nextLogSlide();
+        } else {
+            prevLogSlide();
+        }
+    }
+}
+
 async function showDoseActionModal(action, timeStr, scheduleJson) {
     const schedule = JSON.parse(decodeURIComponent(scheduleJson));
     currentDoseSchedule = { ...schedule, action };
@@ -363,6 +522,7 @@ async function showDoseActionModal(action, timeStr, scheduleJson) {
     const titleEl = document.getElementById('dose-action-title');
     const timeEl = document.getElementById('dose-action-time');
     const treatmentsEl = document.getElementById('dose-action-treatments');
+    const extraWrapper = document.getElementById('dose-action-extra-wrapper');
     const extraContainer = document.getElementById('dose-action-extra-medications');
     const scheduleTimeInput = document.getElementById('dose-action-schedule-time');
     const actionTypeInput = document.getElementById('dose-action-type');
@@ -380,9 +540,15 @@ async function showDoseActionModal(action, timeStr, scheduleJson) {
         </div>
     `).join('');
 
-    // Reset and load extra medications
-    extraContainer.innerHTML = '';
-    await loadDoseActionMedicationOptions();
+    // Extra medications only for "Taken" action
+    if (action === 'Taken') {
+        extraWrapper.classList.remove('hidden');
+        extraContainer.innerHTML = '';
+        await loadDoseActionMedicationOptions();
+    } else {
+        extraWrapper.classList.add('hidden');
+        extraContainer.innerHTML = '';
+    }
 
     form.reset();
     openModal('modal-dose-action');
@@ -1106,15 +1272,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const notes = formData.get('notes');
             const depId = AppState.getCurrentDependent();
 
-            // Collect extra medications
+            // Collect extra medications only for Taken action
             const extraMedications = [];
-            document.querySelectorAll('#dose-action-extra-medications .bg-gray-50').forEach(row => {
-                const medId = row.querySelector('.extra-medication-id')?.value;
-                const dosage = row.querySelector('.extra-medication-dosage')?.value;
-                if (medId && dosage) {
-                    extraMedications.push({ medication_id: medId, dosage: parseFloat(dosage) });
-                }
-            });
+            if (currentDoseSchedule.action === 'Taken') {
+                document.querySelectorAll('#dose-action-extra-medications .bg-gray-50').forEach(row => {
+                    const medId = row.querySelector('.extra-medication-id')?.value;
+                    const dosage = row.querySelector('.extra-medication-dosage')?.value;
+                    if (medId && dosage) {
+                        extraMedications.push({ medication_id: medId, dosage: parseFloat(dosage) });
+                    }
+                });
+            }
 
             try {
                 await DB.recordDose(
@@ -1202,8 +1370,12 @@ window.showAddPrescription = showAddPrescription;
 window.editPrescription = editPrescription;
 window.deletePrescription = deletePrescription;
 window.togglePrescriptionUsedDate = togglePrescriptionUsedDate;
+window.showActivityLog = showActivityLog;
 window.showDoseActionModal = showDoseActionModal;
 window.addExtraMedicationRow = addExtraMedicationRow;
 window.revertLastDose = revertLastDose;
+window.goToLogSlide = goToLogSlide;
+window.handleLogTouchStart = handleLogTouchStart;
+window.handleLogTouchEnd = handleLogTouchEnd;
 window.closeModal = closeModal;
 window.exportData = exportData;

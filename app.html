@@ -28,6 +28,29 @@
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .skeleton { background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* Activity log carousel */
+        .log-carousel {
+            display: flex;
+            transition: transform 0.3s ease;
+            touch-action: pan-y;
+        }
+        .log-slide {
+            flex: 0 0 100%;
+            width: 100%;
+            padding: 1.5rem;
+            box-sizing: border-box;
+        }
+        .log-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #d1d5db;
+            transition: background 0.2s;
+        }
+        .log-dot.active {
+            background: #0ea5e9;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen pb-20">
@@ -212,9 +235,34 @@
                 </div>
             </div>
 
+            <div class="bg-white rounded-xl shadow-sm mb-4">
+                <div class="p-4 border-b border-gray-100">
+                    <h3 class="font-semibold text-gray-800" data-i18n="settings.log">Registro de Atividades</h3>
+                </div>
+                <div class="p-4">
+                    <button onclick="showActivityLog()" class="w-full py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                        📋 Ver últimas doses
+                    </button>
+                </div>
+            </div>
+
             <button onclick="logout()" class="w-full py-4 bg-red-50 text-red-600 rounded-xl font-medium hover:bg-red-100 transition-colors mt-6" data-i18n="nav.logout">
                 Sair
             </button>
+        </div>
+
+        <!-- PAGE: Activity Log -->
+        <div id="page-activity-log" class="page">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-bold text-gray-800" data-i18n="log.title">Registro de Atividades</h2>
+                <button onclick="navigateTo('settings')" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                    ✕
+                </button>
+            </div>
+            <div id="activity-log-container" class="relative overflow-hidden bg-white rounded-xl shadow-sm min-h-[300px]">
+                <p class="text-gray-400 text-sm text-center py-8" data-i18n="log.loading">Carregando...</p>
+            </div>
+            <div class="flex justify-center gap-2 mt-4" id="activity-log-dots"></div>
         </div>
     </main>
 
@@ -435,7 +483,7 @@
                 <p class="text-sm text-gray-500 mb-2">Tratamentos</p>
                 <div id="dose-action-treatments" class="space-y-1"></div>
             </div>
-            <div class="mb-4">
+            <div id="dose-action-extra-wrapper" class="mb-4">
                 <div class="flex items-center justify-between mb-2">
                     <p class="text-sm text-gray-500" data-i18n="doseAction.extraMedications">Medicações adicionais</p>
                     <button type="button" onclick="addExtraMedicationRow()" class="text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded-lg font-medium hover:bg-sky-200 transition-colors" data-i18n="doseAction.addMedication">+ Adicionar</button>
