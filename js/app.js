@@ -640,7 +640,9 @@ async function loadMedications() {
         }
 
         listEl.innerHTML = medications.map(med => {
-            const prescriptionCount = prescriptionCounts[med.id] || 0;
+            const prescriptionInfo = prescriptionCounts[med.id] || { count: 0, totalUnits: 0 };
+            const prescriptionCount = prescriptionInfo.count;
+            const prescriptionUnits = prescriptionInfo.totalUnits;
             return `
             <div class="bg-white rounded-xl p-4 shadow-sm card-hover" onclick="showMedicationDetail('${med.id}')">
                 <div class="flex items-start justify-between">
@@ -652,7 +654,7 @@ async function loadMedications() {
                             ${med.is_continuous_use ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Uso Contínuo</span>' : ''}
                             ${med.is_rescue_medication ? '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">Resgate</span>' : ''}
                             <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${med.stock_quantity || 0} un</span>
-                            ${prescriptionCount > 0 ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${prescriptionCount} receita${prescriptionCount > 1 ? 's' : ''}</span>` : ''}
+                            ${prescriptionCount > 0 ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${prescriptionCount} receita${prescriptionCount > 1 ? 's' : ''} (${prescriptionUnits} un)</span>` : ''}
                         </div>
                     </div>
                     <button class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center" onclick="event.stopPropagation(); editMedication('${med.id}')">

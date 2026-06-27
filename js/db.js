@@ -383,15 +383,20 @@ const DB = {
         try {
             const { data, error } = await supabase
                 .from('prescriptions')
-                .select('medication_id')
-                .eq('dependent_id', dependentId);
+                .select('medication_id, units, status')
+                .eq('dependent_id', dependentId)
+                .eq('status', 'Valid');
 
             if (error) throw error;
 
             const counts = {};
             (data || []).forEach(p => {
                 if (p.medication_id) {
-                    counts[p.medication_id] = (counts[p.medication_id] || 0) + 1;
+                    if (!counts[p.medication_id]) {
+                        counts[p.medication_id] = { count: 0, totalUnits: 0 };
+                    }
+                    counts[p.medication_id].count++;
+                    counts[p.medication_id].totalUnits += parseInt(p.units) || 0;
                 }
             });
             return counts;
@@ -399,9 +404,13 @@ const DB = {
         } catch (error) {
             const all = await OfflineDB.getAll('prescriptions');
             const counts = {};
-            all.filter(p => p.dependent_id === dependentId).forEach(p => {
+            all.filter(p => p.dependent_id === dependentId && p.status === 'Valid').forEach(p => {
                 if (p.medication_id) {
-                    counts[p.medication_id] = (counts[p.medication_id] || 0) + 1;
+                    if (!counts[p.medication_id]) {
+                        counts[p.medication_id] = { count: 0, totalUnits: 0 };
+                    }
+                    counts[p.medication_id].count++;
+                    counts[p.medication_id].totalUnits += parseInt(p.units) || 0;
                 }
             });
             return counts;
