@@ -933,6 +933,90 @@ const DB = {
         }
     },
 
+    // ========== SYMPTOMS ==========
+
+    async getSymptoms(dependentId) {
+        if (!dependentId) return [];
+
+        try {
+            const { data, error } = await supabase
+                .from('symptoms')
+                .select('*')
+                .eq('dependent_id', dependentId)
+                .order('start_date', { ascending: false });
+
+            if (error) throw error;
+            return data || [];
+
+        } catch (error) {
+            const all = await OfflineDB.getAll('symptoms');
+            return all.filter(s => s.dependent_id === dependentId);
+        }
+    },
+
+    async addSymptom(symptom) {
+        if (!symptom.dependent_id) throw new Error('dependent_id is required');
+        if (!symptom.description) throw new Error('description is required');
+
+        const payload = {
+            ...symptom,
+            severity: symptom.severity || null
+        };
+
+        try {
+            const { data, error } = await supabase
+                .from('symptoms')
+                .insert(payload)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('symptoms', data.id, data);
+            return data;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('symptoms', 'insert', payload);
+            throw error;
+        }
+    },
+
+    async updateSymptom(id, updates) {
+        const payload = { ...updates };
+
+        try {
+            const { data, error } = await supabase
+                .from('symptoms')
+                .update(payload)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('symptoms', id, data);
+            return data;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('symptoms', 'update', { id, ...payload });
+            throw error;
+        }
+    },
+
+    async deleteSymptom(id) {
+        try {
+            const { error } = await supabase
+                .from('symptoms')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            await OfflineDB.delete('symptoms', id);
+
+        } catch (error) {
+            await OfflineDB.queueForSync('symptoms', 'delete', { id });
+            throw error;
+        }
+    },
+
     // ========== DASHBOARD STATS (aggregated across all dependents) ==========
 
     async getDashboardStats() {

@@ -195,6 +195,19 @@
             </div>
         </div>
 
+        <!-- PAGE: Symptoms -->
+        <div id="page-symptoms" class="page">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-bold text-gray-800" data-i18n="nav.symptoms">Sintomas</h2>
+                <button onclick="showAddSymptom()" class="w-10 h-10 rounded-full bg-sky-500 text-white flex items-center justify-center fab">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                </button>
+            </div>
+            <div id="symptoms-list" class="space-y-3">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+
         <!-- PAGE: Settings -->
         <div id="page-settings" class="page">
             <h2 class="text-2xl font-bold text-gray-800 mb-6" data-i18n="nav.settings">Configurações</h2>
@@ -288,6 +301,10 @@
             <button class="bottom-nav-item flex flex-col items-center gap-1 p-2 text-gray-400" data-page="prescriptions" onclick="navigateTo('prescriptions')">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 <span class="text-xs" data-i18n="nav.prescriptions">Rec</span>
+            </button>
+            <button class="bottom-nav-item flex flex-col items-center gap-1 p-2 text-gray-400" data-page="symptoms" onclick="navigateTo('symptoms')">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                <span class="text-xs" data-i18n="nav.symptoms">Sint</span>
             </button>
             <button class="bottom-nav-item flex flex-col items-center gap-1 p-2 text-gray-400" data-page="settings" onclick="navigateTo('settings')">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
@@ -462,6 +479,57 @@
                 <div id="prescription-used-date-wrapper" class="hidden">
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="prescription.usedDate">Data de Utilização</label>
                     <input type="date" name="used_date" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+                <button type="submit" class="w-full py-3 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 transition-colors" data-i18n="common.save">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Symptom -->
+    <div id="modal-symptom" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center">
+        <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-gray-800" data-i18n="symptom.addNew">Adicionar Sintoma</h3>
+                <button onclick="closeModal('modal-symptom')" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">✕</button>
+            </div>
+            <form id="form-symptom" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="symptom.description">Descrição</label>
+                    <input type="text" name="description" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: Dor de cabeça">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="symptom.severity">Como você está se sentindo?</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <label class="severity-option flex flex-col items-center gap-2 p-3 border-2 border-gray-200 rounded-xl cursor-pointer transition-colors hover:bg-green-50 has-[:checked]:border-green-500 has-[:checked]:bg-green-50">
+                            <input type="radio" name="severity" value="1" class="hidden">
+                            <span class="text-3xl">😊</span>
+                            <span class="text-xs font-medium text-gray-700" data-i18n="symptom.good">Bom</span>
+                        </label>
+                        <label class="severity-option flex flex-col items-center gap-2 p-3 border-2 border-gray-200 rounded-xl cursor-pointer transition-colors hover:bg-yellow-50 has-[:checked]:border-yellow-500 has-[:checked]:bg-yellow-50">
+                            <input type="radio" name="severity" value="5" class="hidden">
+                            <span class="text-3xl">😐</span>
+                            <span class="text-xs font-medium text-gray-700" data-i18n="symptom.neutral">Neutro</span>
+                        </label>
+                        <label class="severity-option flex flex-col items-center gap-2 p-3 border-2 border-gray-200 rounded-xl cursor-pointer transition-colors hover:bg-red-50 has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
+                            <input type="radio" name="severity" value="10" class="hidden">
+                            <span class="text-3xl">😞</span>
+                            <span class="text-xs font-medium text-gray-700" data-i18n="symptom.bad">Ruim</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="symptom.startDate">Data de Início</label>
+                        <input type="date" name="start_date" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="symptom.endDate">Data de Fim</label>
+                        <input type="date" name="end_date" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="symptom.notes">Observações</label>
+                    <textarea name="notes" rows="2" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Informações adicionais..."></textarea>
                 </div>
                 <button type="submit" class="w-full py-3 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 transition-colors" data-i18n="common.save">Salvar</button>
             </form>

@@ -2,9 +2,6 @@
 
 ## Próximos passos
 
-- Implementar cadastro de sintomas
-    - Sinalizar se o sintoma é bom, neutro ou ruim (botões com carinhas)
----
 - Implementar cadastro de procedimentos
 ---
 - Implementar a lógica de vencimento das receitas, com:
@@ -34,6 +31,11 @@
 
 ## Últimas implementações:
 
+- [x] Implementar cadastro de sintomas
+    - Incluir o cadastro de sintomas na bandeja
+    - Sinalizar se o sintoma é bom, neutro ou ruim (botões com carinhas). Armazenar essa informação no campo severity da tabela
+    - Incluir a funcionalidade de edição
+---
 - [x] No card de medicação, incluir a informação de quantas receitas existem para aquela medicação, e quantas unidades do total de receitas
 ---
 - [x] Nos campos de seleção de medicação, seria interessante uma opção de inclusão rápida para medicações que não existem na tabela. Essa opção abriria a tela de cadastro de medicação e ao final preencheria o seletor com a medicação nova

@@ -45,6 +45,7 @@ function navigateTo(page) {
     if (page === 'treatments') loadTreatments();
     if (page === 'professionals') loadProfessionals();
     if (page === 'prescriptions') loadPrescriptions();
+    if (page === 'symptoms') loadSymptoms();
     if (page === 'activity-log') loadActivityLog();
 
     window.scrollTo(0, 0);
@@ -865,6 +866,7 @@ function formatTreatmentDuration(startDate, endDate) {
 let currentEditingTreatmentId = null;
 let currentEditingMedicationId = null;
 let currentEditingPrescriptionId = null;
+let currentEditingSymptomId = null;
 
 function showAddTreatment() {
     if (!AppState.getCurrentDependent()) {
@@ -1128,6 +1130,123 @@ function togglePrescriptionUsedDate(select) {
     }
 }
 
+// ========== SYMPTOMS ==========
+
+async function loadSymptoms() {
+    const listEl = document.getElementById('symptoms-list');
+    const depId = AppState.getCurrentDependent();
+
+    if (!depId) {
+        listEl.innerHTML = `
+            <div class="text-center py-8">
+                <span class="text-4xl mb-2 block">👤</span>
+                <p class="text-gray-500">Selecione um dependente primeiro</p>
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        const symptoms = await DB.getSymptoms(depId);
+
+        if (symptoms.length === 0) {
+            listEl.innerHTML = `
+                <div class="text-center py-8">
+                    <span class="text-4xl mb-2 block">😊</span>
+                    <p class="text-gray-400" data-i18n="common.noData">Nenhum dado encontrado</p>
+                    <p class="text-sm text-gray-400 mt-1" data-i18n="symptom.noData">Adicione o primeiro sintoma</p>
+                </div>
+            `;
+            return;
+        }
+
+        const severityFace = (severity) => {
+            if (!severity) return '';
+            if (severity <= 3) return '😊';
+            if (severity <= 6) return '😐';
+            return '😞';
+        };
+
+        listEl.innerHTML = symptoms.map(s => {
+            const startDate = s.start_date ? new Date(s.start_date).toLocaleDateString('pt-BR') : '';
+            const endDate = s.end_date ? new Date(s.end_date).toLocaleDateString('pt-BR') : '';
+            const face = severityFace(s.severity);
+            return `
+            <div class="bg-white rounded-xl p-4 shadow-sm card-hover">
+                <div class="flex items-start justify-between mb-2">
+                    <div class="flex-1 pr-2">
+                        <h3 class="font-semibold text-gray-800">${s.description}</h3>
+                        <p class="text-sm text-gray-500">${startDate}${endDate ? ` → ${endDate}` : ''}</p>
+                        ${s.notes ? `<p class="text-xs text-gray-400 mt-1">📝 ${s.notes}</p>` : ''}
+                    </div>
+                    <div class="flex items-center gap-1">
+                        ${face ? `<span class="text-2xl" title="${i18n.t('symptom.severity')}: ${s.severity}/10">${face}</span>` : ''}
+                        <button onclick="editSymptom('${s.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center ml-1" title="Editar">
+                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        <button onclick="deleteSymptom('${s.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center" title="Excluir">
+                            <svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error loading symptoms:', error);
+        listEl.innerHTML = '<p class="text-center text-red-500 py-4">Erro ao carregar sintomas</p>';
+    }
+}
+
+function showAddSymptom() {
+    if (!AppState.getCurrentDependent()) {
+        alert('Selecione um dependente primeiro');
+        return;
+    }
+    currentEditingSymptomId = null;
+    document.getElementById('form-symptom').reset();
+    document.querySelector('#modal-symptom h3').textContent = i18n.t('symptom.addNew');
+    openModal('modal-symptom');
+}
+
+async function editSymptom(id) {
+    event.stopPropagation();
+    const depId = AppState.getCurrentDependent();
+    if (!depId) return;
+
+    const symptoms = await DB.getSymptoms(depId);
+    const symptom = symptoms.find(s => s.id === id);
+    if (!symptom) {
+        alert('Sintoma não encontrado');
+        return;
+    }
+
+    currentEditingSymptomId = id;
+    const form = document.getElementById('form-symptom');
+    form.querySelector('[name="description"]').value = symptom.description || '';
+    const severity = symptom.severity || '';
+    const severityInput = form.querySelector(`[name="severity"][value="${severity}"]`);
+    if (severityInput) severityInput.checked = true;
+    form.querySelector('[name="start_date"]').value = symptom.start_date || '';
+    form.querySelector('[name="end_date"]').value = symptom.end_date || '';
+    form.querySelector('[name="notes"]').value = symptom.notes || '';
+
+    document.querySelector('#modal-symptom h3').textContent = i18n.t('symptom.edit');
+    openModal('modal-symptom');
+}
+
+async function deleteSymptom(id) {
+    if (!confirm('Tem certeza que deseja excluir este sintoma?')) return;
+
+    try {
+        await DB.deleteSymptom(id);
+        loadSymptoms();
+    } catch (error) {
+        alert('Erro ao excluir: ' + error.message);
+    }
+}
+
 // ========== FORM HANDLERS ==========
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1304,6 +1423,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('prescription-used-date-wrapper').classList.add('hidden');
                 loadPrescriptions();
                 loadDashboard();
+                scrollPageToTop();
+
+            } catch (error) {
+                alert('Erro ao salvar: ' + error.message);
+            }
+        });
+    }
+
+    // Symptom form
+    const symptomForm = document.getElementById('form-symptom');
+    if (symptomForm) {
+        symptomForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(symptomForm);
+            const symptom = {
+                dependent_id: AppState.getCurrentDependent(),
+                description: formData.get('description'),
+                severity: parseInt(formData.get('severity')) || null,
+                start_date: formData.get('start_date') || null,
+                end_date: formData.get('end_date') || null,
+                notes: formData.get('notes') || null
+            };
+
+            try {
+                if (currentEditingSymptomId) {
+                    await DB.updateSymptom(currentEditingSymptomId, symptom);
+                } else {
+                    await DB.addSymptom(symptom);
+                }
+                currentEditingSymptomId = null;
+                closeModal('modal-symptom');
+                symptomForm.reset();
+                loadSymptoms();
                 scrollPageToTop();
 
             } catch (error) {

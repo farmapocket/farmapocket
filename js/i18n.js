@@ -85,6 +85,19 @@ const i18n = {
         'prescription.usedDate': { 'en': 'Used Date', 'pt-BR': 'Data de Utilização', 'es': 'Fecha de Uso' },
         'prescription.noData': { 'en': 'Add the first prescription', 'pt-BR': 'Adicione o primeiro receituário', 'es': 'Agregue la primera receta' },
 
+        // SYMPTOMS
+        'symptom.addNew': { 'en': 'Add New Symptom', 'pt-BR': 'Adicionar Sintoma', 'es': 'Agregar Síntoma' },
+        'symptom.edit': { 'en': 'Edit Symptom', 'pt-BR': 'Editar Sintoma', 'es': 'Editar Síntoma' },
+        'symptom.description': { 'en': 'Description', 'pt-BR': 'Descrição', 'es': 'Descripción' },
+        'symptom.severity': { 'en': 'How are you feeling?', 'pt-BR': 'Como você está se sentindo?', 'es': '¿Cómo te sientes?' },
+        'symptom.good': { 'en': 'Good', 'pt-BR': 'Bom', 'es': 'Bien' },
+        'symptom.neutral': { 'en': 'Neutral', 'pt-BR': 'Neutro', 'es': 'Neutral' },
+        'symptom.bad': { 'en': 'Bad', 'pt-BR': 'Ruim', 'es': 'Mal' },
+        'symptom.startDate': { 'en': 'Start Date', 'pt-BR': 'Data de Início', 'es': 'Fecha de Inicio' },
+        'symptom.endDate': { 'en': 'End Date', 'pt-BR': 'Data de Fim', 'es': 'Fecha de Fin' },
+        'symptom.notes': { 'en': 'Notes', 'pt-BR': 'Observações', 'es': 'Observaciones' },
+        'symptom.noData': { 'en': 'Add the first symptom', 'pt-BR': 'Adicione o primeiro sintoma', 'es': 'Agregue el primer síntoma' },
+
         // DOSE ACTION
         'doseAction.confirmTaken': { 'en': 'Confirm Medication Taken', 'pt-BR': 'Confirmar Medicação Tomada', 'es': 'Confirmar Medicamento Tomado' },
         'doseAction.confirmSkipped': { 'en': 'Confirm Skipped Medication', 'pt-BR': 'Confirmar Medicação Pulada', 'es': 'Confirmar Medicamento Saltado' },
