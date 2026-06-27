@@ -125,7 +125,7 @@ CREATE TABLE public.prescriptions (
   prescribed_by uuid,
   medication_id uuid,
   units integer NOT NULL,
-  expiration_date date NOT NULL,
+  expiration_date date,
   status text DEFAULT 'Valid'::text CHECK (status = ANY (ARRAY['Valid'::text, 'Expired'::text, 'Used'::text])),
   used_date date,
   created_at timestamp with time zone DEFAULT now(),

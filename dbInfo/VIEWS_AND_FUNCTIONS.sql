@@ -77,12 +77,12 @@ SELECT
     p.status,
     p.used_date,
     CASE 
-        WHEN p.expiration_date < CURRENT_DATE AND p.status != 'Used' THEN 'Expired'
+        WHEN p.expiration_date IS NOT NULL AND p.expiration_date < CURRENT_DATE AND p.status != 'Used' THEN 'Expired'
         WHEN p.status = 'Used' THEN 'Used'
         ELSE 'Valid'
     END AS computed_status,
     CASE 
-        WHEN p.expiration_date < CURRENT_DATE + 30 AND p.status != 'Used' THEN TRUE
+        WHEN p.expiration_date IS NOT NULL AND p.expiration_date < CURRENT_DATE + 30 AND p.status != 'Used' THEN TRUE
         ELSE FALSE
     END AS expiring_soon
 FROM prescriptions p
@@ -134,7 +134,7 @@ CREATE TRIGGER update_dependents_updated_at
 CREATE OR REPLACE FUNCTION check_prescription_expiration()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.expiration_date < CURRENT_DATE AND NEW.status != 'Used' THEN
+    IF NEW.expiration_date IS NOT NULL AND NEW.expiration_date < CURRENT_DATE AND NEW.status != 'Used' THEN
         NEW.status = 'Expired';
     END IF;
     RETURN NEW;

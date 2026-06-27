@@ -411,7 +411,6 @@ const DB = {
     async addPrescription(prescription) {
         if (!prescription.dependent_id) throw new Error('dependent_id is required');
         if (!prescription.medication_id) throw new Error('medication_id is required');
-        if (!prescription.expiration_date) throw new Error('expiration_date is required');
 
         const payload = {
             ...prescription,
