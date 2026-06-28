@@ -273,16 +273,33 @@ async function loadDashboard() {
         // Low stock alerts
         const lowStock = await DB.getLowStockAlerts();
         if (lowStock.length > 0) {
-            safeSetHtml('low-stock-list', lowStock.map(item => `
-                <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                    <div>
-                        <p class="font-medium text-gray-800">${item.medication_name}</p>
-                        <p class="text-xs text-gray-500">${item.dependent_name}</p>
-                        <p class="text-xs text-amber-600">${item.days_remaining} dias restantes</p>
+            const sections = {
+                'SEM RECEITA': lowStock.filter(i => i.is_controlled && !i.has_valid_prescription),
+                'COM RECEITA': lowStock.filter(i => i.is_controlled && i.has_valid_prescription),
+                'NÃO CONTROLADOS': lowStock.filter(i => !i.is_controlled)
+            };
+
+            // Garante ordenação por estoque crescente dentro de cada seção
+            Object.values(sections).forEach(list => list.sort((a, b) => a.stock_quantity - b.stock_quantity));
+
+            safeSetHtml('low-stock-list', Object.entries(sections)
+                .filter(([_, items]) => items.length > 0)
+                .map(([title, items]) => `
+                    <div class="mb-4 last:mb-0">
+                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">${title}</h4>
+                        <div class="space-y-2">
+                            ${items.map(item => `
+                                <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                                    <div>
+                                        <p class="font-medium text-gray-800">${item.medication_name}</p>
+                                        <p class="text-xs text-gray-500">${item.dependent_name}</p>
+                                        <p class="text-xs text-amber-600">${Math.round(item.weeks_remaining)} semana(s) • ${item.stock_quantity} un em estoque</p>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
-                    <span class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">Estoque Baixo</span>
-                </div>
-            `).join(''));
+                `).join(''));
         } else {
             safeSetHtml('low-stock-list', '<p class="text-gray-400 text-sm text-center py-4">Nenhum alerta no momento</p>');
         }

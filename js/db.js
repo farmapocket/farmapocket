@@ -1544,16 +1544,55 @@ const DB = {
         if (dependents.length === 0) return [];
 
         try {
-            const { data, error } = await supabase
-                .from('v_medication_autonomy')
-                .select('*')
-                .eq('low_stock_alert', true)
-                .in('dependent_id', dependents.map(d => d.id));
+            const depIds = dependents.map(d => d.id);
+            const [{ data: rows, error }, ...presCountsArr] = await Promise.all([
+                supabase
+                    .from('v_medication_autonomy')
+                    .select('*')
+                    .in('dependent_id', depIds),
+                ...dependents.map(d => this.getPrescriptionCountsByMedication(d.id))
+            ]);
 
             if (error) throw error;
-            return data || [];
+
+            const prescriptionCounts = Object.assign({}, ...presCountsArr);
+
+            // Agrupa por medicamento + dependente, somando o consumo diário de todos os tratamentos ativos
+            const grouped = {};
+            (rows || []).forEach(row => {
+                if (!row.is_continuous_use) return;
+                const key = `${row.medication_id}_${row.dependent_id}`;
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        medication_id: row.medication_id,
+                        medication_name: row.medication_name,
+                        dependent_id: row.dependent_id,
+                        dependent_name: row.dependent_name,
+                        stock_quantity: parseFloat(row.stock_quantity) || 0,
+                        is_controlled: row.is_controlled,
+                        is_continuous_use: row.is_continuous_use,
+                        daily_usage: 0
+                    };
+                }
+                grouped[key].daily_usage += parseFloat(row.daily_usage) || 0;
+            });
+
+            const alerts = Object.values(grouped).map(item => {
+                const weeks = item.daily_usage > 0 ? (item.stock_quantity / item.daily_usage / 7) : Infinity;
+                const hasRx = !!prescriptionCounts[item.medication_id]?.count;
+                return { ...item, weeks_remaining: weeks, has_valid_prescription: hasRx };
+            }).filter(item => {
+                if (item.is_controlled) {
+                    return item.has_valid_prescription ? item.weeks_remaining <= 2 : item.weeks_remaining <= 3;
+                }
+                return item.weeks_remaining <= 1;
+            });
+
+            alerts.sort((a, b) => a.stock_quantity - b.stock_quantity);
+            return alerts;
 
         } catch (error) {
+            console.error('Error loading low stock alerts:', error);
             return [];
         }
     },

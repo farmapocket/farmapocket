@@ -20,6 +20,8 @@ SELECT
     d.id AS dependent_id,
     d.name AS dependent_name,
     m.stock_quantity,
+    m.is_controlled,
+    m.is_continuous_use,
     t.dosage,
     t.frequency_hours,
     CASE
@@ -34,6 +36,13 @@ SELECT
         THEN ROUND(m.stock_quantity / ((24.0 / t.frequency_hours) * t.dosage), 0)
         ELSE 0 
     END AS days_remaining,
+    CASE 
+        WHEN m.stock_quantity > 0 AND t.schedule_type = 'weekly' AND COALESCE(wu.daily_usage, 0) > 0
+        THEN ROUND(m.stock_quantity / wu.daily_usage / 7.0, 2)
+        WHEN m.stock_quantity > 0 AND t.frequency_hours > 0 
+        THEN ROUND(m.stock_quantity / ((24.0 / t.frequency_hours) * t.dosage) / 7.0, 2)
+        ELSE 0 
+    END AS weeks_remaining,
     CASE 
         WHEN m.stock_last_updated IS NOT NULL AND m.stock_quantity > 0 AND t.schedule_type = 'weekly' AND COALESCE(wu.daily_usage, 0) > 0
         THEN m.stock_last_updated::DATE + ROUND(m.stock_quantity / wu.daily_usage, 0)::INTEGER
