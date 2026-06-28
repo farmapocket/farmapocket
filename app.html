@@ -617,6 +617,29 @@
         </div>
     </div>
 
+    <!-- Modal: Use Prescription -->
+    <div id="modal-use-prescription" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center">
+        <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-gray-800" data-i18n="prescription.useTitle">Utilizar Receituário</h3>
+                <button onclick="closeModal('modal-use-prescription')" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">✕</button>
+            </div>
+            <div class="space-y-4">
+                <p class="text-gray-600" data-i18n="prescription.useConfirm">Deseja utilizar este receituário? As unidades serão adicionadas ao estoque.</p>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-sm text-gray-500" data-i18n="prescription.medication">Medicamento</p>
+                    <p id="use-prescription-medication" class="font-medium text-gray-800">--</p>
+                    <p class="text-sm text-gray-500 mt-2" data-i18n="prescription.units">Unidades</p>
+                    <p id="use-prescription-units" class="font-medium text-gray-800">--</p>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeModal('modal-use-prescription')" class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors" data-i18n="common.cancel">Cancelar</button>
+                    <button type="button" onclick="confirmUsePrescription()" class="flex-1 py-3 bg-emerald-500 text-white rounded-lg font-medium hover:bg-emerald-600 transition-colors" data-i18n="prescription.use">Utilizar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Symptom -->
     <div id="modal-symptom" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center">
         <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6 max-h-[90vh] overflow-y-auto">

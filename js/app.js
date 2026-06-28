@@ -1275,31 +1275,30 @@ async function loadPrescriptions() {
             const profName = p.healthcare_professionals?.name || p.professional_name || '';
             const profSpecialty = p.healthcare_professionals?.specialty || '';
             const profText = profName ? (profSpecialty ? `${profName} (${profSpecialty})` : profName) : '';
-            const expDate = p.expiration_date ? new Date(p.expiration_date).toLocaleDateString('pt-BR') : '';
+            const expDate = p.expiration_date ? new Date(p.expiration_date).toLocaleDateString('pt-BR') : 'Não informada';
             const usedDate = p.used_date ? new Date(p.used_date).toLocaleDateString('pt-BR') : '';
             const status = p.status || 'Valid';
+            const canUse = status === 'Valid';
 
             return `
             <div class="bg-white rounded-xl p-4 shadow-sm card-hover">
-                <div class="flex items-start justify-between mb-2">
-                    <div class="flex-1 pr-2">
-                        <h3 class="font-semibold text-gray-800">${medName}</h3>
-                        <p class="text-sm text-gray-500">${p.units || 0} unidades</p>
-                        ${profText ? `<p class="text-xs text-gray-400 mt-1">👨‍⚕️ ${profText}</p>` : ''}
-                    </div>
-                    <div class="flex items-center gap-1">
+                <div class="flex items-start justify-between mb-1">
+                    <h3 class="text-lg font-bold text-gray-800">${medName}</h3>
+                    <div class="flex items-center gap-2">
                         <span class="text-xs px-2 py-0.5 rounded-full ${statusClasses[status] || statusClasses['Valid']}">${statusLabels[status] || status}</span>
-                        <button onclick="editPrescription('${p.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center ml-1" title="Editar">
-                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        <button onclick="editPrescription('${p.id}')" class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600" title="Editar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                         </button>
-                        <button onclick="deletePrescription('${p.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center" title="Excluir">
-                            <svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        <button onclick="deletePrescription('${p.id}')" class="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-600" title="Excluir">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
                     </div>
                 </div>
-                <div class="flex items-center gap-2 text-xs text-gray-500">
-                    <span>📅 Vence em ${expDate}</span>
-                    ${usedDate ? `<span>✅ Utilizado em ${usedDate}</span>` : ''}
+                <p class="text-base text-gray-600 mb-2">${p.units || 0} unidades</p>
+                ${profText ? `<p class="text-sm text-gray-500 mb-1">👨‍⚕️ ${profText}</p>` : ''}
+                <div class="flex items-center justify-between mt-2">
+                    <p class="text-sm text-gray-500">🗓️ ${status === 'Used' && usedDate ? `Utilizado em ${usedDate}` : (p.expiration_date ? `Vence em ${expDate}` : 'Sem data de validade')}</p>
+                    ${canUse ? `<button onclick="showUsePrescriptionModal('${p.id}')" class="px-5 py-2 bg-emerald-500 text-white rounded-lg font-medium text-sm hover:bg-emerald-600 transition-colors">UTILIZAR</button>` : ''}
                 </div>
             </div>
             `;
@@ -1383,6 +1382,40 @@ async function deletePrescription(id) {
         loadDashboard();
     } catch (error) {
         alert('Erro ao excluir: ' + error.message);
+    }
+}
+
+let currentUsePrescriptionId = null;
+
+async function showUsePrescriptionModal(id) {
+    event.stopPropagation();
+    const depId = AppState.getCurrentDependent();
+    if (!depId) return;
+
+    const prescriptions = await DB.getPrescriptions(depId);
+    const prescription = prescriptions.find(p => p.id === id);
+    if (!prescription) {
+        alert('Receituário não encontrado');
+        return;
+    }
+
+    currentUsePrescriptionId = id;
+    document.getElementById('use-prescription-medication').textContent = prescription.medications?.name || prescription.medication_name || 'Medicamento';
+    document.getElementById('use-prescription-units').textContent = `${prescription.units || 0} unidades`;
+    openModal('modal-use-prescription');
+}
+
+async function confirmUsePrescription() {
+    if (!currentUsePrescriptionId) return;
+
+    try {
+        await DB.usePrescription(currentUsePrescriptionId);
+        currentUsePrescriptionId = null;
+        closeModal('modal-use-prescription');
+        loadPrescriptions();
+        loadDashboard();
+    } catch (error) {
+        alert('Erro ao utilizar receituário: ' + error.message);
     }
 }
 
@@ -2123,6 +2156,8 @@ window.handleProfessionalSelectChange = handleProfessionalSelectChange;
 window.showAddPrescription = showAddPrescription;
 window.editPrescription = editPrescription;
 window.deletePrescription = deletePrescription;
+window.showUsePrescriptionModal = showUsePrescriptionModal;
+window.confirmUsePrescription = confirmUsePrescription;
 window.togglePrescriptionUsedDate = togglePrescriptionUsedDate;
 window.showActivityLog = showActivityLog;
 window.showDoseActionModal = showDoseActionModal;

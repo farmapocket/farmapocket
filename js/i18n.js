@@ -85,6 +85,9 @@ const i18n = {
         'prescription.statusExpired': { 'en': 'Expired', 'pt-BR': 'Vencida', 'es': 'Vencida' },
         'prescription.statusUsed': { 'en': 'Used', 'pt-BR': 'Utilizada', 'es': 'Utilizada' },
         'prescription.usedDate': { 'en': 'Used Date', 'pt-BR': 'Data de Utilização', 'es': 'Fecha de Uso' },
+        'prescription.use': { 'en': 'Use', 'pt-BR': 'Utilizar', 'es': 'Usar' },
+        'prescription.useTitle': { 'en': 'Use Prescription', 'pt-BR': 'Utilizar Receituário', 'es': 'Usar Receta' },
+        'prescription.useConfirm': { 'en': 'Do you want to use this prescription? Units will be added to stock.', 'pt-BR': 'Deseja utilizar este receituário? As unidades serão adicionadas ao estoque.', 'es': '¿Desea usar esta receta? Las unidades se agregarán al stock.' },
         'prescription.noData': { 'en': 'Add the first prescription', 'pt-BR': 'Adicione o primeiro receituário', 'es': 'Agregue la primera receta' },
 
         // SYMPTOMS

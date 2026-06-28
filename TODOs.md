@@ -2,13 +2,24 @@
 
 ## Próximos passos
 
-- Implementar a lógica de vencimento das receitas, com:
-    - Alerta para marcar consulta
+- No card de receitas, precisamos ter um botão "Utilizar". Este botão abrirá um modal de confirmação que, se confirmado, irá adicionar as unidades decritas na receita ao total em stock_quantity da tabela medications, atualizar stock_last_updated da mesma tabela para a data atual e alterar o campo status da tabela prescriptions para "Utilizada"
 ---
-- BUG FIX: Após a alteração das formas de programação, encontrei dois bugs:
-    - Quando eu selecionei "Definir manualmente" e tentei salvar sem nenhum valor no campo "Repetir a cada x horas" recebi a mensagem acima
+- Não podemos ter estoque negativo: Se uma ação "Tomar" encontrar uma quantidade menor que a solicitada
 ---
-- Não podemos ter estoque negativo: Se uma ação "Tomar" encontrar uma quantidade menor que a solicit
+- No card de Próximas Doses, ao lado da descrição das medicações temos, entre parêntesis, a dose. Ao lado dessa informação, quero uma nova informação no formato "x un em estoque" com a quantidade em estoque, com a seguinte lógica de cores:
+    - Para remédios controlados de uso contínuo:
+        - Se eu tenho receita válida para o medicamento
+            - se falta uma semana ou menos para acabar: fundo vermelho
+            - Se faltam duas semanas ou menos para acabar: fundo laranja
+            - Se faltam mais de duas semanas: fundo cinza
+        - Se eu não tenho receita
+            - se faltam uma semana ou menos para acabar: fundo vermelho
+            - se faltam três semanas ou menos para acabar: fundo laranja
+            - se faltam mais de três semanas: fundo cinza
+    - Para remédios não controlados de uso contínuo
+            - se falta uma semana ou menos para acabar: fundo laranja
+            - Se falta mais de uma semana: fundo cinza
+
 ---
 - Funcionalidade de estoque baixo
     - Para remédios controlados de uso contínuo:
@@ -16,6 +27,9 @@
         - Se eu não tenho receita, avisar com três semanas para acabar
     - Para remédios não controlados de uso contínuo
         - Avisar com uma semana para acabar
+---
+- Implementar a lógica de vencimento das receitas, com:
+    - Alerta para marcar consulta
 ---
 - O Aplicativo precisa se auto-explicar
 ---
@@ -32,6 +46,12 @@
 
 ## Últimas implementações:
 
+- [x] BUG FIX: Após a alteração das formas de programação, encontrei bugs:
+    - Quando eu selecionei "Definir manualmente" e tentei salvar sem nenhum valor no campo "Repetir a cada x horas" recebi um erro de obrigatoriedade de campo.
+    - Forma de apresentação da descrição dos horários no card de tratamento
+    - Múltiplos cards de próximas doses
+    - Bug na edição de horários
+---
 - [x] No cadastro de tratamento, preciso da alteração abaixo:
     - Abaixo do campo "Prescrito por", adicionaremos um botão "Definir frequência" Esse botão abrira um modal. Nessa modal eu preciso informar a quantidade (dosage) e programar os dias da semana e horários das doses. Pensei em algo como a imagem de exemplo, mas póde sugerir algo melhor. Após essa definição, voltamos para a tela de tratamento, onde teremos um card com a programação realizada. Preciso que defina como isso será persistido no banco (pensei em uma nova tabela medication_times_on_treatment).
     - É preciso rever como o comportamento do painel irá se dar com essa nova lógica

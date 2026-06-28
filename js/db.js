@@ -563,6 +563,74 @@ const DB = {
         }
     },
 
+    async usePrescription(id) {
+        if (!id) throw new Error('id is required');
+
+        let prescription = null;
+
+        try {
+            // Fetch prescription with medication
+            const { data: prescriptionData, error: prescriptionError } = await supabase
+                .from('prescriptions')
+                .select('*, medications(medication_id:id, stock_quantity, stock_last_updated)')
+                .eq('id', id)
+                .single();
+
+            prescription = prescriptionData;
+
+            if (prescriptionError) throw prescriptionError;
+            if (!prescription) throw new Error('Receituário não encontrado');
+            if (prescription.status === 'Used') throw new Error('Receituário já foi utilizado');
+
+            const medicationId = prescription.medication_id;
+            const units = parseInt(prescription.units) || 0;
+
+            // Update medication stock
+            const { data: medication, error: medicationError } = await supabase
+                .from('medications')
+                .select('stock_quantity')
+                .eq('id', medicationId)
+                .single();
+
+            if (medicationError) throw medicationError;
+
+            const newStock = (medication.stock_quantity || 0) + units;
+            const now = new Date().toISOString();
+
+            const { error: updateMedError } = await supabase
+                .from('medications')
+                .update({ stock_quantity: newStock, stock_last_updated: now })
+                .eq('id', medicationId);
+
+            if (updateMedError) throw updateMedError;
+
+            // Update prescription status
+            const { data: updatedPrescription, error: updatePresError } = await supabase
+                .from('prescriptions')
+                .update({ status: 'Used', used_date: now })
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (updatePresError) throw updatePresError;
+
+            // Update offline stores
+            await OfflineDB.set('medications', medicationId, {
+                ...medication,
+                stock_quantity: newStock,
+                stock_last_updated: now
+            });
+            await OfflineDB.set('prescriptions', id, updatedPrescription);
+
+            return updatedPrescription;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('prescriptions', 'update', { id, status: 'Used', used_date: new Date().toISOString() });
+            await OfflineDB.queueForSync('medications', 'update', { id: prescription?.medication_id, stock_quantity: null }); // stock will be resolved online
+            throw error;
+        }
+    },
+
     // ========== SCHEDULING ==========
 
     async getLastScheduling(dependentId) {
