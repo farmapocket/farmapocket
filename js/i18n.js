@@ -182,6 +182,7 @@ const i18n = {
         'dashboard.noLastAction': { 'en': 'No action recorded', 'pt-BR': 'Nenhuma ação registrada', 'es': 'Ninguna acción registrada' },
         'dashboard.taken': { 'en': 'Taken', 'pt-BR': 'Tomadas', 'es': 'Tomadas' },
         'dashboard.skipped': { 'en': 'Skipped', 'pt-BR': 'Puladas', 'es': 'Saltadas' },
+        'dashboard.stockUnits': { 'en': '{units} un in stock', 'pt-BR': '{units} un em estoque', 'es': '{units} un en stock' },
 
         // SETTINGS
         'settings.language': { 'en': 'Language', 'pt-BR': 'Idioma', 'es': 'Idioma' },

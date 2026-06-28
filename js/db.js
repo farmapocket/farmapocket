@@ -271,7 +271,7 @@ const DB = {
                 .from('treatments')
                 .select(`
                     *,
-                    medications:medication_id (name, stock_quantity),
+                    medications:medication_id (id, name, stock_quantity, is_controlled, is_continuous_use),
                     healthcare_professionals:prescribed_by (name, specialty),
                     medication_times_on_treatment (*)
                 `)

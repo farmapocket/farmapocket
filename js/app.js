@@ -195,6 +195,52 @@ function formatDosage(dosage) {
     return num.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
+function calculateTreatmentDailyUsage(treatment) {
+    if (!treatment) return 0;
+
+    if (treatment.schedule_type === 'weekly') {
+        const times = treatment.medication_times_on_treatment || [];
+        const weeklyTotal = times.reduce((sum, slot) => sum + (parseFloat(slot.dosage) || 0), 0);
+        return weeklyTotal / 7;
+    }
+
+    const freqHours = parseFloat(treatment.frequency_hours) || 0;
+    const dosage = parseFloat(treatment.dosage) || 0;
+    if (freqHours <= 0) return 0;
+    return (24 / freqHours) * dosage;
+}
+
+function getStockBadgeClass(treatment, prescriptionCounts) {
+    const medication = treatment?.medications || {};
+    const stock = parseFloat(medication.stock_quantity) || 0;
+    const dailyUsage = calculateTreatmentDailyUsage(treatment);
+
+    const weeksRemaining = dailyUsage > 0 ? (stock / dailyUsage / 7) : Infinity;
+    const isControlled = medication.is_controlled === true;
+    const isContinuousUse = medication.is_continuous_use === true;
+    const hasValidPrescription = !!prescriptionCounts?.[medication.id]?.count;
+
+    if (isContinuousUse) {
+        if (isControlled) {
+            if (hasValidPrescription) {
+                if (weeksRemaining <= 1) return 'bg-red-100 text-red-700';
+                if (weeksRemaining <= 2) return 'bg-orange-100 text-orange-700';
+                return 'bg-gray-100 text-gray-700';
+            } else {
+                if (weeksRemaining <= 1) return 'bg-red-100 text-red-700';
+                if (weeksRemaining <= 3) return 'bg-orange-100 text-orange-700';
+                return 'bg-gray-100 text-gray-700';
+            }
+        } else {
+            // Não controlado de uso contínuo
+            if (weeksRemaining <= 1) return 'bg-orange-100 text-orange-700';
+            return 'bg-gray-100 text-gray-700';
+        }
+    }
+
+    return 'bg-gray-100 text-gray-700';
+}
+
 // ========== DASHBOARD ==========
 
 function safeSetText(id, value) {
@@ -295,25 +341,37 @@ async function loadTodaySchedule() {
             ? 'Hoje'
             : schedule.time.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'short' });
         const scheduleJson = encodeURIComponent(JSON.stringify(schedule));
+        const prescriptionCounts = await DB.getPrescriptionCountsByMedication(depId);
 
         scheduleEl.innerHTML = `
             <div class="bg-gray-50 rounded-xl p-4">
-                <div class="flex items-start gap-4">
-                    <div class="flex flex-col items-center gap-2 flex-shrink-0">
-                        <p class="text-4xl font-bold text-sky-700">${timeStr}</p>
-                        <p class="text-xs text-gray-500">${dateLabel}</p>
-                        <button onclick="showDoseActionModal('Taken', '${timeStr}', '${scheduleJson}')" class="w-24 py-1.5 bg-emerald-500 text-white rounded-lg font-medium text-sm hover:bg-emerald-600 transition-colors">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex flex-col">
+                        <p class="text-xs text-gray-500 mb-0.5">${dateLabel}</p>
+                        <p class="text-4xl font-bold text-sky-700 leading-none">${timeStr}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="showDoseActionModal('Taken', '${timeStr}', '${scheduleJson}')" class="px-5 py-2 bg-emerald-500 text-white rounded-lg font-medium text-sm hover:bg-emerald-600 transition-colors">
                             TOMAR
                         </button>
-                        <button onclick="showDoseActionModal('Skipped', '${timeStr}', '${scheduleJson}')" class="w-24 py-1.5 bg-amber-500 text-white rounded-lg font-medium text-sm hover:bg-amber-600 transition-colors">
+                        <button onclick="showDoseActionModal('Skipped', '${timeStr}', '${scheduleJson}')" class="px-5 py-2 bg-amber-500 text-white rounded-lg font-medium text-sm hover:bg-amber-600 transition-colors">
                             PULAR
                         </button>
                     </div>
-                    <div class="flex-1 pt-1">
-                        ${schedule.treatments.map(t => `
-                            <p class="text-sm text-gray-800 leading-relaxed">${t.medications?.name || t.medication_name || t.name || 'Medicamento'} (${formatDosage(t.dosage)} un)</p>
-                        `).join('')}
-                    </div>
+                </div>
+                <div class="space-y-2">
+                    ${schedule.treatments.map(t => {
+                        const med = t.medications || {};
+                        const name = med.name || t.medication_name || t.name || 'Medicamento';
+                        const stock = parseFloat(med.stock_quantity) || 0;
+                        const badgeClass = getStockBadgeClass(t, prescriptionCounts);
+                        return `
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(t.dosage)} un)</p>
+                                <span class="text-xs px-2 py-0.5 rounded-full ${badgeClass} flex-shrink-0">${i18n.t('dashboard.stockUnits', { units: formatDosage(stock) })}</span>
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
             </div>
         `;
@@ -342,9 +400,13 @@ async function loadLastAction() {
         }
 
         const scheduling = lastAction.scheduling;
-        const timeStr = scheduling.schedule_time
-            ? new Date(scheduling.schedule_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        const scheduleDate = scheduling.schedule_time ? new Date(scheduling.schedule_time) : null;
+        const timeStr = scheduleDate
+            ? scheduleDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             : '--:--';
+        const dateLabel = scheduleDate && scheduleDate.toDateString() === new Date().toDateString()
+            ? 'Hoje'
+            : (scheduleDate ? scheduleDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'short' }) : '--');
         const isTaken = scheduling.action === 'Taken';
         const actionLabel = isTaken ? i18n.t('dashboard.taken') : i18n.t('dashboard.skipped');
         const actionBadgeClass = isTaken
@@ -359,23 +421,30 @@ async function loadLastAction() {
                     || item.treatments?.medication_name
                     || 'Medicamento';
                 const dosage = item.dosage || item.treatments?.dosage || 0;
-                return `<p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(dosage)} un)</p>`;
+                return `
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(dosage)} un)</p>
+                    </div>
+                `;
             }).join('')
             : '<p class="text-sm text-gray-400">Nenhuma medicação vinculada</p>';
 
         actionEl.innerHTML = `
             <div class="bg-gray-50 rounded-xl p-4">
-                <div class="flex items-start gap-4">
-                    <div class="flex flex-col items-center gap-2 flex-shrink-0">
-                        <p class="text-4xl font-bold text-sky-700">${timeStr}</p>
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex flex-col">
+                        <p class="text-xs text-gray-500 mb-0.5">${dateLabel}</p>
+                        <p class="text-4xl font-bold text-sky-700 leading-none">${timeStr}</p>
+                    </div>
+                    <div class="flex flex-col items-end gap-2">
                         <span class="text-xs px-2 py-0.5 rounded-full ${actionBadgeClass}">${actionLabel}</span>
-                        <button onclick="revertLastDose()" class="w-24 py-1.5 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 transition-colors">
+                        <button onclick="revertLastDose()" class="px-4 py-1.5 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 transition-colors">
                             REVERTER
                         </button>
                     </div>
-                    <div class="flex-1 pt-1">
-                        ${itemsHtml}
-                    </div>
+                </div>
+                <div class="space-y-2">
+                    ${itemsHtml}
                 </div>
             </div>
         `;
