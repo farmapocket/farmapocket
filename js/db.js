@@ -1602,16 +1602,49 @@ const DB = {
         if (dependents.length === 0) return [];
 
         try {
-            const { data, error } = await supabase
-                .from('v_prescription_status')
-                .select('*')
-                .eq('expiring_soon', true)
-                .in('dependent_id', dependents.map(d => d.id));
+            const depIds = dependents.map(d => d.id);
+            const [{ data: expiringRows, error }, { data: allValid, error: countError }] = await Promise.all([
+                supabase
+                    .from('v_prescription_status')
+                    .select('*')
+                    .eq('computed_status', 'Valid')
+                    .eq('expiring_soon', true)
+                    .in('dependent_id', depIds)
+                    .order('expiration_date', { ascending: true }),
+                supabase
+                    .from('prescriptions')
+                    .select('medication_id, status')
+                    .eq('status', 'Valid')
+                    .in('dependent_id', depIds)
+            ]);
 
             if (error) throw error;
-            return data || [];
+            if (countError) throw countError;
+
+            // Conta receitas válidas por medicamento
+            const counts = {};
+            (allValid || []).forEach(p => {
+                if (!p.medication_id) return;
+                counts[p.medication_id] = (counts[p.medication_id] || 0) + 1;
+            });
+
+            // Mantém apenas a receita mais próxima do vencimento para cada medicamento
+            const seenMedications = new Set();
+            const result = (expiringRows || []).filter(row => {
+                if (seenMedications.has(row.medication_id)) return false;
+                seenMedications.add(row.medication_id);
+                return true;
+            }).map(row => ({
+                ...row,
+                prescription_count: counts[row.medication_id] || 1,
+                days_until_expiration: row.days_until_expiration ??
+                    (row.expiration_date ? Math.max(Math.ceil((new Date(row.expiration_date) - new Date().setHours(0,0,0,0)) / (1000 * 60 * 60 * 24)), 0) : null)
+            }));
+
+            return result;
 
         } catch (error) {
+            console.error('Error loading expiring prescriptions:', error);
             return [];
         }
     }

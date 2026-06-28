@@ -98,6 +98,7 @@ SELECT
     d.name AS dependent_name,
     p.prescribed_by,
     hp.name AS professional_name,
+    hp.specialty AS professional_specialty,
     p.medication_id,
     m.name AS medication_name,
     p.units,
@@ -110,7 +111,11 @@ SELECT
         ELSE 'Valid'
     END AS computed_status,
     CASE 
-        WHEN p.expiration_date IS NOT NULL AND p.expiration_date < CURRENT_DATE + 30 AND p.status != 'Used' THEN TRUE
+        WHEN p.expiration_date IS NOT NULL THEN GREATEST(p.expiration_date - CURRENT_DATE, 0)
+        ELSE NULL
+    END AS days_until_expiration,
+    CASE 
+        WHEN p.expiration_date IS NOT NULL AND p.expiration_date <= CURRENT_DATE + 14 AND p.status != 'Used' THEN TRUE
         ELSE FALSE
     END AS expiring_soon
 FROM prescriptions p

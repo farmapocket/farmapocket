@@ -307,16 +307,32 @@ async function loadDashboard() {
         // Expiring prescriptions
         const expiring = await DB.getExpiringPrescriptions();
         if (expiring.length > 0) {
-            safeSetHtml('expiring-prescriptions', expiring.map(item => `
+            safeSetHtml('expiring-prescriptions', expiring.map(item => {
+                const days = item.days_until_expiration;
+                const timeText = days === 0
+                    ? 'Vence hoje'
+                    : days === 1
+                        ? 'Vence em 1 dia'
+                        : `Vence em ${days} dias`;
+                const profText = item.professional_name
+                    ? (item.professional_specialty ? `${item.professional_name} (${item.professional_specialty})` : item.professional_name)
+                    : '';
+                const countText = item.prescription_count > 1
+                    ? `${item.prescription_count} receitas`
+                    : '1 receita';
+
+                return `
                 <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                     <div>
                         <p class="font-medium text-gray-800">${item.medication_name}</p>
-                        <p class="text-xs text-gray-500">${item.dependent_name}</p>
-                        <p class="text-xs text-red-600">Vence em ${new Date(item.expiration_date).toLocaleDateString('pt-BR')}</p>
+                        <p class="text-xs text-gray-500">${item.dependent_name} • ${countText}</p>
+                        ${profText ? `<p class="text-xs text-gray-400">👨‍⚕️ ${profText}</p>` : ''}
+                        <p class="text-xs text-red-600">${timeText}</p>
                     </div>
                     <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">Vencendo</span>
                 </div>
-            `).join(''));
+                `;
+            }).join(''));
         } else {
             safeSetHtml('expiring-prescriptions', '<p class="text-gray-400 text-sm text-center py-4">Nenhum receituário próximo do vencimento</p>');
         }
