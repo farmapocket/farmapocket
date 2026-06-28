@@ -858,7 +858,11 @@ async function loadTreatments() {
     }
 
     try {
-        const treatments = await DB.getTreatments(depId);
+        let treatments = await DB.getTreatments(depId);
+
+        if (!showInactiveTreatments) {
+            treatments = treatments.filter(t => t.is_active !== false);
+        }
 
         if (treatments.length === 0) {
             listEl.innerHTML = `
@@ -1023,6 +1027,8 @@ let currentEditingPrescriptionId = null;
 let currentEditingSymptomId = null;
 let currentEditingProcedureId = null;
 let currentEditingProfessionalId = null;
+let showInactiveTreatments = false;
+let showOnlyValidPrescriptions = true;
 
 // Estado temporário da programação de frequência no formulário de tratamento
 let currentTreatmentFrequency = {
@@ -1042,6 +1048,18 @@ function resetTreatmentFrequency() {
         weeklyTimes: []
     };
     renderFrequencySummary();
+}
+
+function toggleShowInactiveTreatments() {
+    const checkbox = document.getElementById('toggle-show-inactive-treatments');
+    showInactiveTreatments = checkbox ? checkbox.checked : false;
+    loadTreatments();
+}
+
+function toggleShowOnlyValidPrescriptions() {
+    const checkbox = document.getElementById('toggle-show-only-valid-prescriptions');
+    showOnlyValidPrescriptions = checkbox ? checkbox.checked : true;
+    loadPrescriptions();
 }
 
 function showAddTreatment() {
@@ -1352,7 +1370,11 @@ async function loadPrescriptions() {
     }
 
     try {
-        const prescriptions = await DB.getPrescriptions(depId);
+        let prescriptions = await DB.getPrescriptions(depId);
+
+        if (showOnlyValidPrescriptions) {
+            prescriptions = prescriptions.filter(p => (p.status || 'Valid') === 'Valid');
+        }
 
         if (prescriptions.length === 0) {
             listEl.innerHTML = `

@@ -89,6 +89,7 @@ const i18n = {
         'prescription.useTitle': { 'en': 'Use Prescription', 'pt-BR': 'Utilizar Receituário', 'es': 'Usar Receta' },
         'prescription.useConfirm': { 'en': 'Do you want to use this prescription? Units will be added to stock.', 'pt-BR': 'Deseja utilizar este receituário? As unidades serão adicionadas ao estoque.', 'es': '¿Desea usar esta receta? Las unidades se agregarán al stock.' },
         'prescription.noData': { 'en': 'Add the first prescription', 'pt-BR': 'Adicione o primeiro receituário', 'es': 'Agregue la primera receta' },
+        'prescription.showOnlyValid': { 'en': 'Show only valid', 'pt-BR': 'Exibir apenas válidas', 'es': 'Mostrar solo válidas' },
 
         // SYMPTOMS
         'symptom.addNew': { 'en': 'Add New Symptom', 'pt-BR': 'Adicionar Sintoma', 'es': 'Agregar Síntoma' },
@@ -145,6 +146,7 @@ const i18n = {
         'treatment.daysRemaining': { 'en': 'Days Remaining', 'pt-BR': 'Dias Restantes', 'es': 'Días Restantes' },
         'treatment.replacedTreatment': { 'en': 'Treatment Replaced by This', 'pt-BR': 'Tratamento substituído por este', 'es': 'Tratamiento sustituido por este' },
         'treatment.replacedByTreatment': { 'en': 'Replaced By Treatment', 'pt-BR': 'Por qual tratamento foi substituído', 'es': 'Por qué tratamiento fue sustituido' },
+        'treatment.showInactive': { 'en': 'Show inactive', 'pt-BR': 'Exibir inativos', 'es': 'Mostrar inactivos' },
         'treatment.addNew': { 'en': 'Add New Treatment', 'pt-BR': 'Adicionar Novo Tratamento', 'es': 'Agregar Nuevo Tratamiento' },
 
         // FREQUENCY

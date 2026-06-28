@@ -2,6 +2,7 @@
 
 ## Próximos passos
 
+- Nas telas de cadastro, quero uncluir um toggle button "exibir inativos". O padrão será sempre falso
 - Não podemos ter estoque negativo: Se uma ação "Tomar" encontrar uma quantidade menor que a solicitada
 ---
 - Funcionalidade de estoque baixo
