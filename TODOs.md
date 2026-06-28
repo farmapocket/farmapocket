@@ -2,18 +2,20 @@
 
 ## Próximos passos
 
-- [x] No cadastro de tratamento, preciso da alteração abaixo:
-    - Abaixo do campo "Prescrito por", adicionaremos um botão "Definir frequência" Esse botão abrira um modal. Nessa modal eu preciso informar a quantidade (dosage) e programar os dias da semana e horários das doses. Pensei em algo como a imagem de exemplo, mas póde sugerir algo melhor. Após essa definição, voltamos para a tela de tratamento, onde teremos um card com a programação realizada. Preciso que defina como isso será persistido no banco (pensei em uma nova tabela medication_times_on_treatment).
-    - É preciso rever como o comportamento do painel irá se dar com essa nova lógica
-
----
 - Implementar a lógica de vencimento das receitas, com:
     - Alerta para marcar consulta
+---
+- BUG FIX: Após a alteração das formas de programação, encontrei dois bugs:
+    - Quando eu selecionei "Definir manualmente" e tentei salvar sem nenhum valor no campo "Repetir a cada x horas" recebi a mensagem acima
 ---
 - Não podemos ter estoque negativo: Se uma ação "Tomar" encontrar uma quantidade menor que a solicit
 ---
 - Funcionalidade de estoque baixo
-    - Para remédios de uso contínuo
+    - Para remédios controlados de uso contínuo:
+        - Se eu tenho receita válida para o medicamento, avisar com uma semana para acabar
+        - Se eu não tenho receita, avisar com três semanas para acabar
+    - Para remédios não controlados de uso contínuo
+        - Avisar com uma semana para acabar
 ---
 - O Aplicativo precisa se auto-explicar
 ---
@@ -30,6 +32,10 @@
 
 ## Últimas implementações:
 
+- [x] No cadastro de tratamento, preciso da alteração abaixo:
+    - Abaixo do campo "Prescrito por", adicionaremos um botão "Definir frequência" Esse botão abrira um modal. Nessa modal eu preciso informar a quantidade (dosage) e programar os dias da semana e horários das doses. Pensei em algo como a imagem de exemplo, mas póde sugerir algo melhor. Após essa definição, voltamos para a tela de tratamento, onde teremos um card com a programação realizada. Preciso que defina como isso será persistido no banco (pensei em uma nova tabela medication_times_on_treatment).
+    - É preciso rever como o comportamento do painel irá se dar com essa nova lógica
+---
 - [x] Nos campos de seleção de profissionais, seria interessante uma opção de inclusão rápida para profissionais que não existem na tabela. Essa opção abriria a tela de cadastro de profissionais e ao final preencheria o seletor com o profissional novo
 ---
 - [x] Implementar cadastro de procedimentos

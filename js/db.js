@@ -272,7 +272,8 @@ const DB = {
                 .select(`
                     *,
                     medications:medication_id (name, stock_quantity),
-                    healthcare_professionals:prescribed_by (name, specialty)
+                    healthcare_professionals:prescribed_by (name, specialty),
+                    medication_times_on_treatment (*)
                 `)
                 .eq('dependent_id', dependentId)
                 .order('start_date', { ascending: false });
@@ -775,13 +776,6 @@ const DB = {
                     doseTime.setHours(hours, minutes, 0, 0);
 
                     if (doseTime > now) {
-                        // Skip if last scheduling matches this exact slot
-                        if (lastScheduling && lastScheduling.schedule_time) {
-                            const lastTime = new Date(lastScheduling.schedule_time);
-                            if (this._isSameDoseTime(lastTime, doseTime, 0)) {
-                                continue;
-                            }
-                        }
                         return doseTime;
                     }
                 }

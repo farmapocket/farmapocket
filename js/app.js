@@ -291,6 +291,9 @@ async function loadTodaySchedule() {
 
         const schedule = schedules[0];
         const timeStr = schedule.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const dateLabel = schedule.time.toDateString() === new Date().toDateString()
+            ? 'Hoje'
+            : schedule.time.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'short' });
         const scheduleJson = encodeURIComponent(JSON.stringify(schedule));
 
         scheduleEl.innerHTML = `
@@ -298,6 +301,7 @@ async function loadTodaySchedule() {
                 <div class="flex items-start gap-4">
                     <div class="flex flex-col items-center gap-2 flex-shrink-0">
                         <p class="text-4xl font-bold text-sky-700">${timeStr}</p>
+                        <p class="text-xs text-gray-500">${dateLabel}</p>
                         <button onclick="showDoseActionModal('Taken', '${timeStr}', '${scheduleJson}')" class="w-24 py-1.5 bg-emerald-500 text-white rounded-lg font-medium text-sm hover:bg-emerald-600 transition-colors">
                             TOMAR
                         </button>
@@ -804,8 +808,26 @@ async function loadTreatments() {
             const goalText = t.treatment_goal || '';
             const startDateText = t.start_date ? new Date(t.start_date).toLocaleDateString('pt-BR') : '';
             const durationText = formatTreatmentDuration(t.start_date, t.end_date);
+
+            let frequencyText = '';
+            if (t.schedule_type === 'weekly' && t.medication_times_on_treatment?.length > 0) {
+                const dayLabels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+                const grouped = {};
+                t.medication_times_on_treatment.forEach(mt => {
+                    if (!grouped[mt.day_of_week]) grouped[mt.day_of_week] = [];
+                    grouped[mt.day_of_week].push(`${mt.time.substring(0, 5)} (${mt.dosage})`);
+                });
+                const daysText = Object.keys(grouped)
+                    .sort((a, b) => parseInt(a) - parseInt(b))
+                    .map(day => `${dayLabels[day]}: ${grouped[day].join(', ')}`)
+                    .join('; ');
+                frequencyText = daysText;
+            } else {
+                frequencyText = `${t.dosage || 0}un. / ${t.frequency_hours || 0}h`;
+            }
+
             const subtitleParts = [
-                `${t.dosage || 0}un. / ${t.frequency_hours || 0}h`,
+                frequencyText,
                 prescribedByText,
                 goalText ? `para ${goalText}` : '',
                 startDateText ? `em ${startDateText}` : '',
@@ -823,6 +845,9 @@ async function loadTreatments() {
                         ${t.is_active ? '<span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">Ativo</span>' : '<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Encerrado</span>'}
                         <button onclick="editTreatment('${t.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center ml-1" title="Editar">
                             <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        <button onclick="deleteTreatment('${t.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center" title="Excluir">
+                            <svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
                     </div>
                 </div>
@@ -928,6 +953,18 @@ function showAddTreatment() {
     openModal('modal-treatment');
 }
 
+async function deleteTreatment(id) {
+    if (!confirm('Tem certeza que deseja excluir este tratamento?')) return;
+
+    try {
+        await DB.deleteTreatment(id);
+        loadTreatments();
+        loadDashboard();
+    } catch (error) {
+        alert('Erro ao excluir: ' + error.message);
+    }
+}
+
 async function editTreatment(id) {
     event.stopPropagation();
     const depId = AppState.getCurrentDependent();
@@ -999,8 +1036,26 @@ function showFrequencyModal() {
     const timeRows = document.getElementById('frequency-time-rows');
     timeRows.innerHTML = '';
 
+    // Uncheck all day checkboxes first
+    form.querySelectorAll('[name="day_of_week"]').forEach(cb => cb.checked = false);
+
     if (currentTreatmentFrequency.weeklyTimes && currentTreatmentFrequency.weeklyTimes.length > 0) {
-        currentTreatmentFrequency.weeklyTimes.forEach(slot => addFrequencyTimeRow(slot));
+        // Group times by unique time+dosage and collect days
+        const grouped = {};
+        currentTreatmentFrequency.weeklyTimes.forEach(slot => {
+            const key = `${slot.time}|${slot.dosage}`;
+            if (!grouped[key]) {
+                grouped[key] = { time: slot.time, dosage: slot.dosage, days: [] };
+            }
+            grouped[key].days.push(slot.day_of_week);
+        });
+
+        Object.values(grouped).forEach(group => addFrequencyTimeRow(group));
+
+        // Mark days
+        form.querySelectorAll('[name="day_of_week"]').forEach(cb => {
+            cb.checked = Object.values(grouped).some(g => g.days.includes(parseInt(cb.value)));
+        });
     } else {
         addFrequencyTimeRow();
     }
@@ -1732,20 +1787,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (scheduleType === 'weekly') {
                 const selectedDays = Array.from(frequencyForm.querySelectorAll('[name="day_of_week"]:checked')).map(cb => parseInt(cb.value));
+                if (selectedDays.length === 0) {
+                    alert('Selecione pelo menos um dia da semana.');
+                    return;
+                }
+
                 const rows = document.querySelectorAll('#frequency-time-rows > div');
                 const times = [];
+                let hasEmptyTime = false;
                 rows.forEach(row => {
                     const time = row.querySelector('.frequency-time').value;
                     const dosage = parseFloat(row.querySelector('.frequency-dosage').value) || 0;
-                    if (time && selectedDays.length > 0) {
+                    if (time) {
+                        if (dosage <= 0) {
+                            alert('Informe uma dosagem maior que zero para cada horário.');
+                            return;
+                        }
                         selectedDays.forEach(day => {
                             times.push({ day_of_week: day, time, dosage });
                         });
+                    } else {
+                        hasEmptyTime = true;
                     }
                 });
 
                 if (times.length === 0) {
-                    alert('Selecione pelo menos um dia e um horário.');
+                    if (hasEmptyTime) {
+                        alert('Informe pelo menos um horário.');
+                    } else {
+                        alert('Adicione pelo menos um horário.');
+                    }
                     return;
                 }
 
@@ -1757,11 +1828,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     weeklyTimes: times
                 };
             } else {
+                const frequencyHours = parseInt(formData.get('frequency_hours')) || 0;
+                const firstDoseTime = formData.get('first_dose_time') || '';
+                const dosage = parseFloat(formData.get('dosage')) || 0;
+
+                if (frequencyHours <= 0) {
+                    alert('Informe a frequência em horas.');
+                    return;
+                }
+                if (!firstDoseTime) {
+                    alert('Informe o horário da primeira dose.');
+                    return;
+                }
+                if (dosage <= 0) {
+                    alert('Informe a dosagem.');
+                    return;
+                }
+
                 currentTreatmentFrequency = {
                     schedule_type: 'periodic',
-                    frequency_hours: parseInt(formData.get('frequency_hours')) || 8,
-                    first_dose_time: formData.get('first_dose_time') || '',
-                    dosage: parseFloat(formData.get('dosage')) || 0,
+                    frequency_hours: frequencyHours,
+                    first_dose_time: firstDoseTime,
+                    dosage: dosage,
                     weeklyTimes: []
                 };
             }
