@@ -69,8 +69,12 @@ const i18n = {
         'medication.isContinuousUse': { 'en': 'Continuous Use', 'pt-BR': 'Uso Contínuo', 'es': 'Uso Continuo' },
         'medication.isRescue': { 'en': 'Rescue Medication', 'pt-BR': 'Medicação de Resgate', 'es': 'Medicamento de Rescate' },
         'medication.stockQuantity': { 'en': 'Stock Quantity', 'pt-BR': 'Quantidade em Estoque', 'es': 'Cantidad en Stock' },
+        'medication.laboratory': { 'en': 'Preferred Laboratory', 'pt-BR': 'Laboratório Preferido', 'es': 'Laboratorio Preferido' },
+        'medication.selectLaboratory': { 'en': 'Select a laboratory...', 'pt-BR': 'Selecione um laboratório...', 'es': 'Seleccione un laboratorio...' },
         'medication.addNew': { 'en': 'Add New Medication', 'pt-BR': 'Adicionar Novo Medicamento', 'es': 'Agregar Nuevo Medicamento' },
         'medication.edit': { 'en': 'Edit Medication', 'pt-BR': 'Editar Medicamento', 'es': 'Editar Medicamento' },
+        'laboratory.addNew': { 'en': 'Add New Laboratory', 'pt-BR': 'Adicionar Novo Laboratório', 'es': 'Agregar Nuevo Laboratorio' },
+        'laboratory.promptName': { 'en': 'Enter the laboratory name:', 'pt-BR': 'Digite o nome do laboratório:', 'es': 'Ingrese el nombre del laboratorio:' },
         'medication.lowStock': { 'en': 'Low Stock', 'pt-BR': 'Estoque Baixo', 'es': 'Stock Bajo' },
 
         // PRESCRIPTIONS

@@ -124,6 +124,44 @@ const DB = {
         }
     },
 
+    // ========== LABORATORIES ==========
+
+    async getLaboratories() {
+        try {
+            const { data, error } = await supabase
+                .from('laboratories')
+                .select('*')
+                .order('name', { ascending: true });
+
+            if (error) throw error;
+            return data || [];
+
+        } catch (error) {
+            const all = await OfflineDB.getAll('laboratories');
+            return all.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        }
+    },
+
+    async addLaboratory(laboratory) {
+        if (!laboratory.name) throw new Error('name is required');
+
+        try {
+            const { data, error } = await supabase
+                .from('laboratories')
+                .insert(laboratory)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('laboratories', data.id, data);
+            return data;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('laboratories', 'insert', laboratory);
+            throw error;
+        }
+    },
+
     // ========== MEDICATIONS (now require dependentId) ==========
 
     async getMedications(dependentId) {
@@ -442,7 +480,7 @@ const DB = {
                 .from('prescriptions')
                 .select(`
                     *,
-                    medications:medication_id (name),
+                    medications:medication_id (name, laboratories:laboratory_id (name)),
                     healthcare_professionals:prescribed_by (name, specialty)
                 `)
                 .eq('dependent_id', dependentId)

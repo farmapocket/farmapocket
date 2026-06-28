@@ -770,6 +770,30 @@ async function loadMedications() {
     }
 }
 
+async function loadLaboratoryOptions(selectedId = null) {
+    const laboratories = await DB.getLaboratories();
+    const select = document.querySelector('#form-medication select[name="laboratory_id"]');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">' + i18n.t('medication.selectLaboratory') + '</option>' +
+        laboratories.map(l => `<option value="${l.id}" ${l.id === selectedId ? 'selected' : ''}>${l.name}</option>`).join('') +
+        `<option value="__new__">+ ${i18n.t('laboratory.addNew')}</option>`;
+}
+
+function handleLaboratorySelectChange(select) {
+    if (select.value === '__new__') {
+        select.value = '';
+        const name = prompt(i18n.t('laboratory.promptName'));
+        if (name && name.trim()) {
+            DB.addLaboratory({ name: name.trim() }).then((lab) => {
+                loadLaboratoryOptions(lab.id);
+            }).catch((err) => {
+                alert('Erro ao adicionar laboratório: ' + err.message);
+            });
+        }
+    }
+}
+
 function showAddMedication(callback) {
     if (!AppState.getCurrentDependent()) {
         alert('Selecione um dependente primeiro');
@@ -778,6 +802,7 @@ function showAddMedication(callback) {
     currentEditingMedicationId = null;
     window._medicationSaveCallback = callback || null;
     document.getElementById('form-medication').reset();
+    loadLaboratoryOptions();
     document.querySelector('#modal-medication h3').textContent = i18n.t('medication.addNew');
     openModal('modal-medication');
 }
@@ -837,6 +862,7 @@ async function editMedication(id) {
     form.querySelector('[name="is_continuous_use"]').checked = medication.is_continuous_use === true;
     form.querySelector('[name="is_rescue_medication"]').checked = medication.is_rescue_medication === true;
     form.querySelector('[name="stock_quantity"]').value = medication.stock_quantity || 0;
+    await loadLaboratoryOptions(medication.laboratory_id);
 
     document.querySelector('#modal-medication h3').textContent = i18n.t('medication.edit');
     openModal('modal-medication');
@@ -1403,6 +1429,7 @@ async function loadPrescriptions() {
 
         listEl.innerHTML = prescriptions.map(p => {
             const medName = p.medications?.name || p.medication_name || 'Medicamento';
+            const laboratoryName = p.medications?.laboratories?.name;
             const profName = p.healthcare_professionals?.name || p.professional_name || '';
             const profSpecialty = p.healthcare_professionals?.specialty || '';
             const profText = profName ? (profSpecialty ? `${profName} (${profSpecialty})` : profName) : '';
@@ -1414,7 +1441,10 @@ async function loadPrescriptions() {
             return `
             <div class="bg-white rounded-xl p-4 shadow-sm card-hover">
                 <div class="flex items-start justify-between mb-1">
-                    <h3 class="text-lg font-bold text-gray-800">${medName}</h3>
+                    <div class="flex-1 pr-2">
+                        <h3 class="text-lg font-bold text-gray-800">${medName}</h3>
+                        ${laboratoryName ? `<p class="text-sm text-gray-500">🏭 ${laboratoryName}</p>` : ''}
+                    </div>
                     <div class="flex items-center gap-2">
                         <span class="text-xs px-2 py-0.5 rounded-full ${statusClasses[status] || statusClasses['Valid']}">${statusLabels[status] || status}</span>
                         <button onclick="editPrescription('${p.id}')" class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600" title="Editar">
@@ -2029,6 +2059,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 dependent_id: AppState.getCurrentDependent(),
                 name: formData.get('name'),
                 active_ingredient: formData.get('active_ingredient') || null,
+                laboratory_id: formData.get('laboratory_id') || null,
                 is_controlled: formData.has('is_controlled'),
                 is_continuous_use: formData.has('is_continuous_use'),
                 is_rescue_medication: formData.has('is_rescue_medication'),

@@ -2,24 +2,17 @@
 
 ## Próximos passos
 
-- Cadastro de categorias
-    - A tela ficará dentro da tela "... Mais"
-    - Cada categoria pode ter 0..n subcategorias
----
-- campo de laboratório preferido no cadastro de medicação
----
-
-- Não podemos ter estoque negativo: Se uma ação "Tomar" encontrar uma quantidade menor que a solicitada
----
 - Funcionalidade de estoque baixo
-    - Para remédios controlados de uso contínuo:
-        - Se eu tenho receita válida para o medicamento, avisar com uma semana para acabar
-        - Se eu não tenho receita, avisar com três semanas para acabar
-    - Para remédios não controlados de uso contínuo
-        - Avisar com uma semana para acabar
+    - dentro do card de Alerta de Estoque Baixo, vamos dividir por categorias, mostrando das mais urgentes para as menos
+        - Remédios controlados de uso contínuo, sem receita e com três semanas ou menos para acabar (Nome da secção: SEM RECEITA)
+        - Remédios controlados de uso contínuo, com receita e com duas semanas ou menos para acabar (Nome da secção: COM RECEITA)
+        - Remédios não controlados de uso contínuo, com uma semana ou menos para acabar (Nome da secção: NÃO CONTROLADOS)
+    - Dentro de cada categoria, ordenar pela quantidade em estoque, do menor para o maior
 ---
 - Implementar a lógica de vencimento das receitas, com:
     - Alerta para marcar consulta
+---
+- Não podemos ter estoque negativo: Se uma ação "Tomar" encontrar uma quantidade menor que a solicitada
 ---
 - O Aplicativo precisa se auto-explicar
 ---
@@ -41,6 +34,14 @@
 ---
 
 ## Últimas implementações:
+
+- [x] incluir campo de laboratório preferido no cadastro de medicação
+    - essa informação precisa ser visível no card de receitas
+---
+- [x] Cadastro de categorias
+    - A tela ficará dentro da tela "... Mais"
+    - Cada categoria pode ter 0..n subcategorias
+---
 - [x] Nas telas de cadastro, quero uncluir um toggle button "exibir inativos". O padrão será sempre falso
 ---
 - [x] Incluir na tela de cadastro e edição de tratamento dois campos:

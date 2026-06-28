@@ -519,9 +519,10 @@ CREATE POLICY treatments_in_schedule_delete_policy ON treatments_in_schedule
 -- ============================================================
 -- REFERENCE TABLES (global data - no user-specific restrictions)
 -- ============================================================
--- Categories and subcategories are global reference tables.
+-- Categories, subcategories and laboratories are global reference tables.
 -- If RLS was enabled on them, disable it so all authenticated users
--- can read and manage the shared category list.
+-- can read and manage the shared reference lists.
 ALTER TABLE IF EXISTS categories DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS subcategories DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS laboratories DISABLE ROW LEVEL SECURITY;
 
