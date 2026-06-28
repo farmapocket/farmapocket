@@ -147,13 +147,27 @@ function showAddDependent() {
     openModal('modal-dependent');
 }
 
+let currentModalZIndex = 50;
+
 function closeModal(modalId) {
-    document.getElementById(modalId).classList.add('hidden');
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.zIndex = '';
+    }
+
+    // Reset base z-index when no modal is visible
+    const anyOpen = document.querySelector('.fixed.inset-0:not(.hidden)');
+    if (!anyOpen) {
+        currentModalZIndex = 50;
+    }
 }
 
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
+        currentModalZIndex += 10;
+        modal.style.zIndex = currentModalZIndex;
         modal.classList.remove('hidden');
         // Rolar o conteúdo do modal para o topo
         const content = modal.querySelector('.bg-white');
