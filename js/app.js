@@ -896,6 +896,26 @@ let currentEditingSymptomId = null;
 let currentEditingProcedureId = null;
 let currentEditingProfessionalId = null;
 
+// Estado temporário da programação de frequência no formulário de tratamento
+let currentTreatmentFrequency = {
+    schedule_type: 'periodic',
+    frequency_hours: 8,
+    first_dose_time: '',
+    dosage: '',
+    weeklyTimes: [] // { day_of_week, time, dosage }
+};
+
+function resetTreatmentFrequency() {
+    currentTreatmentFrequency = {
+        schedule_type: 'periodic',
+        frequency_hours: 8,
+        first_dose_time: '',
+        dosage: '',
+        weeklyTimes: []
+    };
+    renderFrequencySummary();
+}
+
 function showAddTreatment() {
     if (!AppState.getCurrentDependent()) {
         alert('Selecione um dependente primeiro');
@@ -903,6 +923,7 @@ function showAddTreatment() {
     }
     currentEditingTreatmentId = null;
     document.querySelector('#form-treatment').reset();
+    resetTreatmentFrequency();
     loadTreatmentOptions();
     openModal('modal-treatment');
 }
@@ -934,7 +955,131 @@ async function editTreatment(id) {
     form.querySelector('[name="admin_notes"]').value = treatment.administration_notes || treatment.admin_notes || '';
     form.querySelector('[name="is_active"]').checked = treatment.is_active !== false;
 
+    // Load frequency definition
+    if (treatment.schedule_type === 'weekly') {
+        const times = await DB.getTreatmentTimes(treatment.id);
+        currentTreatmentFrequency = {
+            schedule_type: 'weekly',
+            frequency_hours: treatment.frequency_hours || 0,
+            first_dose_time: treatment.first_dose_time || '',
+            dosage: treatment.dosage || '',
+            weeklyTimes: times.map(t => ({
+                day_of_week: t.day_of_week,
+                time: t.time,
+                dosage: t.dosage
+            }))
+        };
+    } else {
+        currentTreatmentFrequency = {
+            schedule_type: 'periodic',
+            frequency_hours: treatment.frequency_hours || 8,
+            first_dose_time: treatment.first_dose_time || '',
+            dosage: treatment.dosage || '',
+            weeklyTimes: []
+        };
+    }
+    renderFrequencySummary();
+
     openModal('modal-treatment');
+}
+
+// ========== FREQUENCY MODAL ==========
+
+function showFrequencyModal() {
+    const form = document.getElementById('form-frequency');
+    if (!form) return;
+
+    form.reset();
+    const scheduleType = currentTreatmentFrequency.schedule_type || 'periodic';
+    form.querySelector(`[name="schedule_type"][value="${scheduleType}"]`).checked = true;
+    form.querySelector('[name="frequency_hours"]').value = currentTreatmentFrequency.frequency_hours || 8;
+    form.querySelector('[name="first_dose_time"]').value = currentTreatmentFrequency.first_dose_time || '';
+    form.querySelector('[name="dosage"]').value = currentTreatmentFrequency.dosage || '';
+
+    const timeRows = document.getElementById('frequency-time-rows');
+    timeRows.innerHTML = '';
+
+    if (currentTreatmentFrequency.weeklyTimes && currentTreatmentFrequency.weeklyTimes.length > 0) {
+        currentTreatmentFrequency.weeklyTimes.forEach(slot => addFrequencyTimeRow(slot));
+    } else {
+        addFrequencyTimeRow();
+    }
+
+    toggleFrequencyFields(scheduleType);
+    openModal('modal-frequency');
+}
+
+function toggleFrequencyFields(scheduleType) {
+    const weeklyFields = document.getElementById('weekly-fields');
+    const periodicFields = document.getElementById('periodic-fields');
+    if (!weeklyFields || !periodicFields) return;
+
+    if (scheduleType === 'weekly') {
+        weeklyFields.classList.remove('hidden');
+        periodicFields.classList.add('hidden');
+    } else {
+        weeklyFields.classList.add('hidden');
+        periodicFields.classList.remove('hidden');
+    }
+}
+
+function addFrequencyTimeRow(slot = null) {
+    const container = document.getElementById('frequency-time-rows');
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2';
+    row.innerHTML = `
+        <input type="time" class="frequency-time flex-1 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" value="${slot ? slot.time : ''}" required>
+        <input type="number" min="0.1" step="0.1" class="frequency-dosage w-20 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" value="${slot ? slot.dosage : ''}" placeholder="Qtd" required>
+        <button type="button" onclick="removeFrequencyTimeRow(this)" class="text-red-400 hover:text-red-600 px-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+        </button>
+    `;
+    container.appendChild(row);
+}
+
+function removeFrequencyTimeRow(button) {
+    const row = button.closest('div');
+    if (row) row.remove();
+}
+
+function renderFrequencySummary() {
+    const card = document.getElementById('frequency-summary-card');
+    const content = document.getElementById('frequency-summary-content');
+    const legacyFields = document.getElementById('frequency-legacy-fields');
+    const treatmentForm = document.getElementById('form-treatment');
+    if (!card || !content || !legacyFields) return;
+
+    const legacyInputs = legacyFields.querySelectorAll('input');
+
+    if (currentTreatmentFrequency.schedule_type === 'weekly') {
+        card.classList.remove('hidden');
+        legacyFields.classList.add('hidden');
+        legacyInputs.forEach(input => input.removeAttribute('required'));
+
+        const weekdays = i18n.t('frequency.weekdays') ? null : null; // fallback handled below
+        const dayLabels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        const grouped = {};
+        (currentTreatmentFrequency.weeklyTimes || []).forEach(slot => {
+            if (!grouped[slot.day_of_week]) grouped[slot.day_of_week] = [];
+            grouped[slot.day_of_week].push(`${slot.time} (${slot.dosage})`);
+        });
+
+        const lines = Object.keys(grouped)
+            .sort((a, b) => parseInt(a) - parseInt(b))
+            .map(day => `<p><span class="font-medium">${dayLabels[day]}:</span> ${grouped[day].join(', ')}</p>`);
+
+        content.innerHTML = lines.length > 0 ? lines.join('') : '<p class="text-gray-400">Nenhum horário definido</p>';
+    } else {
+        card.classList.add('hidden');
+        legacyFields.classList.remove('hidden');
+        legacyInputs.forEach(input => {
+            if (input.name === 'dosage' || input.name === 'frequency_hours' || input.name === 'first_dose_time') {
+                input.setAttribute('required', '');
+            }
+        });
+    }
 }
 
 // ========== PROFESSIONALS ==========
@@ -1523,13 +1668,22 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
 
             const formData = new FormData(treatmentForm);
+            const isWeekly = currentTreatmentFrequency.schedule_type === 'weekly';
+
             const treatment = {
                 dependent_id: AppState.getCurrentDependent(),
                 medication_id: formData.get('medication_id'),
                 prescribed_by: formData.get('prescribed_by') || null,
-                dosage: parseFloat(formData.get('dosage')) || 0,
-                frequency_hours: parseInt(formData.get('frequency_hours')) || 0,
-                first_dose_time: formData.get('first_dose_time') || null,
+                schedule_type: currentTreatmentFrequency.schedule_type || 'periodic',
+                dosage: isWeekly
+                    ? (currentTreatmentFrequency.weeklyTimes[0]?.dosage || 0)
+                    : (parseFloat(formData.get('dosage')) || 0),
+                frequency_hours: isWeekly
+                    ? 0
+                    : (parseInt(formData.get('frequency_hours')) || 0),
+                first_dose_time: isWeekly
+                    ? null
+                    : (formData.get('first_dose_time') || null),
                 start_date: formData.get('start_date') || null,
                 end_date: formData.get('end_date') || null,
                 treatment_goal: formData.get('treatment_goal') || null,
@@ -1538,14 +1692,25 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
+                let savedTreatment;
                 if (currentEditingTreatmentId) {
-                    await DB.updateTreatment(currentEditingTreatmentId, treatment);
+                    savedTreatment = await DB.updateTreatment(currentEditingTreatmentId, treatment);
                 } else {
-                    await DB.addTreatment(treatment);
+                    savedTreatment = await DB.addTreatment(treatment);
                 }
+
+                // Persist weekly times
+                if (isWeekly) {
+                    await DB.updateTreatmentTimes(savedTreatment.id, currentTreatmentFrequency.weeklyTimes);
+                } else if (currentEditingTreatmentId) {
+                    // Clear any existing weekly times when switching to periodic
+                    await DB.updateTreatmentTimes(savedTreatment.id, []);
+                }
+
                 currentEditingTreatmentId = null;
                 closeModal('modal-treatment');
                 treatmentForm.reset();
+                resetTreatmentFrequency();
                 loadTreatments();
                 loadDashboard();
                 scrollPageToTop();
@@ -1553,6 +1718,61 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 alert('Erro ao salvar: ' + error.message);
             }
+        });
+    }
+
+    // Frequency form
+    const frequencyForm = document.getElementById('form-frequency');
+    if (frequencyForm) {
+        frequencyForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(frequencyForm);
+            const scheduleType = formData.get('schedule_type') || 'periodic';
+
+            if (scheduleType === 'weekly') {
+                const selectedDays = Array.from(frequencyForm.querySelectorAll('[name="day_of_week"]:checked')).map(cb => parseInt(cb.value));
+                const rows = document.querySelectorAll('#frequency-time-rows > div');
+                const times = [];
+                rows.forEach(row => {
+                    const time = row.querySelector('.frequency-time').value;
+                    const dosage = parseFloat(row.querySelector('.frequency-dosage').value) || 0;
+                    if (time && selectedDays.length > 0) {
+                        selectedDays.forEach(day => {
+                            times.push({ day_of_week: day, time, dosage });
+                        });
+                    }
+                });
+
+                if (times.length === 0) {
+                    alert('Selecione pelo menos um dia e um horário.');
+                    return;
+                }
+
+                currentTreatmentFrequency = {
+                    schedule_type: 'weekly',
+                    frequency_hours: 0,
+                    first_dose_time: '',
+                    dosage: '',
+                    weeklyTimes: times
+                };
+            } else {
+                currentTreatmentFrequency = {
+                    schedule_type: 'periodic',
+                    frequency_hours: parseInt(formData.get('frequency_hours')) || 8,
+                    first_dose_time: formData.get('first_dose_time') || '',
+                    dosage: parseFloat(formData.get('dosage')) || 0,
+                    weeklyTimes: []
+                };
+            }
+
+            renderFrequencySummary();
+            closeModal('modal-frequency');
+        });
+
+        // Toggle fields when schedule type changes
+        frequencyForm.querySelectorAll('[name="schedule_type"]').forEach(radio => {
+            radio.addEventListener('change', (e) => toggleFrequencyFields(e.target.value));
         });
     }
 
@@ -1805,6 +2025,11 @@ window.showAddDependent = showAddDependent;
 window.showAddMedication = showAddMedication;
 window.handleMedicationSelectChange = handleMedicationSelectChange;
 window.showAddTreatment = showAddTreatment;
+window.editTreatment = editTreatment;
+window.deleteTreatment = deleteTreatment;
+window.showFrequencyModal = showFrequencyModal;
+window.addFrequencyTimeRow = addFrequencyTimeRow;
+window.removeFrequencyTimeRow = removeFrequencyTimeRow;
 window.showAddProfessional = showAddProfessional;
 window.handleProfessionalSelectChange = handleProfessionalSelectChange;
 window.showAddPrescription = showAddPrescription;

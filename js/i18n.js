@@ -142,6 +142,27 @@ const i18n = {
         'treatment.daysRemaining': { 'en': 'Days Remaining', 'pt-BR': 'Dias Restantes', 'es': 'Días Restantes' },
         'treatment.addNew': { 'en': 'Add New Treatment', 'pt-BR': 'Adicionar Novo Tratamento', 'es': 'Agregar Nuevo Tratamiento' },
 
+        // FREQUENCY
+        'frequency.define': { 'en': 'Set Frequency', 'pt-BR': 'Definir frequência', 'es': 'Definir frecuencia' },
+        'frequency.title': { 'en': 'Set Frequency', 'pt-BR': 'Definir Frequência', 'es': 'Definir Frecuencia' },
+        'frequency.periodic': { 'en': 'Repeat every', 'pt-BR': 'Repetir a cada', 'es': 'Repetir cada' },
+        'frequency.hours': { 'en': 'hours', 'pt-BR': 'horas', 'es': 'horas' },
+        'frequency.manual': { 'en': 'Set manually', 'pt-BR': 'Definir manualmente', 'es': 'Definir manualmente' },
+        'frequency.days': { 'en': 'Days of week', 'pt-BR': 'Dias da semana', 'es': 'Días de la semana' },
+        'frequency.times': { 'en': 'Times', 'pt-BR': 'Horários', 'es': 'Horarios' },
+        'frequency.addTime': { 'en': '+ Add time', 'pt-BR': '+ Adicionar horário', 'es': '+ Agregar horario' },
+        'frequency.save': { 'en': 'Save Frequency', 'pt-BR': 'Salvar Frequência', 'es': 'Guardar Frecuencia' },
+        'frequency.summary': { 'en': 'Schedule', 'pt-BR': 'Programação', 'es': 'Programación' },
+
+        // WEEKDAYS
+        'weekday.short.0': { 'en': 'S', 'pt-BR': 'D', 'es': 'D' },
+        'weekday.short.1': { 'en': 'M', 'pt-BR': 'S', 'es': 'L' },
+        'weekday.short.2': { 'en': 'T', 'pt-BR': 'T', 'es': 'M' },
+        'weekday.short.3': { 'en': 'W', 'pt-BR': 'Q', 'es': 'M' },
+        'weekday.short.4': { 'en': 'T', 'pt-BR': 'Q', 'es': 'J' },
+        'weekday.short.5': { 'en': 'F', 'pt-BR': 'S', 'es': 'V' },
+        'weekday.short.6': { 'en': 'S', 'pt-BR': 'S', 'es': 'S' },
+
         // PROFESSIONALS
         'professional.name': { 'en': 'Name', 'pt-BR': 'Nome', 'es': 'Nombre' },
         'professional.specialty': { 'en': 'Specialty', 'pt-BR': 'Especialidade', 'es': 'Especialidad' },

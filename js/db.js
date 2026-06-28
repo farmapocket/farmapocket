@@ -352,6 +352,85 @@ const DB = {
         }
     },
 
+    // ========== MEDICATION TIMES ON TREATMENT ==========
+
+    async getTreatmentTimes(treatmentId) {
+        if (!treatmentId) return [];
+
+        try {
+            const { data, error } = await supabase
+                .from('medication_times_on_treatment')
+                .select('*')
+                .eq('treatment_id', treatmentId)
+                .order('day_of_week', { ascending: true })
+                .order('time', { ascending: true });
+
+            if (error) throw error;
+            return data || [];
+
+        } catch (error) {
+            const all = await OfflineDB.getAll('medication_times_on_treatment');
+            return all.filter(mt => mt.treatment_id === treatmentId);
+        }
+    },
+
+    async addTreatmentTimes(treatmentId, times) {
+        if (!treatmentId) throw new Error('treatment_id is required');
+        if (!Array.isArray(times) || times.length === 0) return [];
+
+        const payload = times.map(t => ({
+            treatment_id: treatmentId,
+            day_of_week: t.day_of_week,
+            time: t.time,
+            dosage: t.dosage
+        }));
+
+        try {
+            const { data, error } = await supabase
+                .from('medication_times_on_treatment')
+                .insert(payload)
+                .select();
+
+            if (error) throw error;
+            for (const item of (data || [])) {
+                await OfflineDB.set('medication_times_on_treatment', item.id, item);
+            }
+            return data || [];
+
+        } catch (error) {
+            for (const item of payload) {
+                await OfflineDB.queueForSync('medication_times_on_treatment', 'insert', item);
+            }
+            throw error;
+        }
+    },
+
+    async updateTreatmentTimes(treatmentId, times) {
+        if (!treatmentId) throw new Error('treatment_id is required');
+
+        // Delete existing and insert new (simplest sync-safe approach)
+        try {
+            await supabase
+                .from('medication_times_on_treatment')
+                .delete()
+                .eq('treatment_id', treatmentId);
+
+            const allOffline = await OfflineDB.getAll('medication_times_on_treatment');
+            for (const item of allOffline.filter(mt => mt.treatment_id === treatmentId)) {
+                await OfflineDB.delete('medication_times_on_treatment', item.id);
+            }
+
+            if (Array.isArray(times) && times.length > 0) {
+                return await this.addTreatmentTimes(treatmentId, times);
+            }
+            return [];
+
+        } catch (error) {
+            await OfflineDB.queueForSync('medication_times_on_treatment', 'update', { treatment_id: treatmentId, times });
+            throw error;
+        }
+    },
+
     // ========== PRESCRIPTIONS ==========
 
     async getPrescriptions(dependentId) {
@@ -632,11 +711,22 @@ const DB = {
         const lastScheduling = await this.getLastScheduling(dependentId);
         const now = new Date();
 
+        // Load weekly times for treatments that need them
+        const timesMap = {};
+        for (const t of activeTreatments) {
+            if (t.schedule_type === 'weekly') {
+                timesMap[t.id] = await this.getTreatmentTimes(t.id);
+            }
+        }
+
         // Calculate next dose for each treatment
-        const nextDoses = activeTreatments.map(t => {
-            const doseTime = this._calculateNextDoseTime(t, lastScheduling, now);
-            return { treatment: t, doseTime };
-        }).filter(item => item.doseTime !== null);
+        const nextDoses = [];
+        for (const t of activeTreatments) {
+            const doseTime = await this._calculateNextDoseTime(t, lastScheduling, now, timesMap[t.id]);
+            if (doseTime) {
+                nextDoses.push({ treatment: t, doseTime });
+            }
+        }
 
         // Group by time
         const grouped = {};
@@ -657,25 +747,63 @@ const DB = {
             .slice(0, limit);
     },
 
-    _calculateNextDoseTime(treatment, lastScheduling, now) {
+    async _calculateNextDoseTime(treatment, lastScheduling, now, weeklyTimes) {
+        // Weekly schedule: find next day_of_week + time on/after now
+        if (treatment.schedule_type === 'weekly') {
+            const times = weeklyTimes || await this.getTreatmentTimes(treatment.id);
+            if (!times || times.length === 0) return null;
+
+            const startDate = treatment.start_date ? new Date(treatment.start_date) : null;
+            const endDate = treatment.end_date ? new Date(treatment.end_date) : null;
+
+            // Search up to 14 days ahead
+            for (let i = 0; i < 14; i++) {
+                const candidate = new Date(now);
+                candidate.setDate(candidate.getDate() + i);
+
+                if (startDate && candidate < startDate) continue;
+                if (endDate && candidate > endDate) continue;
+
+                const dayOfWeek = candidate.getDay();
+                const dayTimes = times
+                    .filter(t => t.day_of_week === dayOfWeek)
+                    .sort((a, b) => a.time.localeCompare(b.time));
+
+                for (const slot of dayTimes) {
+                    const [hours, minutes] = slot.time.split(':').map(Number);
+                    const doseTime = new Date(candidate);
+                    doseTime.setHours(hours, minutes, 0, 0);
+
+                    if (doseTime > now) {
+                        // Skip if last scheduling matches this exact slot
+                        if (lastScheduling && lastScheduling.schedule_time) {
+                            const lastTime = new Date(lastScheduling.schedule_time);
+                            if (this._isSameDoseTime(lastTime, doseTime, 0)) {
+                                continue;
+                            }
+                        }
+                        return doseTime;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Periodic schedule (legacy)
         const freqHours = treatment.frequency_hours || 0;
         if (freqHours <= 0) return null;
 
         const freqMs = freqHours * 60 * 60 * 1000;
 
-        // Always base calculation on start_date + first_dose_time
         if (!treatment.start_date || !treatment.first_dose_time) return null;
         const [hours, minutes] = treatment.first_dose_time.split(':').map(Number);
         let baseTime = new Date(treatment.start_date);
         baseTime.setHours(hours, minutes, 0, 0);
 
-        // Advance by frequency intervals until future
         while (baseTime <= now) {
             baseTime = new Date(baseTime.getTime() + freqMs);
         }
 
-        // If the last scheduling was exactly at this calculated time,
-        // advance one more interval (dose already recorded)
         if (lastScheduling && lastScheduling.schedule_time) {
             const lastTime = new Date(lastScheduling.schedule_time);
             if (this._isSameDoseTime(lastTime, baseTime, freqMs)) {
@@ -690,6 +818,26 @@ const DB = {
         // Check if two times are the same dose slot (within the same frequency interval)
         const diff = Math.abs(time1.getTime() - time2.getTime());
         return diff < 60000; // 1 minute tolerance
+    },
+
+    async _getTreatmentDoseForTime(treatment, scheduleTime) {
+        if (treatment.schedule_type !== 'weekly') {
+            return parseFloat(treatment.dosage) || 0;
+        }
+
+        const times = await this.getTreatmentTimes(treatment.id);
+        const st = new Date(scheduleTime);
+        const dayOfWeek = st.getDay();
+        const timeStr = st.toTimeString().slice(0, 5); // HH:MM
+
+        const match = times.find(t => t.day_of_week === dayOfWeek && t.time === timeStr);
+        if (match) return parseFloat(match.dosage) || 0;
+
+        // Fallback to any matching time on the same day
+        const dayMatch = times.find(t => t.day_of_week === dayOfWeek);
+        if (dayMatch) return parseFloat(dayMatch.dosage) || 0;
+
+        return parseFloat(treatment.dosage) || 0;
     },
 
     _toLocalISOString(date) {
@@ -724,11 +872,12 @@ const DB = {
             // Link scheduled treatments (for both Taken and Skipped)
             if (treatments && treatments.length > 0) {
                 for (const treatment of treatments) {
+                    const doseForSlot = await this._getTreatmentDoseForTime(treatment, scheduleTime);
                     const linkPayload = {
                         scheduling_id: schedulingData.id,
                         treatment_id: treatment.id,
                         medication_id: treatment.medication_id,
-                        dosage: treatment.dosage || 0
+                        dosage: doseForSlot
                     };
 
                     try {
@@ -750,7 +899,7 @@ const DB = {
                         try {
                             const medication = await this.getMedication(treatment.medication_id);
                             if (medication) {
-                                const newStock = Math.max(0, (medication.stock_quantity || 0) - (treatment.dosage || 0));
+                                const newStock = Math.max(0, (medication.stock_quantity || 0) - doseForSlot);
                                 await this.updateMedication(treatment.medication_id, {
                                     stock_quantity: newStock,
                                     stock_last_updated: new Date().toISOString()

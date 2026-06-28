@@ -20,6 +20,7 @@ BEGIN
             'medications',
             'healthcare_professionals',
             'treatments',
+            'medication_times_on_treatment',
             'symptoms',
             'events',
             'prescriptions',
@@ -37,6 +38,7 @@ ALTER TABLE dependents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE medications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE healthcare_professionals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE treatments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE medication_times_on_treatment ENABLE ROW LEVEL SECURITY;
 ALTER TABLE symptoms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE prescriptions ENABLE ROW LEVEL SECURITY;
@@ -80,6 +82,18 @@ USING (
     EXISTS (
         SELECT 1 FROM dependents d 
         WHERE d.id = treatments.dependent_id 
+        AND d.account_owner_id = auth.uid()
+    )
+);
+
+-- Medication times on treatment
+CREATE POLICY "Users can only access medication times of their dependents"
+ON medication_times_on_treatment FOR ALL
+USING (
+    EXISTS (
+        SELECT 1 FROM treatments t
+        JOIN dependents d ON d.id = t.dependent_id
+        WHERE t.id = medication_times_on_treatment.treatment_id
         AND d.account_owner_id = auth.uid()
     )
 );

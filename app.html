@@ -406,19 +406,31 @@
                         <option value="">Selecione um profissional...</option>
                     </select>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.dosage">Dosagem (unidades)</label>
-                        <input type="number" name="dosage" min="0.1" step="0.1" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: 1">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.frequency">Frequência (a cada X horas)</label>
-                        <input type="number" name="frequency_hours" min="1" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: 8">
-                    </div>
-                </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.firstDoseTime">Horário da Primeira Dose</label>
-                    <input type="time" name="first_dose_time" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    <button type="button" onclick="showFrequencyModal()" class="w-full py-3 bg-sky-100 text-sky-700 rounded-lg font-medium hover:bg-sky-200 transition-colors" data-i18n="frequency.define">Definir frequência</button>
+                </div>
+                <div id="frequency-summary-card" class="hidden bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-semibold text-gray-800" data-i18n="frequency.summary">Programação</h4>
+                        <button type="button" onclick="showFrequencyModal()" class="text-xs text-sky-600 font-medium" data-i18n="common.edit">Editar</button>
+                    </div>
+                    <div id="frequency-summary-content" class="text-sm text-gray-600"></div>
+                </div>
+                <div id="frequency-legacy-fields" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.dosage">Dosagem (unidades)</label>
+                            <input type="number" name="dosage" min="0.1" step="0.1" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: 1">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.frequency">Frequência (a cada X horas)</label>
+                            <input type="number" name="frequency_hours" min="1" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: 8">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.firstDoseTime">Horário da Primeira Dose</label>
+                        <input type="time" name="first_dose_time" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.startDate">Data de Início</label>
@@ -441,6 +453,90 @@
                     <span class="text-sm text-gray-700" data-i18n="treatment.isActive">Tratamento Ativo</span>
                 </label>
                 <button type="submit" class="w-full py-3 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 transition-colors" data-i18n="common.save">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Frequency -->
+    <div id="modal-frequency" class="fixed inset-0 bg-black/50 z-50 hidden flex items-end sm:items-center justify-center">
+        <div class="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-gray-800" data-i18n="frequency.title">Definir Frequência</h3>
+                <button onclick="closeModal('modal-frequency')" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">✕</button>
+            </div>
+            <form id="form-frequency" class="space-y-4">
+                <div class="space-y-3">
+                    <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input type="radio" name="schedule_type" value="periodic" checked class="w-5 h-5 text-sky-500">
+                        <div class="flex-1">
+                            <span class="text-sm font-medium text-gray-700" data-i18n="frequency.periodic">Repetir a cada</span>
+                            <div class="flex items-center gap-2 mt-1">
+                                <input type="number" name="frequency_hours" min="1" class="w-20 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="8">
+                                <span class="text-sm text-gray-600" data-i18n="frequency.hours">horas</span>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input type="radio" name="schedule_type" value="weekly" class="w-5 h-5 text-sky-500">
+                        <span class="text-sm font-medium text-gray-700" data-i18n="frequency.manual">Definir manualmente</span>
+                    </label>
+                </div>
+
+                <div id="weekly-fields" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="frequency.days">Dias da semana</label>
+                        <div class="flex justify-between gap-1">
+                            <label class="day-option flex flex-col items-center gap-1 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50 flex-1">
+                                <input type="checkbox" name="day_of_week" value="0" class="hidden">
+                                <span class="text-xs font-medium text-gray-700" data-i18n="weekday.short.0">D</span>
+                            </label>
+                            <label class="day-option flex flex-col items-center gap-1 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50 flex-1">
+                                <input type="checkbox" name="day_of_week" value="1" class="hidden">
+                                <span class="text-xs font-medium text-gray-700" data-i18n="weekday.short.1">S</span>
+                            </label>
+                            <label class="day-option flex flex-col items-center gap-1 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50 flex-1">
+                                <input type="checkbox" name="day_of_week" value="2" class="hidden">
+                                <span class="text-xs font-medium text-gray-700" data-i18n="weekday.short.2">T</span>
+                            </label>
+                            <label class="day-option flex flex-col items-center gap-1 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50 flex-1">
+                                <input type="checkbox" name="day_of_week" value="3" class="hidden">
+                                <span class="text-xs font-medium text-gray-700" data-i18n="weekday.short.3">Q</span>
+                            </label>
+                            <label class="day-option flex flex-col items-center gap-1 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50 flex-1">
+                                <input type="checkbox" name="day_of_week" value="4" class="hidden">
+                                <span class="text-xs font-medium text-gray-700" data-i18n="weekday.short.4">Q</span>
+                            </label>
+                            <label class="day-option flex flex-col items-center gap-1 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50 flex-1">
+                                <input type="checkbox" name="day_of_week" value="5" class="hidden">
+                                <span class="text-xs font-medium text-gray-700" data-i18n="weekday.short.5">S</span>
+                            </label>
+                            <label class="day-option flex flex-col items-center gap-1 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-sky-50 has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50 flex-1">
+                                <input type="checkbox" name="day_of_week" value="6" class="hidden">
+                                <span class="text-xs font-medium text-gray-700" data-i18n="weekday.short.6">S</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="frequency.times">Horários</label>
+                        <div id="frequency-time-rows" class="space-y-2">
+                            <!-- Populated by JS -->
+                        </div>
+                        <button type="button" onclick="addFrequencyTimeRow()" class="mt-2 text-sm text-sky-600 font-medium hover:text-sky-700" data-i18n="frequency.addTime">+ Adicionar horário</button>
+                    </div>
+                </div>
+
+                <div id="periodic-fields">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.firstDoseTime">Horário da Primeira Dose</label>
+                        <input type="time" name="first_dose_time" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.dosage">Dosagem (unidades)</label>
+                        <input type="number" name="dosage" min="0.1" step="0.1" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: 1">
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full py-3 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 transition-colors" data-i18n="frequency.save">Salvar Frequência</button>
             </form>
         </div>
     </div>

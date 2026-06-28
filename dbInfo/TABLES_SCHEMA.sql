@@ -83,6 +83,7 @@ CREATE TABLE public.treatments (
   replaced_treatment_id uuid,
   replaced_by_treatment_id uuid,
   is_active boolean DEFAULT true,
+  schedule_type text DEFAULT 'periodic'::text,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT treatments_pkey PRIMARY KEY (id),
@@ -91,6 +92,16 @@ CREATE TABLE public.treatments (
   CONSTRAINT treatments_medication_id_fkey FOREIGN KEY (medication_id) REFERENCES public.medications(id),
   CONSTRAINT treatments_replaced_treatment_id_fkey FOREIGN KEY (replaced_treatment_id) REFERENCES public.treatments(id),
   CONSTRAINT treatments_replaced_by_treatment_id_fkey FOREIGN KEY (replaced_by_treatment_id) REFERENCES public.treatments(id)
+);
+CREATE TABLE public.medication_times_on_treatment (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  treatment_id uuid NOT NULL,
+  day_of_week integer NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
+  time time without time zone NOT NULL,
+  dosage numeric NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT medication_times_on_treatment_pkey PRIMARY KEY (id),
+  CONSTRAINT medication_times_on_treatment_treatment_id_fkey FOREIGN KEY (treatment_id) REFERENCES public.treatments(id) ON DELETE CASCADE
 );
 CREATE TABLE public.symptoms (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

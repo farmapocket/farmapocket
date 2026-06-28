@@ -6,6 +6,13 @@
 -- View: Medication Autonomy
 DROP VIEW IF EXISTS v_medication_autonomy;
 CREATE VIEW v_medication_autonomy AS
+WITH weekly_usage AS (
+    SELECT
+        mt.treatment_id,
+        COALESCE(SUM(mt.dosage), 0) / 7.0 AS daily_usage
+    FROM medication_times_on_treatment mt
+    GROUP BY mt.treatment_id
+)
 SELECT 
     t.id AS treatment_id,
     m.id AS medication_id,
@@ -15,19 +22,30 @@ SELECT
     m.stock_quantity,
     t.dosage,
     t.frequency_hours,
-    ROUND((24.0 / t.frequency_hours) * t.dosage, 2) AS daily_usage,
+    CASE
+        WHEN t.schedule_type = 'weekly' THEN ROUND(COALESCE(wu.daily_usage, 0), 2)
+        WHEN t.frequency_hours > 0 THEN ROUND((24.0 / t.frequency_hours) * t.dosage, 2)
+        ELSE 0
+    END AS daily_usage,
     CASE 
+        WHEN m.stock_quantity > 0 AND t.schedule_type = 'weekly' AND COALESCE(wu.daily_usage, 0) > 0
+        THEN ROUND(m.stock_quantity / wu.daily_usage, 0)
         WHEN m.stock_quantity > 0 AND t.frequency_hours > 0 
         THEN ROUND(m.stock_quantity / ((24.0 / t.frequency_hours) * t.dosage), 0)
         ELSE 0 
     END AS days_remaining,
     CASE 
-        WHEN m.stock_last_updated IS NOT NULL AND m.stock_quantity > 0
+        WHEN m.stock_last_updated IS NOT NULL AND m.stock_quantity > 0 AND t.schedule_type = 'weekly' AND COALESCE(wu.daily_usage, 0) > 0
+        THEN m.stock_last_updated::DATE + ROUND(m.stock_quantity / wu.daily_usage, 0)::INTEGER
+        WHEN m.stock_last_updated IS NOT NULL AND m.stock_quantity > 0 AND t.frequency_hours > 0
         THEN m.stock_last_updated::DATE + 
              ROUND(m.stock_quantity / ((24.0 / t.frequency_hours) * t.dosage), 0)::INTEGER
         ELSE NULL
     END AS estimated_runout_date,
     CASE 
+        WHEN m.stock_quantity > 0 AND t.schedule_type = 'weekly' AND COALESCE(wu.daily_usage, 0) > 0
+             AND m.stock_last_updated IS NOT NULL
+        THEN (m.stock_last_updated::DATE + ROUND(m.stock_quantity / wu.daily_usage, 0)::INTEGER) <= CURRENT_DATE + 7
         WHEN m.stock_quantity > 0 AND t.frequency_hours > 0 
              AND m.stock_last_updated IS NOT NULL
         THEN (m.stock_last_updated::DATE + 
@@ -37,6 +55,7 @@ SELECT
 FROM treatments t
 JOIN medications m ON t.medication_id = m.id
 JOIN dependents d ON t.dependent_id = d.id
+LEFT JOIN weekly_usage wu ON wu.treatment_id = t.id
 WHERE t.end_date IS NULL AND t.is_active = TRUE;
 
 -- View: Treatment Duration
@@ -151,16 +170,40 @@ CREATE TRIGGER trigger_check_prescription_expiration
 CREATE OR REPLACE FUNCTION get_next_dose_time(p_treatment_id UUID)
 RETURNS TIMESTAMPTZ AS $$
 DECLARE
+    v_schedule_type TEXT;
     v_frequency INTEGER;
     v_first_dose TIME;
     v_start_date DATE;
     v_now TIMESTAMPTZ := NOW();
     v_next_dose TIMESTAMPTZ;
+    v_current_date DATE;
+    v_found BOOLEAN := FALSE;
+    v_rec RECORD;
 BEGIN
-    SELECT frequency_hours, first_dose_time, start_date
-    INTO v_frequency, v_first_dose, v_start_date
+    SELECT schedule_type, frequency_hours, first_dose_time, start_date
+    INTO v_schedule_type, v_frequency, v_first_dose, v_start_date
     FROM treatments
     WHERE id = p_treatment_id;
+
+    IF v_schedule_type = 'weekly' THEN
+        -- Find next weekday/time on or after today (limited search to avoid infinite loops)
+        FOR i IN 0..13 LOOP
+            v_current_date := CURRENT_DATE + i;
+            FOR v_rec IN
+                SELECT mt.time
+                FROM medication_times_on_treatment mt
+                WHERE mt.treatment_id = p_treatment_id
+                  AND mt.day_of_week = EXTRACT(DOW FROM v_current_date)::INTEGER
+                ORDER BY mt.time
+            LOOP
+                v_next_dose := v_current_date::TIMESTAMPTZ + v_rec.time::INTERVAL;
+                IF v_next_dose > v_now THEN
+                    RETURN v_next_dose;
+                END IF;
+            END LOOP;
+        END LOOP;
+        RETURN NULL;
+    END IF;
 
     IF v_first_dose IS NULL THEN
         RETURN NULL;

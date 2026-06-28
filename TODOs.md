@@ -2,11 +2,10 @@
 
 ## Próximos passos
 
-- Nos campos de seleção de profissionais, seria interessante uma opção de inclusão rápida para profissionais que não existem na tabela. Essa opção abriria a tela de cadastro de profissionais e ao final preencheria o seletor com o profissional novo
----
--  Permitir que o usuário defina horários fixos para o tratamento, ao invés de informar apenas o intervalo em horas
----
--  Permitir que tratamentos tenham espaçamentos maiores (Ex. Um tratamento onde o remédio é ingerido apenas uma vez por semana)
+- [x] No cadastro de tratamento, preciso da alteração abaixo:
+    - Abaixo do campo "Prescrito por", adicionaremos um botão "Definir frequência" Esse botão abrira um modal. Nessa modal eu preciso informar a quantidade (dosage) e programar os dias da semana e horários das doses. Pensei em algo como a imagem de exemplo, mas póde sugerir algo melhor. Após essa definição, voltamos para a tela de tratamento, onde teremos um card com a programação realizada. Preciso que defina como isso será persistido no banco (pensei em uma nova tabela medication_times_on_treatment).
+    - É preciso rever como o comportamento do painel irá se dar com essa nova lógica
+
 ---
 - Implementar a lógica de vencimento das receitas, com:
     - Alerta para marcar consulta
@@ -31,6 +30,8 @@
 
 ## Últimas implementações:
 
+- [x] Nos campos de seleção de profissionais, seria interessante uma opção de inclusão rápida para profissionais que não existem na tabela. Essa opção abriria a tela de cadastro de profissionais e ao final preencheria o seletor com o profissional novo
+---
 - [x] Implementar cadastro de procedimentos
     - Incluir o cadastro de procedimentos na bandeja
     - Já criei a tabela e atualizei o arquivo TABLES_SCHEMA.sql
