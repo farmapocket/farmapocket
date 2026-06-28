@@ -2,21 +2,6 @@
 
 ## Próximos passos
 
-- No card de Próximas Doses, ao lado da descrição das medicações temos, entre parêntesis, a dose. Ao lado dessa informação, quero uma nova informação no formato "x un em estoque" com a quantidade em estoque, com a seguinte lógica de cores (semelhante a imagem anexa):
-    - Para remédios controlados de uso contínuo:
-        - Se eu tenho receita válida para o medicamento
-            - se falta uma semana ou menos para acabar: fundo vermelho
-            - Se faltam duas semanas ou menos para acabar: fundo laranja
-            - Se faltam mais de duas semanas: fundo cinza
-        - Se eu não tenho receita
-            - se faltam uma semana ou menos para acabar: fundo vermelho
-            - se faltam três semanas ou menos para acabar: fundo laranja
-            - se faltam mais de três semanas: fundo cinza
-    - Para remédios não controlados de uso contínuo
-            - se falta uma semana ou menos para acabar: fundo laranja
-            - Se falta mais de uma semana: fundo cinza
-
----
 - Não podemos ter estoque negativo: Se uma ação "Tomar" encontrar uma quantidade menor que a solicitada
 ---
 - Funcionalidade de estoque baixo
@@ -44,6 +29,27 @@
 
 ## Últimas implementações:
 
+- [x] Incluir na tela de cadastro e edição de tratamento dois campos:
+    - Tratamento que substituiu: (a ser armazenado no campo replacing_treatment_id)
+        - Dropdown contendo tratamentos que têm data de encerramento
+    - Por qual tratamento foi substituído: (a ser armazenado no campo replaced_by_treatment_id)
+        - Somente visível quando o tyratamento atual é encerrado
+        - Dropdown contendo tratamentos ativos
+---
+- [x] No card de Próximas Doses, ao lado da descrição das medicações temos, entre parêntesis, a dose. Ao lado dessa informação, quero uma nova informação no formato "x un em estoque" com a quantidade em estoque, com a seguinte lógica de cores (semelhante a imagem anexa):
+    - Para remédios controlados de uso contínuo:
+        - Se eu tenho receita válida para o medicamento
+            - se falta uma semana ou menos para acabar: fundo vermelho
+            - Se faltam duas semanas ou menos para acabar: fundo laranja
+            - Se faltam mais de duas semanas: fundo cinza
+        - Se eu não tenho receita
+            - se faltam uma semana ou menos para acabar: fundo vermelho
+            - se faltam três semanas ou menos para acabar: fundo laranja
+            - se faltam mais de três semanas: fundo cinza
+    - Para remédios não controlados de uso contínuo
+            - se falta uma semana ou menos para acabar: fundo laranja
+            - Se falta mais de uma semana: fundo cinza
+---
 - [x] No card de receitas, precisamos ter um botão "Utilizar". Este botão abrirá um modal de confirmação que, se confirmado, irá adicionar as unidades decritas na receita ao total em stock_quantity da tabela medications, atualizar stock_last_updated da mesma tabela para a data atual e alterar o campo status da tabela prescriptions para "Utilizada"
 ---
 - [x] BUG FIX: Após a alteração das formas de programação, encontrei bugs:

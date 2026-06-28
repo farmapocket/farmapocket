@@ -934,13 +934,16 @@ async function loadTreatmentOptions() {
     const depId = AppState.getCurrentDependent();
     if (!depId) return;
 
-    const [medications, professionals] = await Promise.all([
+    const [medications, professionals, treatments] = await Promise.all([
         DB.getMedications(depId),
-        DB.getProfessionals(depId)
+        DB.getProfessionals(depId),
+        DB.getTreatments(depId)
     ]);
 
     const medSelect = document.querySelector('#form-treatment select[name="medication_id"]');
     const profSelect = document.querySelector('#form-treatment select[name="prescribed_by"]');
+    const replacedSelect = document.querySelector('#form-treatment select[name="replaced_treatment_id"]');
+    const replacedBySelect = document.querySelector('#form-treatment select[name="replaced_by_treatment_id"]');
 
     if (medSelect) {
         medSelect.innerHTML = '<option value="">Selecione um medicamento...</option>' +
@@ -953,6 +956,37 @@ async function loadTreatmentOptions() {
             professionals.map(p => `<option value="${p.id}">${p.name}${p.specialty ? ' - ' + p.specialty : ''}</option>`).join('') +
             `<option value="__new__">+ ${i18n.t('professional.addNew')}</option>`;
         profSelect.onchange = () => handleProfessionalSelectChange(profSelect);
+    }
+
+    const treatmentLabel = (t) => {
+        const medName = t.medications?.name || t.medication_name || 'Tratamento';
+        const start = t.start_date ? new Date(t.start_date).toLocaleDateString('pt-BR') : '';
+        const end = t.end_date ? new Date(t.end_date).toLocaleDateString('pt-BR') : '';
+        return `${medName}${start ? ' - ' + start : ''}${end ? ' → ' + end : ''}`;
+    };
+
+    const otherTreatments = treatments.filter(t => t.id !== currentEditingTreatmentId);
+    const endedTreatments = otherTreatments.filter(t => t.end_date);
+    const activeTreatments = otherTreatments.filter(t => !t.end_date && t.is_active !== false);
+
+    if (replacedSelect) {
+        replacedSelect.innerHTML = '<option value="">Nenhum</option>' +
+            endedTreatments.map(t => `<option value="${t.id}">${treatmentLabel(t)}</option>`).join('');
+    }
+
+    if (replacedBySelect) {
+        replacedBySelect.innerHTML = '<option value="">Nenhum</option>' +
+            activeTreatments.map(t => `<option value="${t.id}">${treatmentLabel(t)}</option>`).join('');
+    }
+}
+
+function toggleReplacedByVisibility() {
+    const form = document.getElementById('form-treatment');
+    if (!form) return;
+    const wrapper = document.getElementById('replaced-by-treatment-wrapper');
+    const endDate = form.querySelector('[name="end_date"]')?.value;
+    if (wrapper) {
+        wrapper.classList.toggle('hidden', !endDate);
     }
 }
 
@@ -1060,6 +1094,9 @@ async function editTreatment(id) {
     form.querySelector('[name="treatment_goal"]').value = treatment.treatment_goal || '';
     form.querySelector('[name="admin_notes"]').value = treatment.administration_notes || treatment.admin_notes || '';
     form.querySelector('[name="is_active"]').checked = treatment.is_active !== false;
+    form.querySelector('[name="replaced_treatment_id"]').value = treatment.replaced_treatment_id || '';
+    form.querySelector('[name="replaced_by_treatment_id"]').value = treatment.replaced_by_treatment_id || '';
+    toggleReplacedByVisibility();
 
     // Load frequency definition
     if (treatment.schedule_type === 'weekly') {
@@ -1843,6 +1880,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     : (formData.get('first_dose_time') || null),
                 start_date: formData.get('start_date') || null,
                 end_date: formData.get('end_date') || null,
+                replaced_treatment_id: formData.get('replaced_treatment_id') || null,
+                replaced_by_treatment_id: formData.get('end_date')
+                    ? (formData.get('replaced_by_treatment_id') || null)
+                    : null,
                 treatment_goal: formData.get('treatment_goal') || null,
                 administration_notes: formData.get('admin_notes') || null,
                 is_active: formData.has('is_active')

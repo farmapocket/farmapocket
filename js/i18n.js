@@ -143,6 +143,8 @@ const i18n = {
         'treatment.isActive': { 'en': 'Active Treatment', 'pt-BR': 'Tratamento Ativo', 'es': 'Tratamiento Activo' },
         'treatment.autonomy': { 'en': 'Autonomy', 'pt-BR': 'Autonomia', 'es': 'Autonomía' },
         'treatment.daysRemaining': { 'en': 'Days Remaining', 'pt-BR': 'Dias Restantes', 'es': 'Días Restantes' },
+        'treatment.replacedTreatment': { 'en': 'Treatment Replaced by This', 'pt-BR': 'Tratamento substituído por este', 'es': 'Tratamiento sustituido por este' },
+        'treatment.replacedByTreatment': { 'en': 'Replaced By Treatment', 'pt-BR': 'Por qual tratamento foi substituído', 'es': 'Por qué tratamiento fue sustituido' },
         'treatment.addNew': { 'en': 'Add New Treatment', 'pt-BR': 'Adicionar Novo Tratamento', 'es': 'Agregar Nuevo Tratamiento' },
 
         // FREQUENCY
