@@ -2,11 +2,6 @@
 
 ## Próximos passos
 
-- Implementar a lógica de vencimento das receitas
-    - Na área de Receituários vencendo, vamos trazer as receitas que estão para vencer dentro de duas ou menos semanas, ordenadas pela que vencerá antes primeiro
-    - Trazer o nome da medicação, o tempo para vencer, se há receitas do mesmo medicamento (só a quantidade) e o nome do profissional que receitou
-    - se houver mais de uma receita para o mesmo medicamento, trazer apenas a que está mais perto de vencer
----
 - Não podemos ter estoque negativo: Se uma ação "Tomar" encontrar uma quantidade menor que a solicitada
 ---
 - O Aplicativo precisa se auto-explicar
@@ -30,6 +25,11 @@
 
 ## Últimas implementações:
 
+- [x] Implementar a lógica de vencimento das receitas
+    - Na área de Receituários vencendo, vamos trazer as receitas que estão para vencer dentro de duas ou menos semanas, ordenadas pela que vencerá antes primeiro
+    - Trazer o nome da medicação, o tempo para vencer, se há receitas do mesmo medicamento (só a quantidade) e o nome do profissional que receitou
+    - se houver mais de uma receita para o mesmo medicamento, trazer apenas a que está mais perto de vencer
+---
 - [x] Funcionalidade de estoque baixo
     - dentro do card de Alerta de Estoque Baixo, vamos dividir por categorias, mostrando das mais urgentes para as menos
         - Remédios controlados de uso contínuo, sem receita e com três semanas ou menos para acabar (Nome da secção: SEM RECEITA)
