@@ -2,7 +2,13 @@
 
 ## Próximos passos
 
-- Nas telas de cadastro, quero uncluir um toggle button "exibir inativos". O padrão será sempre falso
+- Cadastro de categorias
+    - A tela ficará dentro da tela "... Mais"
+    - Cada categoria pode ter 0..n subcategorias
+---
+- campo de laboratório preferido no cadastro de medicação
+---
+
 - Não podemos ter estoque negativo: Se uma ação "Tomar" encontrar uma quantidade menor que a solicitada
 ---
 - Funcionalidade de estoque baixo
@@ -17,6 +23,12 @@
 ---
 - O Aplicativo precisa se auto-explicar
 ---
+- Criptografia de ponta à ponta
+---
+- Monetização
+---
+- Migração para linguagem mobile
+---
 - Implementar visualização da linha do tempo dos tratamentos, sintomas e procedimentos
 ---
 - Importar arquivo com profissionais, medicações, tratamentos e sintomas
@@ -29,7 +41,8 @@
 ---
 
 ## Últimas implementações:
-
+- [x] Nas telas de cadastro, quero uncluir um toggle button "exibir inativos". O padrão será sempre falso
+---
 - [x] Incluir na tela de cadastro e edição de tratamento dois campos:
     - Tratamento que substituiu: (a ser armazenado no campo replacing_treatment_id)
         - Dropdown contendo tratamentos que têm data de encerramento

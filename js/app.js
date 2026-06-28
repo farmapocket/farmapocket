@@ -33,7 +33,7 @@ function navigateTo(page) {
         targetPage.classList.add('active');
     }
 
-    const morePages = ['professionals', 'prescriptions', 'symptoms', 'procedures'];
+    const morePages = ['professionals', 'prescriptions', 'symptoms', 'procedures', 'categories'];
     document.querySelectorAll('.bottom-nav-item').forEach(btn => {
         btn.classList.remove('active');
         if (btn.dataset.page === page) {
@@ -51,6 +51,7 @@ function navigateTo(page) {
     if (page === 'prescriptions') loadPrescriptions();
     if (page === 'symptoms') loadSymptoms();
     if (page === 'procedures') loadProcedures();
+    if (page === 'categories') loadCategories();
     if (page === 'more') loadMore();
     if (page === 'activity-log') loadActivityLog();
 
@@ -1027,6 +1028,8 @@ let currentEditingPrescriptionId = null;
 let currentEditingSymptomId = null;
 let currentEditingProcedureId = null;
 let currentEditingProfessionalId = null;
+let currentEditingCategoryId = null;
+let currentEditingSubcategoryId = null;
 let showInactiveTreatments = false;
 let showOnlyValidPrescriptions = true;
 
@@ -1800,6 +1803,188 @@ async function deleteProcedure(id) {
     }
 }
 
+// ========== CATEGORIES ==========
+
+async function loadCategories() {
+    const listEl = document.getElementById('categories-list');
+    const depId = AppState.getCurrentDependent();
+
+    if (!depId) {
+        listEl.innerHTML = `
+            <div class="text-center py-8">
+                <span class="text-4xl mb-2 block">👤</span>
+                <p class="text-gray-500">Selecione um dependente primeiro</p>
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        const categories = await DB.getCategories();
+
+        if (categories.length === 0) {
+            listEl.innerHTML = `
+                <div class="text-center py-8">
+                    <span class="text-4xl mb-2 block">🏷️</span>
+                    <p class="text-gray-400" data-i18n="common.noData">Nenhum dado encontrado</p>
+                    <p class="text-sm text-gray-400 mt-1" data-i18n="category.noData">Adicione a primeira categoria</p>
+                </div>
+            `;
+            return;
+        }
+
+        listEl.innerHTML = categories.map(cat => {
+            const subcategories = cat.subcategories || [];
+            return `
+            <div class="bg-white rounded-xl p-4 shadow-sm card-hover">
+                <div class="flex items-start justify-between mb-2">
+                    <div class="flex-1 pr-2">
+                        <h3 class="font-semibold text-gray-800">${cat.name}</h3>
+                        ${subcategories.length > 0 ? `
+                            <div class="mt-2 pl-3 border-l-2 border-gray-200 space-y-1">
+                                ${subcategories.map(sub => `
+                                    <div class="flex items-center justify-between">
+                                        <p class="text-sm text-gray-600">${sub.name}</p>
+                                        <div class="flex items-center gap-1">
+                                            <button onclick="editSubcategory('${sub.id}', '${cat.id}')" class="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center" title="Editar">
+                                                <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                            </button>
+                                            <button onclick="deleteSubcategory('${sub.id}')" class="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center" title="Excluir">
+                                                <svg class="w-3 h-3 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p class="text-sm text-gray-400 mt-1" data-i18n="category.noSubcategories">Nenhuma subcategoria</p>'}
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="showAddSubcategory('${cat.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center" title="Adicionar subcategoria">
+                            <svg class="w-3.5 h-3.5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        </button>
+                        <button onclick="editCategory('${cat.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center ml-1" title="Editar">
+                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        <button onclick="deleteCategory('${cat.id}')" class="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center" title="Excluir">
+                            <svg class="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error loading categories:', error);
+        listEl.innerHTML = '<p class="text-center text-red-500 py-4">Erro ao carregar categorias</p>';
+    }
+}
+
+function showAddCategory() {
+    if (!AppState.getCurrentDependent()) {
+        alert('Selecione um dependente primeiro');
+        return;
+    }
+    currentEditingCategoryId = null;
+    document.getElementById('form-category').reset();
+    document.querySelector('#modal-category h3').textContent = i18n.t('category.addNew');
+    openModal('modal-category');
+}
+
+async function editCategory(id) {
+    event.stopPropagation();
+
+    const categories = await DB.getCategories();
+    const category = categories.find(c => c.id === id);
+    if (!category) {
+        alert('Categoria não encontrada');
+        return;
+    }
+
+    currentEditingCategoryId = id;
+    const form = document.getElementById('form-category');
+    form.querySelector('[name="name"]').value = category.name || '';
+
+    document.querySelector('#modal-category h3').textContent = i18n.t('category.edit');
+    openModal('modal-category');
+}
+
+async function deleteCategory(id) {
+    const categories = await DB.getCategories();
+    const category = categories.find(c => c.id === id);
+    const subcategories = category?.subcategories || [];
+    const subCount = subcategories.length;
+
+    let message = i18n.t('category.deleteConfirm');
+    if (subCount > 0) {
+        message = i18n.t('category.deleteConfirmWithSubcategories', { count: subCount });
+    }
+
+    if (!confirm(message)) return;
+
+    try {
+        if (subcategories.length > 0) {
+            await Promise.all(subcategories.map(sub => DB.deleteSubcategory(sub.id)));
+        }
+        await DB.deleteCategory(id);
+        loadCategories();
+    } catch (error) {
+        alert('Erro ao excluir: ' + error.message);
+    }
+}
+
+async function loadSubcategoryOptions(selectedCategoryId = null) {
+    const categories = await DB.getCategories();
+    const select = document.querySelector('#form-subcategory select[name="category_id"]');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Selecione uma categoria...</option>' +
+        categories.map(c => `<option value="${c.id}" ${c.id === selectedCategoryId ? 'selected' : ''}>${c.name}</option>`).join('');
+}
+
+function showAddSubcategory(categoryId = null) {
+    if (!AppState.getCurrentDependent()) {
+        alert('Selecione um dependente primeiro');
+        return;
+    }
+    currentEditingSubcategoryId = null;
+    document.getElementById('form-subcategory').reset();
+    loadSubcategoryOptions(categoryId);
+    document.querySelector('#modal-subcategory h3').textContent = i18n.t('subcategory.addNew');
+    openModal('modal-subcategory');
+}
+
+async function editSubcategory(id, categoryId) {
+    event.stopPropagation();
+
+    const categories = await DB.getCategories();
+    const subcategory = categories.flatMap(c => c.subcategories || []).find(s => s.id === id);
+    if (!subcategory) {
+        alert('Subcategoria não encontrada');
+        return;
+    }
+
+    currentEditingSubcategoryId = id;
+    const form = document.getElementById('form-subcategory');
+    await loadSubcategoryOptions(subcategory.category_id || categoryId);
+    form.querySelector('[name="category_id"]').value = subcategory.category_id || categoryId || '';
+    form.querySelector('[name="name"]').value = subcategory.name || '';
+
+    document.querySelector('#modal-subcategory h3').textContent = i18n.t('subcategory.edit');
+    openModal('modal-subcategory');
+}
+
+async function deleteSubcategory(id) {
+    if (!confirm('Tem certeza que deseja excluir esta subcategoria?')) return;
+
+    try {
+        await DB.deleteSubcategory(id);
+        loadCategories();
+    } catch (error) {
+        alert('Erro ao excluir: ' + error.message);
+    }
+}
+
 // ========== FORM HANDLERS ==========
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2164,6 +2349,65 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeModal('modal-procedure');
                 procedureForm.reset();
                 loadProcedures();
+                scrollPageToTop();
+
+            } catch (error) {
+                alert('Erro ao salvar: ' + error.message);
+            }
+        });
+    }
+
+    // Category form
+    const categoryForm = document.getElementById('form-category');
+    if (categoryForm) {
+        categoryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(categoryForm);
+            const category = {
+                name: formData.get('name')
+            };
+
+            try {
+                if (currentEditingCategoryId) {
+                    await DB.updateCategory(currentEditingCategoryId, category);
+                } else {
+                    await DB.addCategory(category);
+                }
+                currentEditingCategoryId = null;
+                closeModal('modal-category');
+                categoryForm.reset();
+                loadCategories();
+                scrollPageToTop();
+
+            } catch (error) {
+                alert('Erro ao salvar: ' + error.message);
+            }
+        });
+    }
+
+    // Subcategory form
+    const subcategoryForm = document.getElementById('form-subcategory');
+    if (subcategoryForm) {
+        subcategoryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(subcategoryForm);
+            const subcategory = {
+                category_id: formData.get('category_id'),
+                name: formData.get('name')
+            };
+
+            try {
+                if (currentEditingSubcategoryId) {
+                    await DB.updateSubcategory(currentEditingSubcategoryId, subcategory);
+                } else {
+                    await DB.addSubcategory(subcategory);
+                }
+                currentEditingSubcategoryId = null;
+                closeModal('modal-subcategory');
+                subcategoryForm.reset();
+                loadCategories();
                 scrollPageToTop();
 
             } catch (error) {

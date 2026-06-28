@@ -1314,6 +1314,165 @@ const DB = {
         }
     },
 
+    // ========== CATEGORIES ==========
+
+    async getCategories() {
+        try {
+            const { data, error } = await supabase
+                .from('categories')
+                .select('*, subcategories(*)')
+                .order('name', { ascending: true });
+
+            if (error) throw error;
+            return data || [];
+
+        } catch (error) {
+            const categories = await OfflineDB.getAll('categories');
+            const subcategories = await OfflineDB.getAll('subcategories');
+            return categories.map(cat => ({
+                ...cat,
+                subcategories: subcategories.filter(sc => sc.category_id === cat.id)
+            })).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        }
+    },
+
+    async addCategory(category) {
+        if (!category.name) throw new Error('name is required');
+
+        try {
+            const { data, error } = await supabase
+                .from('categories')
+                .insert(category)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('categories', data.id, data);
+            return data;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('categories', 'insert', category);
+            throw error;
+        }
+    },
+
+    async updateCategory(id, updates) {
+        const payload = { ...updates };
+
+        try {
+            const { data, error } = await supabase
+                .from('categories')
+                .update(payload)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('categories', id, data);
+            return data;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('categories', 'update', { id, ...payload });
+            throw error;
+        }
+    },
+
+    async deleteCategory(id) {
+        try {
+            const { error } = await supabase
+                .from('categories')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            await OfflineDB.delete('categories', id);
+
+        } catch (error) {
+            await OfflineDB.queueForSync('categories', 'delete', { id });
+            throw error;
+        }
+    },
+
+    // ========== SUBCATEGORIES ==========
+
+    async getSubcategories(categoryId) {
+        if (!categoryId) return [];
+
+        try {
+            const { data, error } = await supabase
+                .from('subcategories')
+                .select('*')
+                .eq('category_id', categoryId)
+                .order('name', { ascending: true });
+
+            if (error) throw error;
+            return data || [];
+
+        } catch (error) {
+            const all = await OfflineDB.getAll('subcategories');
+            return all.filter(sc => sc.category_id === categoryId)
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        }
+    },
+
+    async addSubcategory(subcategory) {
+        if (!subcategory.name) throw new Error('name is required');
+        if (!subcategory.category_id) throw new Error('category_id is required');
+
+        try {
+            const { data, error } = await supabase
+                .from('subcategories')
+                .insert(subcategory)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('subcategories', data.id, data);
+            return data;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('subcategories', 'insert', subcategory);
+            throw error;
+        }
+    },
+
+    async updateSubcategory(id, updates) {
+        const payload = { ...updates };
+
+        try {
+            const { data, error } = await supabase
+                .from('subcategories')
+                .update(payload)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('subcategories', id, data);
+            return data;
+
+        } catch (error) {
+            await OfflineDB.queueForSync('subcategories', 'update', { id, ...payload });
+            throw error;
+        }
+    },
+
+    async deleteSubcategory(id) {
+        try {
+            const { error } = await supabase
+                .from('subcategories')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+            await OfflineDB.delete('subcategories', id);
+
+        } catch (error) {
+            await OfflineDB.queueForSync('subcategories', 'delete', { id });
+            throw error;
+        }
+    },
+
     // ========== DASHBOARD STATS (aggregated across all dependents) ==========
 
     async getDashboardStats() {

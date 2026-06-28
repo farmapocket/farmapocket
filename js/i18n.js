@@ -115,6 +115,19 @@ const i18n = {
         'procedure.notes': { 'en': 'Notes', 'pt-BR': 'Observações', 'es': 'Observaciones' },
         'procedure.noData': { 'en': 'Add the first procedure', 'pt-BR': 'Adicione o primeiro procedimento', 'es': 'Agregue el primer procedimiento' },
 
+        // CATEGORIES
+        'nav.categories': { 'en': 'Categories', 'pt-BR': 'Categorias', 'es': 'Categorías' },
+        'category.addNew': { 'en': 'Add New Category', 'pt-BR': 'Adicionar Categoria', 'es': 'Agregar Categoría' },
+        'category.edit': { 'en': 'Edit Category', 'pt-BR': 'Editar Categoria', 'es': 'Editar Categoría' },
+        'category.name': { 'en': 'Name', 'pt-BR': 'Nome', 'es': 'Nombre' },
+        'category.noData': { 'en': 'Add the first category', 'pt-BR': 'Adicione a primeira categoria', 'es': 'Agregue la primera categoría' },
+        'category.noSubcategories': { 'en': 'No subcategories', 'pt-BR': 'Nenhuma subcategoria', 'es': 'Sin subcategorías' },
+        'category.deleteConfirm': { 'en': 'Are you sure you want to delete this category?', 'pt-BR': 'Tem certeza que deseja excluir esta categoria?', 'es': '¿Está seguro de que desea eliminar esta categoría?' },
+        'category.deleteConfirmWithSubcategories': { 'en': 'This category has {count} subcategories. They will also be deleted. Do you want to continue?', 'pt-BR': 'Esta categoria possui {count} subcategoria(s). Ao excluí-la, ela(s) também será(ão) excluída(s). Deseja continuar?', 'es': 'Esta categoría tiene {count} subcategorías. Al eliminarla, también se eliminarán. ¿Desea continuar?' },
+        'subcategory.addNew': { 'en': 'Add New Subcategory', 'pt-BR': 'Adicionar Subcategoria', 'es': 'Agregar Subcategoría' },
+        'subcategory.edit': { 'en': 'Edit Subcategory', 'pt-BR': 'Editar Subcategoria', 'es': 'Editar Subcategoría' },
+        'subcategory.name': { 'en': 'Name', 'pt-BR': 'Nome', 'es': 'Nombre' },
+
         // DOSE ACTION
         'doseAction.confirmTaken': { 'en': 'Confirm Medication Taken', 'pt-BR': 'Confirmar Medicação Tomada', 'es': 'Confirmar Medicamento Tomado' },
         'doseAction.confirmSkipped': { 'en': 'Confirm Skipped Medication', 'pt-BR': 'Confirmar Medicação Pulada', 'es': 'Confirmar Medicamento Saltado' },
