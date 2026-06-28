@@ -842,7 +842,9 @@ async function loadTreatmentOptions() {
 
     if (profSelect) {
         profSelect.innerHTML = '<option value="">Selecione um profissional...</option>' +
-            professionals.map(p => `<option value="${p.id}">${p.name}${p.specialty ? ' - ' + p.specialty : ''}</option>`).join('');
+            professionals.map(p => `<option value="${p.id}">${p.name}${p.specialty ? ' - ' + p.specialty : ''}</option>`).join('') +
+            `<option value="__new__">+ ${i18n.t('professional.addNew')}</option>`;
+        profSelect.onchange = () => handleProfessionalSelectChange(profSelect);
     }
 }
 
@@ -878,6 +880,7 @@ let currentEditingMedicationId = null;
 let currentEditingPrescriptionId = null;
 let currentEditingSymptomId = null;
 let currentEditingProcedureId = null;
+let currentEditingProfessionalId = null;
 
 function showAddTreatment() {
     if (!AppState.getCurrentDependent()) {
@@ -969,12 +972,47 @@ async function loadProfessionals() {
     }
 }
 
-function showAddProfessional() {
+function showAddProfessional(callback) {
     if (!AppState.getCurrentDependent()) {
         alert('Selecione um dependente primeiro');
         return;
     }
+    currentEditingProfessionalId = null;
+    window._professionalSaveCallback = callback || null;
+    document.getElementById('form-professional').reset();
+    document.querySelector('#modal-professional h3').textContent = i18n.t('professional.addNew');
     openModal('modal-professional');
+}
+
+function handleProfessionalSelectChange(select) {
+    if (select.value === '__new__') {
+        select.value = '';
+        openQuickAddProfessional(select);
+    }
+}
+
+function openQuickAddProfessional(targetSelect) {
+    window._pendingProfessionalSelect = targetSelect;
+    showAddProfessional((newProfessional) => {
+        if (window._pendingProfessionalSelect) {
+            const select = window._pendingProfessionalSelect;
+            const option = document.createElement('option');
+            option.value = newProfessional.id;
+            option.textContent = newProfessional.specialty
+                ? `${newProfessional.name} (${newProfessional.specialty})`
+                : newProfessional.name;
+
+            const newOption = select.querySelector('option[value="__new__"]');
+            if (newOption) {
+                select.insertBefore(option, newOption);
+            } else {
+                select.appendChild(option);
+            }
+
+            select.value = newProfessional.id;
+            window._pendingProfessionalSelect = null;
+        }
+    });
 }
 
 // ========== PRESCRIPTIONS ==========
@@ -1076,7 +1114,9 @@ async function loadPrescriptionOptions() {
         `<option value="__new__">+ ${i18n.t('medication.addNew')}</option>`;
 
     profSelect.innerHTML = '<option value="">Selecione um profissional...</option>' +
-        professionals.map(p => `<option value="${p.id}">${p.name}${p.specialty ? ` (${p.specialty})` : ''}</option>`).join('');
+        professionals.map(p => `<option value="${p.id}">${p.name}${p.specialty ? ` (${p.specialty})` : ''}</option>`).join('') +
+        `<option value="__new__">+ ${i18n.t('professional.addNew')}</option>`;
+    profSelect.onchange = () => handleProfessionalSelectChange(profSelect);
 }
 
 function showAddPrescription() {
@@ -1330,7 +1370,9 @@ async function loadProcedureOptions() {
     const profSelect = document.querySelector('#form-procedure [name="prescribed_by"]');
 
     profSelect.innerHTML = '<option value="">Selecione um profissional...</option>' +
-        professionals.map(p => `<option value="${p.id}">${p.name}${p.specialty ? ` (${p.specialty})` : ''}</option>`).join('');
+        professionals.map(p => `<option value="${p.id}">${p.name}${p.specialty ? ` (${p.specialty})` : ''}</option>`).join('') +
+        `<option value="__new__">+ ${i18n.t('professional.addNew')}</option>`;
+    profSelect.onchange = () => handleProfessionalSelectChange(profSelect);
 }
 
 function showAddProcedure() {
@@ -1516,7 +1558,14 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
-                await DB.addProfessional(professional);
+                const savedProfessional = await DB.addProfessional(professional);
+
+                if (window._professionalSaveCallback) {
+                    window._professionalSaveCallback(savedProfessional);
+                    window._professionalSaveCallback = null;
+                }
+
+                currentEditingProfessionalId = null;
                 closeModal('modal-professional');
                 profForm.reset();
                 loadProfessionals();
@@ -1743,6 +1792,7 @@ window.showAddMedication = showAddMedication;
 window.handleMedicationSelectChange = handleMedicationSelectChange;
 window.showAddTreatment = showAddTreatment;
 window.showAddProfessional = showAddProfessional;
+window.handleProfessionalSelectChange = handleProfessionalSelectChange;
 window.showAddPrescription = showAddPrescription;
 window.editPrescription = editPrescription;
 window.deletePrescription = deletePrescription;

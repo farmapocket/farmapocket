@@ -2,10 +2,6 @@
 
 ## Próximos passos
 
-- Implementar cadastro de procedimentos
-    - Incluir o cadastro de procedimentos na bandeja
-    - Já criei a tabela e atualizei o arquivo TABLES_SCHEMA.sql
----
 - Nos campos de seleção de profissionais, seria interessante uma opção de inclusão rápida para profissionais que não existem na tabela. Essa opção abriria a tela de cadastro de profissionais e ao final preencheria o seletor com o profissional novo
 ---
 -  Permitir que o usuário defina horários fixos para o tratamento, ao invés de informar apenas o intervalo em horas
@@ -35,6 +31,10 @@
 
 ## Últimas implementações:
 
+- [x] Implementar cadastro de procedimentos
+    - Incluir o cadastro de procedimentos na bandeja
+    - Já criei a tabela e atualizei o arquivo TABLES_SCHEMA.sql
+---
 - [x] Implementar cadastro de sintomas
     - Incluir o cadastro de sintomas na bandeja
     - Sinalizar se o sintoma é bom, neutro ou ruim (botões com carinhas). Armazenar essa informação no campo severity da tabela
