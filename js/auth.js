@@ -385,8 +385,9 @@ document.addEventListener('DOMContentLoaded', () => {
             Auth.signInWithGoogle();
         });
     } else {
-        console.error('❌ Google login button NOT found!');
-        console.error('❌ Available buttons:', document.querySelectorAll('button').length);
+        // O botão de login só existe na página de login (index.html).
+        // Este script é compartilhado com app.html, onde o botão não está presente.
+        console.log('ℹ️ Google login button not present on this page');
     }
 });
 
