@@ -1,30 +1,60 @@
 # TODO 
 
+## MVP
+
+- Gestão dos remédios avulsos
+---
+- 
+---
+- Implementar visualização da linha do tempo dos tratamentos, sintomas e procedimentos
+    - Ordenar os tratamentos por subcategoria
+---
+- É possível fazer com que o aplicativo envie notificações e alarmes?
+---
+
 ## Próximos passos
 
 - Não podemos ter estoque negativo: Se uma ação "Tomar" encontrar uma quantidade menor que a solicitada
 ---
-- O Aplicativo precisa se auto-explicar
+- No log das últimas ações, na tela "...Mais", preciso trazer a informação created_at da tabela scheduling 
 ---
-- Criptografia de ponta à ponta
+- Uma opção para receber ou não as notificações de tratamentos
 ---
 - Monetização
 ---
 - Migração para linguagem mobile
 ---
-- Implementar visualização da linha do tempo dos tratamentos, sintomas e procedimentos
----
 - Importar arquivo com profissionais, medicações, tratamentos e sintomas
 ---
 - As operações estão lentas e dá um aspecto de travamento. Poderíamos ter ações assíncronas?
 ---
--  Uma splash screen para o carregamento do painel, o aplicativo abre com a tela sem informações, parece que não está funcionando
+- Criptografia de ponta à ponta
 ---
-- É possível fazer com que o aplicativo envie notificações e alarmes?
----
+
+
 
 ## Últimas implementações:
 
+- [x] O Aplicativo precisa se auto-explicar
+    - Adicionar dentro da pasta "...Main" a opção Tour
+    - Criar uma série de telas do tipo carrossel
+    - Informações que preciso nessas telas:
+        - No FarmaPocket, fica fácil lembrar quando tomar, quando comprar e quando renovar as receitas das medicações de uso contínuo, para você e seus dependentes
+        - Mantenha registro dos tratamentos de forma simples
+        - Registre procedimentos e sintomas para observar na mesma linha do tempo que os tratamentos
+        - Agrupe os tratamentos por categoria e subcategoria
+    - Use uma linguagem clara e layout didático
+    - Vamos exibir essa tela quando for a primeira vez que o cliente loga
+---
+- [x] Criar uma splash screen para o carregamento do painel, o aplicativo abre com a tela sem informações, parece que não está funcionando
+    - Usar a imagem img/logo.png
+    - mostrar uma breve descrição do processo em curso e uma animação tipo ampulheta ou loading
+    - mostrar o painel apenas quando todos os cards estiverem preenchidos
+---
+- [x] Uma tela para atualização de todo o inventário:
+    - Dentro da tela "...Mais"
+    - Traz uma lista em forma de tabela de todos os medicamentos cadastrados. Na primeira coluna, o nome do medicamento. Na segunda coluna um campo texto com o valor de stock_quantity. Na terceira coluna, stock_last_updated
+---
 - [x] Implementar a lógica de vencimento das receitas
     - Na área de Receituários vencendo, vamos trazer as receitas que estão para vencer dentro de duas ou menos semanas, ordenadas pela que vencerá antes primeiro
     - Trazer o nome da medicação, o tempo para vencer, se há receitas do mesmo medicamento (só a quantidade) e o nome do profissional que receitou

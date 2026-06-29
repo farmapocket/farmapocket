@@ -26,6 +26,8 @@ const AppState = {
 // ========== NAVEGAÇÃO ==========
 
 function navigateTo(page) {
+    hideSplashScreen();
+
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
 
     const targetPage = document.getElementById(`page-${page}`);
@@ -33,7 +35,7 @@ function navigateTo(page) {
         targetPage.classList.add('active');
     }
 
-    const morePages = ['professionals', 'prescriptions', 'symptoms', 'procedures', 'categories'];
+    const morePages = ['professionals', 'prescriptions', 'symptoms', 'procedures', 'categories', 'inventory-update', 'tour'];
     document.querySelectorAll('.bottom-nav-item').forEach(btn => {
         btn.classList.remove('active');
         if (btn.dataset.page === page) {
@@ -52,6 +54,8 @@ function navigateTo(page) {
     if (page === 'symptoms') loadSymptoms();
     if (page === 'procedures') loadProcedures();
     if (page === 'categories') loadCategories();
+    if (page === 'inventory-update') loadInventoryUpdate();
+    if (page === 'tour') loadTour();
     if (page === 'more') loadMore();
     if (page === 'activity-log') loadActivityLog();
 
@@ -60,6 +64,182 @@ function navigateTo(page) {
 
 function loadMore() {
     // Página "Mais" é estática; nada a carregar dinamicamente
+}
+
+// ========== SPLASH SCREEN ==========
+
+function showSplashScreen() {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        splash.classList.remove('pointer-events-none', 'opacity-0');
+    }
+}
+
+function hideSplashScreen() {
+    const splash = document.getElementById('splash-screen');
+    if (!splash) return;
+
+    splash.classList.add('opacity-0');
+    setTimeout(() => {
+        splash.classList.add('pointer-events-none');
+    }, 500);
+}
+
+// ========== TOUR ==========
+
+const tourSlides = [
+    {
+        icon: `<svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`,
+        titleKey: 'tour.slide1.title',
+        descriptionKey: 'tour.slide1.description'
+    },
+    {
+        icon: `<svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`,
+        titleKey: 'tour.slide2.title',
+        descriptionKey: 'tour.slide2.description'
+    },
+    {
+        icon: `<svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>`,
+        titleKey: 'tour.slide3.title',
+        descriptionKey: 'tour.slide3.description'
+    },
+    {
+        icon: `<svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>`,
+        titleKey: 'tour.slide4.title',
+        descriptionKey: 'tour.slide4.description'
+    }
+];
+
+let currentTourIndex = 0;
+let tourTouchStartX = 0;
+let tourTouchEndX = 0;
+
+function getTourSeenKey() {
+    const userId = Auth.getUserId ? Auth.getUserId() : null;
+    return userId ? `farma-pocket-tour-seen-${userId}` : 'farma-pocket-tour-seen';
+}
+
+function hasSeenTour() {
+    return localStorage.getItem(getTourSeenKey()) === 'true';
+}
+
+function markTourAsSeen() {
+    localStorage.setItem(getTourSeenKey(), 'true');
+}
+
+function loadTour() {
+    currentTourIndex = 0;
+    renderTourCarousel();
+}
+
+function renderTourCarousel() {
+    const container = document.getElementById('tour-carousel');
+    const dotsContainer = document.getElementById('tour-dots');
+    if (!container || !dotsContainer) return;
+
+    const slidesHtml = tourSlides.map(slide => `
+        <div class="tour-slide">
+            <div class="w-28 h-28 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 mb-8">
+                ${slide.icon}
+            </div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">${i18n.t(slide.titleKey)}</h3>
+            <p class="text-gray-600 leading-relaxed max-w-xs text-base">${i18n.t(slide.descriptionKey)}</p>
+        </div>
+    `).join('');
+
+    container.innerHTML = slidesHtml;
+
+    dotsContainer.innerHTML = tourSlides.map((_, index) => `
+        <div class="tour-dot ${index === currentTourIndex ? 'active' : ''}" onclick="goToTourSlide(${index})"></div>
+    `).join('');
+
+    updateTourCarouselPosition();
+    updateTourButtons();
+}
+
+function updateTourCarouselPosition() {
+    const carousel = document.getElementById('tour-carousel');
+    if (carousel) {
+        carousel.style.transform = `translateX(-${currentTourIndex * 100}%)`;
+    }
+
+    document.querySelectorAll('.tour-dot').forEach((dot, index) => {
+        dot.classList.toggle('active', index === currentTourIndex);
+    });
+}
+
+function updateTourButtons() {
+    const prevBtn = document.getElementById('tour-prev');
+    const nextBtn = document.getElementById('tour-next');
+
+    if (prevBtn) {
+        prevBtn.classList.toggle('invisible', currentTourIndex === 0);
+    }
+
+    if (nextBtn) {
+        if (currentTourIndex === tourSlides.length - 1) {
+            nextBtn.textContent = i18n.t('tour.start');
+            nextBtn.onclick = finishTour;
+        } else {
+            nextBtn.textContent = i18n.t('tour.next');
+            nextBtn.onclick = nextTourSlide;
+        }
+    }
+}
+
+function nextTourSlide() {
+    if (currentTourIndex < tourSlides.length - 1) {
+        currentTourIndex++;
+        updateTourCarouselPosition();
+        updateTourButtons();
+    }
+}
+
+function prevTourSlide() {
+    if (currentTourIndex > 0) {
+        currentTourIndex--;
+        updateTourCarouselPosition();
+        updateTourButtons();
+    }
+}
+
+function goToTourSlide(index) {
+    if (index < 0 || index >= tourSlides.length) return;
+    currentTourIndex = index;
+    updateTourCarouselPosition();
+    updateTourButtons();
+}
+
+function finishTour() {
+    markTourAsSeen();
+    showSplashScreen();
+    navigateTo('dashboard');
+    loadDashboard();
+}
+
+function skipTour() {
+    markTourAsSeen();
+    showSplashScreen();
+    navigateTo('dashboard');
+    loadDashboard();
+}
+
+function handleTourTouchStart(event) {
+    tourTouchStartX = event.changedTouches[0].screenX;
+}
+
+function handleTourTouchEnd(event) {
+    tourTouchEndX = event.changedTouches[0].screenX;
+    const diff = tourTouchStartX - tourTouchEndX;
+    const threshold = 50;
+
+    if (Math.abs(diff) > threshold) {
+        if (diff > 0) {
+            nextTourSlide();
+        } else {
+            prevTourSlide();
+        }
+    }
 }
 
 // ========== DEPENDENT SELECTOR ==========
@@ -255,9 +435,11 @@ function safeSetHtml(id, html) {
 }
 
 async function loadDashboard() {
+    console.log('📊 loadDashboard() started');
     try {
         // Stats
         const stats = await DB.getDashboardStats();
+        console.log('📊 Dashboard stats loaded:', stats);
         safeSetText('stat-dependents', stats.dependents);
         safeSetText('stat-medications', stats.medications);
         safeSetText('stat-treatments', stats.treatments);
@@ -272,6 +454,7 @@ async function loadDashboard() {
 
         // Low stock alerts
         const lowStock = await DB.getLowStockAlerts();
+        console.log('📊 Low stock alerts loaded:', lowStock.length);
         if (lowStock.length > 0) {
             const sections = {
                 'SEM RECEITA': lowStock.filter(i => i.is_controlled && !i.has_valid_prescription),
@@ -306,6 +489,7 @@ async function loadDashboard() {
 
         // Expiring prescriptions
         const expiring = await DB.getExpiringPrescriptions();
+        console.log('📊 Expiring prescriptions loaded:', expiring.length);
         if (expiring.length > 0) {
             safeSetHtml('expiring-prescriptions', expiring.map(item => {
                 const days = item.days_until_expiration;
@@ -339,12 +523,17 @@ async function loadDashboard() {
 
         // Today's schedule
         await loadTodaySchedule();
+        console.log('📊 Today schedule loaded');
 
         // Last action
         await loadLastAction();
+        console.log('📊 Last action loaded');
 
     } catch (error) {
         console.error('Error loading dashboard:', error);
+    } finally {
+        console.log('📊 loadDashboard() finished - hiding splash');
+        hideSplashScreen();
     }
 }
 
@@ -784,7 +973,6 @@ async function loadMedications() {
                         <div class="flex items-center gap-2 mt-2 flex-wrap">
                             ${med.is_controlled ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Controlado</span>' : ''}
                             ${med.is_continuous_use ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Uso Contínuo</span>' : ''}
-                            ${med.is_rescue_medication ? '<span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">Resgate</span>' : ''}
                             <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${med.stock_quantity || 0} un</span>
                             ${prescriptionCount > 0 ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${prescriptionCount} receita${prescriptionCount > 1 ? 's' : ''} (${prescriptionUnits} un)</span>` : ''}
                         </div>
@@ -845,7 +1033,11 @@ function handleMedicationSelectChange(select) {
         // Reset select to empty while modal opens
         select.value = '';
         openQuickAddMedication(select);
+        return;
     }
+
+    // Sempre resetar a programação ao trocar de medicamento
+    resetTreatmentFrequency();
 }
 
 function openQuickAddMedication(targetSelect) {
@@ -893,7 +1085,6 @@ async function editMedication(id) {
     form.querySelector('[name="active_ingredient"]').value = medication.active_ingredient || '';
     form.querySelector('[name="is_controlled"]').checked = medication.is_controlled === true;
     form.querySelector('[name="is_continuous_use"]').checked = medication.is_continuous_use === true;
-    form.querySelector('[name="is_rescue_medication"]').checked = medication.is_rescue_medication === true;
     form.querySelector('[name="stock_quantity"]').value = medication.stock_quantity || 0;
     await loadLaboratoryOptions(medication.laboratory_id);
 
@@ -943,7 +1134,9 @@ async function loadTreatments() {
             const durationText = formatTreatmentDuration(t.start_date, t.end_date);
 
             let frequencyText = '';
-            if (t.schedule_type === 'weekly' && t.medication_times_on_treatment?.length > 0) {
+            if (t.is_rescue) {
+                frequencyText = `Medicação de resgate (${t.administration_notes || ''})`;
+            } else if (t.schedule_type === 'weekly' && t.medication_times_on_treatment?.length > 0) {
                 const dayLabels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
                 const grouped = {};
                 t.medication_times_on_treatment.forEach(mt => {
@@ -1098,7 +1291,8 @@ let currentTreatmentFrequency = {
     frequency_hours: 8,
     first_dose_time: '',
     dosage: '',
-    weeklyTimes: [] // { day_of_week, time, dosage }
+    weeklyTimes: [], // { day_of_week, time, dosage }
+    is_rescue: false
 };
 
 function resetTreatmentFrequency() {
@@ -1107,7 +1301,8 @@ function resetTreatmentFrequency() {
         frequency_hours: 8,
         first_dose_time: '',
         dosage: '',
-        weeklyTimes: []
+        weeklyTimes: [],
+        is_rescue: false
     };
     renderFrequencySummary();
 }
@@ -1166,9 +1361,6 @@ async function editTreatment(id) {
     const form = document.getElementById('form-treatment');
     form.querySelector('[name="medication_id"]').value = treatment.medication_id || '';
     form.querySelector('[name="prescribed_by"]').value = treatment.prescribed_by || '';
-    form.querySelector('[name="dosage"]').value = treatment.dosage || '';
-    form.querySelector('[name="frequency_hours"]').value = treatment.frequency_hours || '';
-    form.querySelector('[name="first_dose_time"]').value = treatment.first_dose_time || '';
     form.querySelector('[name="start_date"]').value = treatment.start_date || '';
     form.querySelector('[name="end_date"]').value = treatment.end_date || '';
     form.querySelector('[name="treatment_goal"]').value = treatment.treatment_goal || '';
@@ -1190,7 +1382,17 @@ async function editTreatment(id) {
                 day_of_week: t.day_of_week,
                 time: t.time,
                 dosage: t.dosage
-            }))
+            })),
+            is_rescue: false
+        };
+    } else if (treatment.schedule_type === 'rescue') {
+        currentTreatmentFrequency = {
+            schedule_type: 'rescue',
+            frequency_hours: 0,
+            first_dose_time: '',
+            dosage: '',
+            weeklyTimes: [],
+            is_rescue: true
         };
     } else {
         currentTreatmentFrequency = {
@@ -1198,7 +1400,8 @@ async function editTreatment(id) {
             frequency_hours: treatment.frequency_hours || 8,
             first_dose_time: treatment.first_dose_time || '',
             dosage: treatment.dosage || '',
-            weeklyTimes: []
+            weeklyTimes: [],
+            is_rescue: false
         };
     }
     renderFrequencySummary();
@@ -1242,7 +1445,7 @@ function showFrequencyModal() {
         form.querySelectorAll('[name="day_of_week"]').forEach(cb => {
             cb.checked = Object.values(grouped).some(g => g.days.includes(parseInt(cb.value)));
         });
-    } else {
+    } else if (scheduleType !== 'rescue') {
         addFrequencyTimeRow();
     }
 
@@ -1258,6 +1461,9 @@ function toggleFrequencyFields(scheduleType) {
     if (scheduleType === 'weekly') {
         weeklyFields.classList.remove('hidden');
         periodicFields.classList.add('hidden');
+    } else if (scheduleType === 'rescue') {
+        weeklyFields.classList.add('hidden');
+        periodicFields.classList.add('hidden');
     } else {
         weeklyFields.classList.add('hidden');
         periodicFields.classList.remove('hidden');
@@ -1271,8 +1477,8 @@ function addFrequencyTimeRow(slot = null) {
     const row = document.createElement('div');
     row.className = 'flex items-center gap-2';
     row.innerHTML = `
-        <input type="time" class="frequency-time flex-1 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" value="${slot ? slot.time : ''}" required>
-        <input type="number" min="0.1" step="0.1" class="frequency-dosage w-20 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" value="${slot ? slot.dosage : ''}" placeholder="Qtd" required>
+        <input type="time" class="frequency-time flex-1 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" value="${slot ? slot.time : ''}">
+        <input type="number" min="0.1" step="0.1" class="frequency-dosage w-20 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" value="${slot ? slot.dosage : ''}" placeholder="Qtd">
         <button type="button" onclick="removeFrequencyTimeRow(this)" class="text-red-400 hover:text-red-600 px-2">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
         </button>
@@ -1288,18 +1494,13 @@ function removeFrequencyTimeRow(button) {
 function renderFrequencySummary() {
     const card = document.getElementById('frequency-summary-card');
     const content = document.getElementById('frequency-summary-content');
-    const legacyFields = document.getElementById('frequency-legacy-fields');
-    const treatmentForm = document.getElementById('form-treatment');
-    if (!card || !content || !legacyFields) return;
+    if (!card || !content) return;
 
-    const legacyInputs = legacyFields.querySelectorAll('input');
+    card.classList.remove('hidden');
 
-    if (currentTreatmentFrequency.schedule_type === 'weekly') {
-        card.classList.remove('hidden');
-        legacyFields.classList.add('hidden');
-        legacyInputs.forEach(input => input.removeAttribute('required'));
-
-        const weekdays = i18n.t('frequency.weekdays') ? null : null; // fallback handled below
+    if (currentTreatmentFrequency.schedule_type === 'rescue') {
+        content.innerHTML = `<p class="text-amber-600 font-medium">${i18n.t('treatment.rescueMedication')}</p>`;
+    } else if (currentTreatmentFrequency.schedule_type === 'weekly') {
         const dayLabels = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
         const grouped = {};
         (currentTreatmentFrequency.weeklyTimes || []).forEach(slot => {
@@ -1313,13 +1514,15 @@ function renderFrequencySummary() {
 
         content.innerHTML = lines.length > 0 ? lines.join('') : '<p class="text-gray-400">Nenhum horário definido</p>';
     } else {
-        card.classList.add('hidden');
-        legacyFields.classList.remove('hidden');
-        legacyInputs.forEach(input => {
-            if (input.name === 'dosage' || input.name === 'frequency_hours' || input.name === 'first_dose_time') {
-                input.setAttribute('required', '');
-            }
-        });
+        const dosage = parseFloat(currentTreatmentFrequency.dosage) || 0;
+        const hours = parseInt(currentTreatmentFrequency.frequency_hours) || 0;
+        const firstDose = currentTreatmentFrequency.first_dose_time || '';
+
+        if (dosage > 0 && hours > 0 && firstDose) {
+            content.innerHTML = `<p>${dosage} un a cada ${hours} horas, primeira dose às ${firstDose}</p>`;
+        } else {
+            content.innerHTML = `<p class="text-gray-400">Clique em "Definir frequência" para configurar a programação</p>`;
+        }
     }
 }
 
@@ -2048,6 +2251,137 @@ async function deleteSubcategory(id) {
     }
 }
 
+// ========== INVENTORY UPDATE ==========
+
+async function loadInventoryUpdate() {
+    const containerEl = document.getElementById('inventory-update-container');
+    const depId = AppState.getCurrentDependent();
+
+    if (!depId) {
+        containerEl.innerHTML = `
+            <div class="text-center py-8">
+                <span class="text-4xl mb-2 block">👤</span>
+                <p class="text-gray-500">Selecione um dependente primeiro</p>
+            </div>
+        `;
+        return;
+    }
+
+    containerEl.innerHTML = '<div class="skeleton h-20 rounded-xl"></div>'.repeat(3);
+
+    try {
+        const medications = await DB.getMedications(depId);
+
+        if (medications.length === 0) {
+            containerEl.innerHTML = `
+                <div class="text-center py-8">
+                    <span class="text-4xl mb-2 block">💊</span>
+                    <p class="text-gray-400" data-i18n="common.noData">Nenhum dado encontrado</p>
+                    <p class="text-sm text-gray-400 mt-1" data-i18n="inventoryUpdate.noData">Adicione o primeiro medicamento</p>
+                </div>
+            `;
+            return;
+        }
+
+        const rows = medications.map(med => {
+            const lastUpdated = med.stock_last_updated
+                ? new Date(med.stock_last_updated).toLocaleString(i18n.getLanguage())
+                : '-';
+            return `
+            <tr class="border-b border-gray-100 last:border-b-0" data-med-id="${med.id}" data-original-stock="${med.stock_quantity || 0}">
+                <td class="px-4 py-3">
+                    <div class="font-medium text-gray-800">${med.name}</div>
+                    ${med.active_ingredient ? `<div class="text-xs text-gray-500">${med.active_ingredient}</div>` : ''}
+                </td>
+                <td class="px-4 py-3 w-24">
+                    <input type="number" min="0" step="1" value="${med.stock_quantity || 0}"
+                        class="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none text-right"
+                        onchange="markInventoryRowChanged(this)">
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
+                    ${lastUpdated}
+                </td>
+            </tr>
+            `;
+        }).join('');
+
+        containerEl.innerHTML = `
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-700" data-i18n="inventoryUpdate.medication">Medicamento</th>
+                            <th class="px-4 py-3 text-right font-semibold text-gray-700" data-i18n="medication.stockQuantity">Estoque</th>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-700" data-i18n="inventoryUpdate.lastUpdated">Última Atualização</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        document.getElementById('btn-save-inventory').disabled = true;
+        i18n.refreshUI();
+
+    } catch (error) {
+        console.error('Error loading inventory update:', error);
+        containerEl.innerHTML = '<p class="text-center text-red-500 py-4">Erro ao carregar medicamentos</p>';
+    }
+}
+
+function markInventoryRowChanged(input) {
+    const row = input.closest('tr');
+    const originalStock = parseInt(row.dataset.originalStock) || 0;
+    const currentStock = parseInt(input.value) || 0;
+
+    if (currentStock !== originalStock) {
+        row.classList.add('bg-yellow-50');
+    } else {
+        row.classList.remove('bg-yellow-50');
+    }
+
+    const hasChanges = document.querySelector('#inventory-update-container tbody tr.bg-yellow-50') !== null;
+    document.getElementById('btn-save-inventory').disabled = !hasChanges;
+}
+
+async function saveInventoryUpdate() {
+    const rows = document.querySelectorAll('#inventory-update-container tbody tr.bg-yellow-50');
+    if (rows.length === 0) return;
+
+    const btn = document.getElementById('btn-save-inventory');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = i18n.t('common.loading');
+
+    const errors = [];
+
+    for (const row of rows) {
+        const id = row.dataset.medId;
+        const input = row.querySelector('input[type="number"]');
+        const stockQuantity = parseInt(input.value) || 0;
+
+        try {
+            await DB.updateMedication(id, { stock_quantity: stockQuantity });
+        } catch (error) {
+            console.error(`Error updating medication ${id}:`, error);
+            errors.push({ name: row.querySelector('td:first-child .font-medium').textContent });
+        }
+    }
+
+    if (errors.length > 0) {
+        alert(i18n.t('inventoryUpdate.saveError') + '\n' + errors.map(e => `- ${e.name}`).join('\n'));
+    } else {
+        alert(i18n.t('inventoryUpdate.saveSuccess'));
+    }
+
+    await loadInventoryUpdate();
+    loadDashboard();
+    loadMedications();
+    btn.textContent = originalText;
+}
+
 // ========== FORM HANDLERS ==========
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2095,7 +2429,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 laboratory_id: formData.get('laboratory_id') || null,
                 is_controlled: formData.has('is_controlled'),
                 is_continuous_use: formData.has('is_continuous_use'),
-                is_rescue_medication: formData.has('is_rescue_medication'),
                 stock_quantity: parseInt(formData.get('stock_quantity')) || 0
             };
 
@@ -2134,22 +2467,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const formData = new FormData(treatmentForm);
             const isWeekly = currentTreatmentFrequency.schedule_type === 'weekly';
+            const isRescue = currentTreatmentFrequency.schedule_type === 'rescue';
+
+            if (isRescue) {
+                const adminNotes = formData.get('admin_notes');
+                if (!adminNotes || !adminNotes.trim()) {
+                    alert('Para tratamentos de resgate, informe no campo Observações de Administração a condição de uso (Ex. Em caso de dor aguda)');
+                    return;
+                }
+            }
 
             const treatment = {
                 dependent_id: AppState.getCurrentDependent(),
                 medication_id: formData.get('medication_id'),
                 prescribed_by: formData.get('prescribed_by') || null,
                 schedule_type: currentTreatmentFrequency.schedule_type || 'periodic',
-                dosage: isWeekly
-                    ? (currentTreatmentFrequency.weeklyTimes[0]?.dosage || 0)
-                    : (parseFloat(formData.get('dosage')) || 0),
-                frequency_hours: isWeekly
+                dosage: isRescue
                     ? 0
-                    : (parseInt(formData.get('frequency_hours')) || 0),
-                first_dose_time: isWeekly
+                    : (isWeekly
+                        ? (currentTreatmentFrequency.weeklyTimes[0]?.dosage || 0)
+                        : (parseFloat(currentTreatmentFrequency.dosage) || 0)),
+                frequency_hours: isRescue || isWeekly
+                    ? 0
+                    : (parseInt(currentTreatmentFrequency.frequency_hours) || 0),
+                first_dose_time: isRescue || isWeekly
                     ? null
-                    : (formData.get('first_dose_time') || null),
-                start_date: formData.get('start_date') || null,
+                    : (currentTreatmentFrequency.first_dose_time || null),
+                start_date: formData.get('start_date') || new Date().toISOString().split('T')[0],
                 end_date: formData.get('end_date') || null,
                 replaced_treatment_id: formData.get('replaced_treatment_id') || null,
                 replaced_by_treatment_id: formData.get('end_date')
@@ -2157,7 +2501,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     : null,
                 treatment_goal: formData.get('treatment_goal') || null,
                 administration_notes: formData.get('admin_notes') || null,
-                is_active: formData.has('is_active')
+                is_active: formData.has('is_active'),
+                is_rescue: isRescue
             };
 
             try {
@@ -2172,7 +2517,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isWeekly) {
                     await DB.updateTreatmentTimes(savedTreatment.id, currentTreatmentFrequency.weeklyTimes);
                 } else if (currentEditingTreatmentId) {
-                    // Clear any existing weekly times when switching to periodic
+                    // Clear any existing weekly times when switching to periodic or rescue
                     await DB.updateTreatmentTimes(savedTreatment.id, []);
                 }
 
@@ -2199,7 +2544,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(frequencyForm);
             const scheduleType = formData.get('schedule_type') || 'periodic';
 
-            if (scheduleType === 'weekly') {
+            if (scheduleType === 'rescue') {
+                currentTreatmentFrequency = {
+                    schedule_type: 'rescue',
+                    frequency_hours: 0,
+                    first_dose_time: '',
+                    dosage: '',
+                    weeklyTimes: [],
+                    is_rescue: true
+                };
+            } else if (scheduleType === 'weekly') {
                 const selectedDays = Array.from(frequencyForm.querySelectorAll('[name="day_of_week"]:checked')).map(cb => parseInt(cb.value));
                 if (selectedDays.length === 0) {
                     alert('Selecione pelo menos um dia da semana.');
@@ -2239,7 +2593,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     frequency_hours: 0,
                     first_dose_time: '',
                     dosage: '',
-                    weeklyTimes: times
+                    weeklyTimes: times,
+                    is_rescue: false
                 };
             } else {
                 const frequencyHours = parseInt(formData.get('frequency_hours')) || 0;
@@ -2264,7 +2619,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     frequency_hours: frequencyHours,
                     first_dose_time: firstDoseTime,
                     dosage: dosage,
-                    weeklyTimes: []
+                    weeklyTimes: [],
+                    is_rescue: false
                 };
             }
 
@@ -2572,8 +2928,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Carregar dependentes primeiro
         loadDependents().then(() => {
-            loadDashboard();
+            if (!hasSeenTour()) {
+                navigateTo('tour');
+            } else {
+                showSplashScreen();
+                loadDashboard();
+            }
         });
+
+        // Timeout de segurança para esconder a splash caso algo trave
+        setTimeout(() => {
+            const splash = document.getElementById('splash-screen');
+            if (splash && !splash.classList.contains('opacity-0')) {
+                console.warn('⏱️ Splash screen safety timeout triggered');
+                hideSplashScreen();
+            }
+        }, 10000);
     });
 });
 
@@ -2606,5 +2976,11 @@ window.revertLastDose = revertLastDose;
 window.goToLogSlide = goToLogSlide;
 window.handleLogTouchStart = handleLogTouchStart;
 window.handleLogTouchEnd = handleLogTouchEnd;
+window.skipTour = skipTour;
+window.nextTourSlide = nextTourSlide;
+window.prevTourSlide = prevTourSlide;
+window.goToTourSlide = goToTourSlide;
+window.handleTourTouchStart = handleTourTouchStart;
+window.handleTourTouchEnd = handleTourTouchEnd;
 window.closeModal = closeModal;
 window.exportData = exportData;

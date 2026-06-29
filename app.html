@@ -51,9 +51,67 @@
         .log-dot.active {
             background: #0ea5e9;
         }
+
+        /* Splash Screen */
+        .animate-bounce-slow {
+            animation: bounceSlow 2s infinite ease-in-out;
+        }
+        @keyframes bounceSlow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .hourglass-icon {
+            animation: hourglassPulse 2s infinite ease-in-out;
+        }
+        @keyframes hourglassPulse {
+            0%, 100% { opacity: 1; transform: scale(1) rotate(0deg); }
+            50% { opacity: 0.6; transform: scale(0.95) rotate(180deg); }
+        }
+
+        /* Tour Carousel */
+        .tour-carousel {
+            display: flex;
+            transition: transform 0.3s ease;
+            touch-action: pan-y;
+            height: 100%;
+        }
+        .tour-slide {
+            flex: 0 0 100%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+        .tour-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #d1d5db;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .tour-dot.active {
+            background: #0ea5e9;
+            transform: scale(1.25);
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen pb-20">
+
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center p-8 transition-opacity duration-500">
+        <img src="img/logo.png" alt="FarmaPocket" class="w-24 h-24 object-contain mb-6 animate-bounce-slow">
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">FarmaPocket</h1>
+        <p class="text-gray-500 text-center mb-8 max-w-xs" data-i18n="splash.loading">Carregando suas informações...</p>
+        <svg class="hourglass-icon w-12 h-12 text-sky-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 22h14"></path>
+            <path d="M5 2h14"></path>
+            <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"></path>
+            <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"></path>
+        </svg>
+    </div>
 
     <!-- Header -->
     <header class="bg-white shadow-sm sticky top-0 z-50 safe-area-top">
@@ -282,6 +340,57 @@
                     </div>
                     <span class="text-sm font-medium text-gray-700" data-i18n="nav.categories">Categorias</span>
                 </button>
+                <button onclick="navigateTo('inventory-update')" class="bg-white rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 hover:bg-gray-50 transition-colors">
+                    <div class="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-xl text-teal-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                    </div>
+                    <span class="text-sm font-medium text-gray-700" data-i18n="nav.inventoryUpdate">Atualizar Estoque</span>
+                </button>
+                <button onclick="navigateTo('tour')" class="bg-white rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 hover:bg-gray-50 transition-colors">
+                    <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-xl text-indigo-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <span class="text-sm font-medium text-gray-700" data-i18n="nav.tour">Tour</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- PAGE: Tour -->
+        <div id="page-tour" class="page">
+            <div class="min-h-screen flex flex-col bg-white pb-24">
+                <div class="flex items-center justify-end p-4">
+                    <button onclick="skipTour()" class="text-sm font-medium text-gray-500 hover:text-gray-700 px-3 py-2" data-i18n="tour.skip">Pular</button>
+                </div>
+                <div class="flex-1 relative overflow-hidden" id="tour-carousel-container" ontouchstart="handleTourTouchStart(event)" ontouchend="handleTourTouchEnd(event)">
+                    <div id="tour-carousel" class="tour-carousel h-full">
+                        <!-- Slides populated by JS -->
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div class="flex justify-center gap-2 mb-6" id="tour-dots"></div>
+                    <div class="flex items-center justify-between gap-4">
+                        <button id="tour-prev" onclick="prevTourSlide()" class="px-6 py-3 text-gray-500 font-medium rounded-lg hover:bg-gray-100 transition-colors invisible" data-i18n="tour.back">Voltar</button>
+                        <button id="tour-next" onclick="nextTourSlide()" class="flex-1 px-6 py-3 bg-sky-500 text-white font-medium rounded-lg hover:bg-sky-600 transition-colors" data-i18n="tour.next">Próximo</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE: Inventory Update -->
+        <div id="page-inventory-update" class="page">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-gray-800" data-i18n="inventoryUpdate.title">Atualizar Estoque</h2>
+                <div class="flex items-center gap-2">
+                    <button onclick="saveInventoryUpdate()" id="btn-save-inventory" class="px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled data-i18n="common.save">
+                        Salvar
+                    </button>
+                    <button onclick="navigateTo('more')" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                        ✕
+                    </button>
+                </div>
+            </div>
+            <div id="inventory-update-container" class="bg-white rounded-xl shadow-sm overflow-hidden">
+                <p class="text-gray-400 text-sm text-center py-8" data-i18n="common.loading">Carregando...</p>
             </div>
         </div>
 
@@ -446,7 +555,7 @@
                     </select>
                 </div>
                 <div>
-                    <button type="button" onclick="showFrequencyModal()" class="w-full py-3 bg-sky-100 text-sky-700 rounded-lg font-medium hover:bg-sky-200 transition-colors" data-i18n="frequency.define">Definir frequência</button>
+                    <button type="button" id="btn-define-frequency" onclick="showFrequencyModal()" class="w-full py-3 bg-sky-100 text-sky-700 rounded-lg font-medium hover:bg-sky-200 transition-colors" data-i18n="frequency.define">Definir frequência</button>
                 </div>
                 <div id="frequency-summary-card" class="hidden bg-white rounded-xl p-4 shadow-sm border border-gray-200">
                     <div class="flex items-center justify-between mb-2">
@@ -455,25 +564,9 @@
                     </div>
                     <div id="frequency-summary-content" class="text-sm text-gray-600"></div>
                 </div>
-                <div id="frequency-legacy-fields" class="space-y-4">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.dosage">Dosagem (unidades)</label>
-                            <input type="number" name="dosage" min="0.1" step="0.1" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: 1">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.frequency">Frequência (a cada X horas)</label>
-                            <input type="number" name="frequency_hours" min="1" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: 8">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.firstDoseTime">Horário da Primeira Dose</label>
-                        <input type="time" name="first_dose_time" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                    </div>
-                </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.startDate">Data de Início</label>
-                    <input type="date" name="start_date" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    <input type="date" name="start_date" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.endDate">Data de Encerramento</label>
@@ -487,7 +580,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.goal">Objetivo do Tratamento</label>
-                    <input type="text" name="treatment_goal" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: Tratar hipertensão">
+                    <input type="text" name="treatment_goal" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: Tratar hipertensão">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="treatment.adminNotes">Observações de Administração</label>
@@ -524,6 +617,10 @@
                     <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
                         <input type="radio" name="schedule_type" value="weekly" class="w-5 h-5 text-sky-500">
                         <span class="text-sm font-medium text-gray-700" data-i18n="frequency.manual">Definir manualmente</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 border border-amber-200 bg-amber-50 rounded-lg cursor-pointer hover:bg-amber-100">
+                        <input type="radio" name="schedule_type" value="rescue" class="w-5 h-5 text-amber-500">
+                        <span class="text-sm font-medium text-gray-700" data-i18n="frequency.rescue">Medicação de Resgate</span>
                     </label>
                 </div>
 
@@ -844,10 +941,6 @@
                         <span class="text-sm text-gray-700" data-i18n="medication.isContinuousUse">Uso Contínuo</span>
                     </label>
                 </div>
-                <label class="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer">
-                    <input type="checkbox" name="is_rescue_medication" class="w-4 h-4 text-sky-500 rounded">
-                    <span class="text-sm text-gray-700" data-i18n="medication.isRescue">Medicação de Resgate</span>
-                </label>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="medication.stockQuantity">Quantidade em Estoque</label>
                     <input type="number" name="stock_quantity" min="0" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="0">

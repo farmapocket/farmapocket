@@ -28,6 +28,24 @@ const i18n = {
         'common.error': { 'en': 'Error', 'pt-BR': 'Erro', 'es': 'Error' },
         'common.offline': { 'en': 'You are offline. Changes will sync when connection returns.', 'pt-BR': 'Você está offline. As alterações serão sincronizadas quando a conexão retornar.', 'es': 'Estás offline. Los cambios se sincronizarán cuando vuelva la conexión.' },
 
+        // SPLASH
+        'splash.loading': { 'en': 'Loading your information...', 'pt-BR': 'Carregando suas informações...', 'es': 'Cargando tu información...' },
+
+        // TOUR
+        'nav.tour': { 'en': 'Tour', 'pt-BR': 'Tour', 'es': 'Tour' },
+        'tour.skip': { 'en': 'Skip', 'pt-BR': 'Pular', 'es': 'Omitir' },
+        'tour.back': { 'en': 'Back', 'pt-BR': 'Voltar', 'es': 'Atrás' },
+        'tour.next': { 'en': 'Next', 'pt-BR': 'Próximo', 'es': 'Siguiente' },
+        'tour.start': { 'en': 'Start', 'pt-BR': 'Começar', 'es': 'Comenzar' },
+        'tour.slide1.title': { 'en': 'Never forget your medications', 'pt-BR': 'Nunca esqueça seus medicamentos', 'es': 'Nunca olvides tus medicamentos' },
+        'tour.slide1.description': { 'en': 'FarmaPocket makes it easy to remember when to take, when to buy, and when to renew prescriptions for continuous-use medications — for you and your dependents.', 'pt-BR': 'No FarmaPocket, fica fácil lembrar quando tomar, quando comprar e quando renovar as receitas das medicações de uso contínuo, para você e seus dependentes.', 'es': 'En FarmaPocket es fácil recordar cuándo tomar, cuándo comprar y cuándo renovar las recetas de los medicamentos de uso continuo, para ti y tus dependientes.' },
+        'tour.slide2.title': { 'en': 'Keep treatments simple', 'pt-BR': 'Mantenha os tratamentos simples', 'es': 'Mantén los tratamientos simples' },
+        'tour.slide2.description': { 'en': 'Keep track of your treatments in a simple and organized way.', 'pt-BR': 'Mantenha registro dos tratamentos de forma simples.', 'es': 'Mantén el registro de los tratamientos de forma simple.' },
+        'tour.slide3.title': { 'en': 'Procedures and symptoms', 'pt-BR': 'Procedimentos e sintomas', 'es': 'Procedimientos y síntomas' },
+        'tour.slide3.description': { 'en': 'Record procedures and symptoms to observe them on the same timeline as your treatments.', 'pt-BR': 'Registre procedimentos e sintomas para observar na mesma linha do tempo que os tratamentos.', 'es': 'Registra procedimientos y síntomas para observarlos en la misma línea de tiempo que los tratamientos.' },
+        'tour.slide4.title': { 'en': 'Organize by category', 'pt-BR': 'Organize por categoria', 'es': 'Organiza por categoría' },
+        'tour.slide4.description': { 'en': 'Group treatments by category and subcategory for a clearer view.', 'pt-BR': 'Agrupe os tratamentos por categoria e subcategoria.', 'es': 'Agrupa los tratamientos por categoría y subcategoría.' },
+
         // NAV
         'nav.dashboard': { 'en': 'Dashboard', 'pt-BR': 'Painel', 'es': 'Panel' },
         'nav.medications': { 'en': 'Medications', 'pt-BR': 'Medicamentos', 'es': 'Medicamentos' },
@@ -40,6 +58,7 @@ const i18n = {
         'nav.prescriptions': { 'en': 'Prescriptions', 'pt-BR': 'Receituários', 'es': 'Recetas' },
         'nav.settings': { 'en': 'Settings', 'pt-BR': 'Configurações', 'es': 'Configuración' },
         'nav.logout': { 'en': 'Logout', 'pt-BR': 'Sair', 'es': 'Cerrar sesión' },
+        'nav.inventoryUpdate': { 'en': 'Update Stock', 'pt-BR': 'Atualizar Estoque', 'es': 'Actualizar Stock' },
 
         // AUTH
         'auth.login': { 'en': 'Login', 'pt-BR': 'Entrar', 'es': 'Iniciar sesión' },
@@ -76,6 +95,15 @@ const i18n = {
         'laboratory.addNew': { 'en': 'Add New Laboratory', 'pt-BR': 'Adicionar Novo Laboratório', 'es': 'Agregar Nuevo Laboratorio' },
         'laboratory.promptName': { 'en': 'Enter the laboratory name:', 'pt-BR': 'Digite o nome do laboratório:', 'es': 'Ingrese el nombre del laboratorio:' },
         'medication.lowStock': { 'en': 'Low Stock', 'pt-BR': 'Estoque Baixo', 'es': 'Stock Bajo' },
+        'treatment.rescueMedication': { 'en': 'Rescue Medication', 'pt-BR': 'Medicamento de Resgate', 'es': 'Medicamento de Rescate' },
+
+        // INVENTORY UPDATE
+        'inventoryUpdate.title': { 'en': 'Update Stock', 'pt-BR': 'Atualizar Estoque', 'es': 'Actualizar Stock' },
+        'inventoryUpdate.medication': { 'en': 'Medication', 'pt-BR': 'Medicamento', 'es': 'Medicamento' },
+        'inventoryUpdate.lastUpdated': { 'en': 'Last Updated', 'pt-BR': 'Última Atualização', 'es': 'Última Actualización' },
+        'inventoryUpdate.noData': { 'en': 'Add the first medication', 'pt-BR': 'Adicione o primeiro medicamento', 'es': 'Agregue el primer medicamento' },
+        'inventoryUpdate.saveSuccess': { 'en': 'Stock updated successfully!', 'pt-BR': 'Estoque atualizado com sucesso!', 'es': '¡Stock actualizado con éxito!' },
+        'inventoryUpdate.saveError': { 'en': 'Error updating stock for some medications:', 'pt-BR': 'Erro ao atualizar estoque de alguns medicamentos:', 'es': 'Error al actualizar stock de algunos medicamentos:' },
 
         // PRESCRIPTIONS
         'prescription.addNew': { 'en': 'Add New Prescription', 'pt-BR': 'Adicionar Receituário', 'es': 'Agregar Nueva Receta' },
@@ -169,6 +197,7 @@ const i18n = {
         // FREQUENCY
         'frequency.define': { 'en': 'Set Frequency', 'pt-BR': 'Definir frequência', 'es': 'Definir frecuencia' },
         'frequency.title': { 'en': 'Set Frequency', 'pt-BR': 'Definir Frequência', 'es': 'Definir Frecuencia' },
+        'frequency.rescue': { 'en': 'Rescue Medication', 'pt-BR': 'Medicação de Resgate', 'es': 'Medicamento de Rescate' },
         'frequency.periodic': { 'en': 'Repeat every', 'pt-BR': 'Repetir a cada', 'es': 'Repetir cada' },
         'frequency.hours': { 'en': 'hours', 'pt-BR': 'horas', 'es': 'horas' },
         'frequency.manual': { 'en': 'Set manually', 'pt-BR': 'Definir manualmente', 'es': 'Definir manualmente' },
