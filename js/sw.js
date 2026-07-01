@@ -3,7 +3,7 @@
 // Cache strategies for offline support
 // ============================================================
 
-const CACHE_NAME = 'farma-pocket-v2';
+const CACHE_NAME = 'farma-pocket-v3';
 const STATIC_ASSETS = [
     '/',
     '/index.html',

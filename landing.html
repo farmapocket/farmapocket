@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0ea5e9">
+    <meta name="description" content="FarmaPocket - Gerencie medicamentos, tratamentos e saúde da sua família em um só lugar.">
+    <title>FarmaPocket - Seu Gerenciador Pessoal de Medicamentos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-hero { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%); }
+        .gradient-soft { background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%); }
+        .float-animation { animation: float 6s ease-in-out infinite; }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        .pulse-soft { animation: pulse-soft 3s ease-in-out infinite; }
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        .scroll-reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s ease-out; }
+        .scroll-reveal.visible { opacity: 1; transform: translateY(0); }
+        .phone-mockup {
+            box-shadow: 0 25px 50px -12px rgba(14, 165, 233, 0.25),
+                        0 0 0 1px rgba(255,255,255,0.1) inset;
+        }
+        .feature-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px -15px rgba(14, 165, 233, 0.2); }
+        .step-line::before {
+            content: '';
+            position: absolute;
+            left: 24px;
+            top: 60px;
+            bottom: -20px;
+            width: 2px;
+            background: linear-gradient(to bottom, #0ea5e9, #bae6fd);
+        }
+        .step-item:last-child .step-line::before { display: none; }
+    </style>
+</head>
+<body class="bg-white text-gray-800">
+
+    <!-- Navbar -->
+    <nav class="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-gray-100 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <img src="img/logo.png" alt="FarmaPocket" class="w-8 h-8 object-contain">
+                <span class="text-xl font-bold text-gray-800">FarmaPocket</span>
+            </div>
+            <div class="hidden md:flex items-center gap-6">
+                <a href="#como-funciona" class="text-sm text-gray-600 hover:text-sky-600 transition">Como Funciona</a>
+                <a href="#funcionalidades" class="text-sm text-gray-600 hover:text-sky-600 transition">Funcionalidades</a>
+                <a href="#para-quem" class="text-sm text-gray-600 hover:text-sky-600 transition">Para Quem</a>
+            </div>
+            <a href="/" class="bg-sky-500 text-white text-sm font-medium px-5 py-2.5 rounded-full hover:bg-sky-600 transition shadow-lg shadow-sky-500/25">
+                Acessar App
+            </a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="gradient-hero pt-32 pb-20 md:pt-40 md:pb-32 relative overflow-hidden">
+        <!-- Background decoration -->
+        <div class="absolute top-20 right-10 w-72 h-72 bg-white/10 rounded-full blur-3xl float-animation"></div>
+        <div class="absolute bottom-10 left-10 w-96 h-96 bg-white/5 rounded-full blur-3xl float-animation" style="animation-delay: 2s;"></div>
+
+        <div class="max-w-6xl mx-auto px-4 relative">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <!-- Text -->
+                <div class="text-center md:text-left">
+                    <div class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 mb-6">
+                        <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                        <span class="text-white/90 text-sm font-medium">Gratuito para uso pessoal</span>
+                    </div>
+
+                    <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
+                        Nunca mais esqueça um <span class="text-sky-200">remédio</span> ou perca uma <span class="text-sky-200">receita</span>
+                    </h1>
+
+                    <p class="text-lg text-blue-100 mb-8 leading-relaxed max-w-lg mx-auto md:mx-0">
+                        Gerencie medicamentos, tratamentos, sintomas e consultas da sua família inteira em um só lugar. Simples, seguro e sempre à mão.
+                    </p>
+
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+                        <a href="/" class="bg-white text-sky-600 font-semibold px-8 py-4 rounded-full hover:bg-sky-50 transition shadow-xl text-center">
+                            Começar Agora →
+                        </a>
+                        <a href="#como-funciona" class="border-2 border-white/30 text-white font-semibold px-8 py-4 rounded-full hover:bg-white/10 transition text-center">
+                            Ver Como Funciona
+                        </a>
+                    </div>
+
+                    <div class="mt-10 flex items-center justify-center md:justify-start gap-6 text-white/70 text-sm">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                            <span>Dados criptografados</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                            <span>Funciona no celular</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phone Mockup -->
+                <div class="hidden md:flex justify-center relative">
+                    <div class="phone-mockup bg-gray-900 rounded-[3rem] p-3 w-72 float-animation">
+                        <div class="bg-white rounded-[2.5rem] overflow-hidden h-[580px] relative">
+                            <!-- Mockup Header -->
+                            <div class="bg-sky-500 p-4 pt-8 pb-3">
+                                <div class="flex items-center justify-between text-white">
+                                    <span class="text-sm font-medium">9:41</span>
+                                    <div class="flex gap-1">
+                                        <span class="w-4 h-4 rounded-full bg-white/20"></span>
+                                        <span class="w-4 h-4 rounded-full bg-white/20"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Mockup Content -->
+                            <div class="p-4 space-y-3">
+                                <div class="flex items-center gap-2 mb-4">
+                                    <span class="text-2xl">💊</span>
+                                    <span class="font-bold text-gray-800">FarmaPocket</span>
+                                </div>
+                                <div class="bg-sky-50 rounded-xl p-3">
+                                    <p class="text-xs text-gray-500">Olá, Maria!</p>
+                                    <p class="text-sm font-semibold text-gray-800">Painel</p>
+                                </div>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div class="bg-gray-50 rounded-lg p-2 text-center">
+                                        <p class="text-lg font-bold text-sky-600">3</p>
+                                        <p class="text-[10px] text-gray-500">Dependentes</p>
+                                    </div>
+                                    <div class="bg-gray-50 rounded-lg p-2 text-center">
+                                        <p class="text-lg font-bold text-sky-600">12</p>
+                                        <p class="text-[10px] text-gray-500">Medicamentos</p>
+                                    </div>
+                                    <div class="bg-gray-50 rounded-lg p-2 text-center">
+                                        <p class="text-lg font-bold text-sky-600">5</p>
+                                        <p class="text-[10px] text-gray-500">Tratamentos</p>
+                                    </div>
+                                </div>
+                                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                                    <p class="text-xs font-semibold text-amber-700">⚠️ Estoque Baixo</p>
+                                    <p class="text-xs text-amber-600 mt-1">Dipirona - 3 dias restantes</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Problem Section -->
+    <section class="py-20 bg-white">
+        <div class="max-w-4xl mx-auto px-4 text-center">
+            <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-6">
+                Já passou por isso?
+            </h2>
+            <div class="grid md:grid-cols-3 gap-6 mt-12">
+                <div class="bg-red-50 rounded-2xl p-6 text-left">
+                    <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center text-2xl mb-4">😰</div>
+                    <h3 class="font-semibold text-gray-800 mb-2">"Será que tomei o remédio hoje?"</h3>
+                    <p class="text-sm text-gray-600">Esquecer doses é mais comum do que parece, especialmente com múltiplos medicamentos.</p>
+                </div>
+                <div class="bg-orange-50 rounded-2xl p-6 text-left">
+                    <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-2xl mb-4">📄</div>
+                    <h3 class="font-semibold text-gray-800 mb-2">"Cadê a receita do médico?"</h3>
+                    <p class="text-sm text-gray-600">Receitas somem, vencem e ninguém lembra quando foram emitidas.</p>
+                </div>
+                <div class="bg-yellow-50 rounded-2xl p-6 text-left">
+                    <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center text-2xl mb-4">💊</div>
+                    <h3 class="font-semibold text-gray-800 mb-2">"Acabou o remédio e eu não vi"</h3>
+                    <p class="text-sm text-gray-600">Falta de controle de estoque gera correria na farmácia e interrupção do tratamento.</p>
+                </div>
+            </div>
+            <div class="mt-12 inline-flex items-center gap-2 bg-sky-50 rounded-full px-6 py-3">
+                <span class="text-sky-600 font-semibold">O FarmaPocket resolve todos esses problemas</span>
+                <span class="text-2xl">✨</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section id="como-funciona" class="py-20 gradient-soft">
+        <div class="max-w-4xl mx-auto px-4">
+            <div class="text-center mb-16">
+                <span class="text-sky-500 font-semibold text-sm uppercase tracking-wide">Simples e Rápido</span>
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mt-2">
+                    Como funciona o FarmaPocket
+                </h2>
+            </div>
+
+            <div class="space-y-8">
+                <div class="step-item relative flex gap-6">
+                    <div class="step-line relative flex-shrink-0">
+                        <div class="w-12 h-12 bg-sky-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-sky-500/30">1</div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-sm flex-1">
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Crie sua conta com Google</h3>
+                        <p class="text-gray-600">Login rápido e seguro. Nada de senhas para esquecer. Seus dados são protegidos com criptografia.</p>
+                    </div>
+                </div>
+
+                <div class="step-item relative flex gap-6">
+                    <div class="step-line relative flex-shrink-0">
+                        <div class="w-12 h-12 bg-sky-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-sky-500/30">2</div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-sm flex-1">
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Cadastre seus dependentes</h3>
+                        <p class="text-gray-600">Você, seus filhos, cônjuge, pais... Organize a saúde de toda a família em um só lugar.</p>
+                    </div>
+                </div>
+
+                <div class="step-item relative flex gap-6">
+                    <div class="step-line relative flex-shrink-0">
+                        <div class="w-12 h-12 bg-sky-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-sky-500/30">3</div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-sm flex-1">
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Adicione medicamentos e tratamentos</h3>
+                        <p class="text-gray-600">Registre dosagens, frequências, médicos e receitas. O app calcula automaticamente quando o estoque vai acabar.</p>
+                    </div>
+                </div>
+
+                <div class="step-item relative flex gap-6">
+                    <div class="step-line relative flex-shrink-0">
+                        <div class="w-12 h-12 bg-sky-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-sky-500/30">4</div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-6 shadow-sm flex-1">
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Receba alertas e acompanhe tudo</h3>
+                        <p class="text-gray-600">Estoque baixo, receita vencendo, próxima dose... O FarmaPocket avisa antes que seja tarde.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="funcionalidades" class="py-20 bg-white">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="text-center mb-16">
+                <span class="text-sky-500 font-semibold text-sm uppercase tracking-wide">Funcionalidades</span>
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mt-2">
+                    Tudo que você precisa para cuidar da saúde
+                </h2>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="feature-card bg-white border border-gray-100 rounded-2xl p-6 transition-all duration-300">
+                    <div class="w-12 h-12 bg-sky-100 rounded-xl flex items-center justify-center text-2xl mb-4">💊</div>
+                    <h3 class="font-bold text-gray-800 mb-2">Cadastro de Medicamentos</h3>
+                    <p class="text-sm text-gray-600">Nome, princípio ativo, laboratório, categoria, controle de estoque e mais.</p>
+                </div>
+
+                <div class="feature-card bg-white border border-gray-100 rounded-2xl p-6 transition-all duration-300">
+                    <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center text-2xl mb-4">📋</div>
+                    <h3 class="font-bold text-gray-800 mb-2">Tratamentos Organizados</h3>
+                    <p class="text-sm text-gray-600">Dosagem, frequência, horário da primeira dose, médico responsável e duração.</p>
+                </div>
+
+                <div class="feature-card bg-white border border-gray-100 rounded-2xl p-6 transition-all duration-300">
+                    <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center text-2xl mb-4">⚠️</div>
+                    <h3 class="font-bold text-gray-800 mb-2">Alertas Inteligentes</h3>
+                    <p class="text-sm text-gray-600">Estoque baixo, receitas vencendo e próximas doses. Nada passa despercebido.</p>
+                </div>
+
+                <div class="feature-card bg-white border border-gray-100 rounded-2xl p-6 transition-all duration-300">
+                    <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-2xl mb-4">👨‍👩‍👧‍👦</div>
+                    <h3 class="font-bold text-gray-800 mb-2">Múltiplos Dependentes</h3>
+                    <p class="text-sm text-gray-600">Cuide da saúde de toda a família. Cada dependente com seus próprios dados.</p>
+                </div>
+
+                <div class="feature-card bg-white border border-gray-100 rounded-2xl p-6 transition-all duration-300">
+                    <div class="w-12 h-12 bg-rose-100 rounded-xl flex items-center justify-center text-2xl mb-4">🤒</div>
+                    <h3 class="font-bold text-gray-800 mb-2">Registro de Sintomas</h3>
+                    <p class="text-sm text-gray-600">Acompanhe sintomas, gravidade e duração. Útil para consultas médicas.</p>
+                </div>
+
+                <div class="feature-card bg-white border border-gray-100 rounded-2xl p-6 transition-all duration-300">
+                    <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-2xl mb-4">📄</div>
+                    <h3 class="font-bold text-gray-800 mb-2">Receituários Digitais</h3>
+                    <p class="text-sm text-gray-600">Controle validade de receitas, médico prescritor e status (válida/vencida).</p>
+                </div>
+
+                <div class="feature-card bg-white border border-gray-100 rounded-2xl p-6 transition-all duration-300">
+                    <div class="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center text-2xl mb-4">🏥</div>
+                    <h3 class="font-bold text-gray-800 mb-2">Profissionais de Saúde</h3>
+                    <p class="text-sm text-gray-600">Cadastre médicos, especialidades e contatos. Tudo organizado.</p>
+                </div>
+
+                <div class="feature-card bg-white border border-gray-100 rounded-2xl p-6 transition-all duration-300">
+                    <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-2xl mb-4">📊</div>
+                    <h3 class="font-bold text-gray-800 mb-2">Dashboard Completo</h3>
+                    <p class="text-sm text-gray-600">Visão geral de tratamentos ativos, alertas e agenda do dia.</p>
+                </div>
+
+                <div class="feature-card bg-white border border-gray-100 rounded-2xl p-6 transition-all duration-300">
+                    <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl mb-4">🔒</div>
+                    <h3 class="font-bold text-gray-800 mb-2">Segurança e Privacidade</h3>
+                    <p class="text-sm text-gray-600">Login com Google, criptografia, dados isolados por usuário. Conforme com LGPD.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- For Who Section -->
+    <section id="para-quem" class="py-20 gradient-soft">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="text-center mb-16">
+                <span class="text-sky-500 font-semibold text-sm uppercase tracking-wide">Para Quem</span>
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mt-2">
+                    FarmaPocket foi feito para você
+                </h2>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-white rounded-2xl p-6 text-center shadow-sm">
+                    <div class="w-16 h-16 bg-sky-100 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">👩‍👧</div>
+                    <h3 class="font-bold text-gray-800 mb-2">Mães e Pais</h3>
+                    <p class="text-sm text-gray-600">Organize remédios de toda a família, doses dos filhos e calendário de vacinas.</p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 text-center shadow-sm">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">👴</div>
+                    <h3 class="font-bold text-gray-800 mb-2">Cuidadores de Idosos</h3>
+                    <p class="text-sm text-gray-600">Controle medicamentos contínuos, receitas e consultas dos seus pais ou avós.</p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 text-center shadow-sm">
+                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">♾️</div>
+                    <h3 class="font-bold text-gray-800 mb-2">Famílias de Autistas</h3>
+                    <p class="text-sm text-gray-600">Acompanhe tratamentos multidisciplinares, terapias e medicamentos.</p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 text-center shadow-sm">
+                    <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">💪</div>
+                    <h3 class="font-bold text-gray-800 mb-2">Quem Faz Uso Contínuo</h3>
+                    <p class="text-sm text-gray-600">Controle de estoque automático, alertas de término e renovação de receitas.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-20 gradient-hero relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-full opacity-10">
+            <div class="absolute top-10 left-10 w-32 h-32 bg-white rounded-full"></div>
+            <div class="absolute bottom-10 right-10 w-48 h-48 bg-white rounded-full"></div>
+        </div>
+
+        <div class="max-w-4xl mx-auto px-4 text-center relative">
+            <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">
+                Pronto para organizar a saúde da sua família?
+            </h2>
+            <p class="text-lg text-blue-100 mb-8 max-w-2xl mx-auto">
+                É gratuito, seguro e leva menos de 2 minutos para começar. Seus dados são seus — protegidos e criptografados.
+            </p>
+
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="/" class="bg-white text-sky-600 font-bold px-10 py-4 rounded-full hover:bg-sky-50 transition shadow-xl text-lg">
+                    Acessar FarmaPocket →
+                </a>
+            </div>
+
+            <p class="text-blue-200/70 text-sm mt-6">
+                Sem cartão de crédito. Sem complicação. Seus dados, suas regras.
+            </p>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="py-20 bg-white">
+        <div class="max-w-3xl mx-auto px-4">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-gray-800">Dúvidas Frequentes</h2>
+            </div>
+
+            <div class="space-y-4">
+                <details class="bg-gray-50 rounded-xl p-4 cursor-pointer group">
+                    <summary class="font-semibold text-gray-800 flex items-center justify-between">
+                        <span>O FarmaPocket é gratuito?</span>
+                        <span class="text-sky-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <p class="text-sm text-gray-600 mt-3 leading-relaxed">
+                        Sim! O uso pessoal e familiar é totalmente gratuito. Não cobramos nada para cadastrar medicamentos, tratamentos e dependentes.
+                    </p>
+                </details>
+
+                <details class="bg-gray-50 rounded-xl p-4 cursor-pointer group">
+                    <summary class="font-semibold text-gray-800 flex items-center justify-between">
+                        <span>Meus dados estão seguros?</span>
+                        <span class="text-sky-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <p class="text-sm text-gray-600 mt-3 leading-relaxed">
+                        Absolutamente. Usamos criptografia TLS, login com Google OAuth (sem senhas próprias) e cada usuário acessa apenas seus próprios dados. Conforme com a LGPD.
+                    </p>
+                </details>
+
+                <details class="bg-gray-50 rounded-xl p-4 cursor-pointer group">
+                    <summary class="font-semibold text-gray-800 flex items-center justify-between">
+                        <span>Posso cadastrar medicamentos de toda a família?</span>
+                        <span class="text-sky-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <p class="text-sm text-gray-600 mt-3 leading-relaxed">
+                        Sim! Você cria "dependentes" (filhos, cônjuge, pais) e organiza a saúde de cada um separadamente, tudo em uma só conta.
+                    </p>
+                </details>
+
+                <details class="bg-gray-50 rounded-xl p-4 cursor-pointer group">
+                    <summary class="font-semibold text-gray-800 flex items-center justify-between">
+                        <span>Funciona offline?</span>
+                        <span class="text-sky-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <p class="text-sm text-gray-600 mt-3 leading-relaxed">
+                        Sim! Os dados são salvos localmente no seu celular. Quando a internet volta, sincroniza automaticamente com a nuvem.
+                    </p>
+                </details>
+
+                <details class="bg-gray-50 rounded-xl p-4 cursor-pointer group">
+                    <summary class="font-semibold text-gray-800 flex items-center justify-between">
+                        <span>Como faço para excluir minha conta?</span>
+                        <span class="text-sky-500 group-open:rotate-180 transition-transform">▼</span>
+                    </summary>
+                    <p class="text-sm text-gray-600 mt-3 leading-relaxed">
+                        Basta ir em Configurações > Excluir Conta. Todos os seus dados são permanentemente removidos. Você também pode exportar um backup antes, se quiser.
+                    </p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-400 py-12">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div class="col-span-2">
+                    <div class="flex items-center gap-2 mb-4">
+                        <img src="img/logo.png" alt="FarmaPocket" class="w-8 h-8 object-contain">
+                        <span class="text-xl font-bold text-white">FarmaPocket</span>
+                    </div>
+                    <p class="text-sm leading-relaxed max-w-sm">
+                        Gerenciador pessoal de medicamentos. Cuidando da saúde da sua família com organização, segurança e simplicidade.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="text-white font-semibold mb-4">Links</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="/" class="hover:text-white transition">Acessar App</a></li>
+                        <li><a href="termos.html" class="hover:text-white transition">Termos de Uso</a></li>
+                        <li><a href="privacidade.html" class="hover:text-white transition">Política de Privacidade</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-white font-semibold mb-4">Contato</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li>📧 contato@farmapocket.com.br</li>
+                        <li>📍 Santo Antônio da Patrulha, RS</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 pt-8 text-center text-sm">
+                <p>© 2026 FarmaPocket. Todos os direitos reservados.</p>
+                <p class="mt-1">Feito com 💙 para cuidar de quem você ama.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Scroll reveal animation
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.scroll-reveal').forEach(el => observer.observe(el));
+    </script>
+</body>
+</html>

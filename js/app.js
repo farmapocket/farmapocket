@@ -1149,10 +1149,10 @@ async function loadTreatments() {
             const specialty = t.healthcare_professionals?.specialty || t.prescribed_by_specialty || '';
             const prescribedByText = specialty ? `prescrito por ${specialty}` : '';
             const goalText = t.treatment_goal || '';
-            const categoryName = t.categories?.name || t.category_name || '';
+            const categoryName = t.subcategories?.categories?.name || t.category_name || '';
             const subcategoryName = t.subcategories?.name || t.subcategory_name || '';
             const categoryText = categoryName && subcategoryName
-                ? `${categoryName} / ${subcategoryName}`
+                ? `${categoryName} > ${subcategoryName}`
                 : (categoryName || subcategoryName || '');
             const startDateText = t.start_date ? new Date(t.start_date).toLocaleDateString('pt-BR') : '';
             const durationText = formatTreatmentDuration(t.start_date, t.end_date);
@@ -1406,11 +1406,18 @@ async function editTreatment(id) {
     form.querySelector('[name="end_date"]').value = treatment.end_date || '';
 
     const categorySelect = form.querySelector('[name="category_id"]');
-    if (categorySelect) {
-        categorySelect.value = treatment.category_id || '';
-        handleTreatmentCategoryChange(categorySelect);
-    }
     const subcategorySelect = form.querySelector('[name="subcategory_id"]');
+    if (subcategorySelect && treatment.subcategory_id && treatmentCategoriesCache) {
+        for (const cat of treatmentCategoriesCache) {
+            if (cat.subcategories?.some(sc => sc.id === treatment.subcategory_id)) {
+                if (categorySelect) {
+                    categorySelect.value = cat.id;
+                    handleTreatmentCategoryChange(categorySelect);
+                }
+                break;
+            }
+        }
+    }
     if (subcategorySelect) {
         subcategorySelect.value = treatment.subcategory_id || '';
     }

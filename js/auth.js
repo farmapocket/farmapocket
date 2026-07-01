@@ -52,10 +52,10 @@ const Auth = {
                     await this.ensureSelfDependent();
                 }
 
-                // Se estiver na página de login e já tiver sessão, redirecionar
+                // Se estiver na página de login e já tiver sessão, verificar termos
                 if (this.isLoginPage()) {
-                    console.log('🔄 Already logged in, redirecting to app.html...');
-                    window.location.href = 'app.html';
+                    console.log('🔄 Already logged in, checking terms...');
+                    await this.handlePostLogin();
                     return;
                 }
             } else {
@@ -88,8 +88,7 @@ const Auth = {
 
                 // Redirecionar para app se estiver na página de login
                 if (this.isLoginPage()) {
-                    console.log('🔄 Redirecting to app.html...');
-                    window.location.href = 'app.html';
+                    await this.handlePostLogin();
                 }
             } else if (event === 'SIGNED_OUT') {
                 console.log('👋 User signed out');
@@ -146,6 +145,19 @@ const Auth = {
         return window.location.pathname.includes('app.html');
     },
 
+    // Verifica aceite dos termos e redireciona para o app se estiver tudo ok
+    async handlePostLogin() {
+        if (typeof Terms !== 'undefined' && Terms.checkAccepted) {
+            const accepted = await Terms.checkAccepted();
+            if (!accepted) {
+                console.log('⏳ Termos pendentes, aguardando aceite...');
+                return;
+            }
+        }
+        console.log('🔄 Redirecting to app.html...');
+        window.location.href = 'app.html';
+    },
+
     // Processa callback OAuth manualmente se necessário
     async handleOAuthCallback() {
         if (!this.hasOAuthTokensInUrl()) {
@@ -189,8 +201,8 @@ const Auth = {
 
                 // Redirecionar para o app se ainda estiver na página de login
                 if (this.isLoginPage()) {
-                    console.log('🔄 OAuth callback on login page, redirecting to app.html...');
-                    window.location.replace('app.html');
+                    console.log('🔄 OAuth callback on login page, checking terms...');
+                    await this.handlePostLogin();
                 }
             } else {
                 console.warn('⚠️ OAuth callback detected but no session found');
@@ -292,8 +304,7 @@ const Auth = {
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
 
-            localStorage.removeItem('farma-pocket-lang');
-            localStorage.removeItem('farma-pocket-current-dependent');
+            this.clearLocalData();
 
             console.log('✅ Signed out successfully');
             window.location.href = 'index.html';
@@ -301,6 +312,70 @@ const Auth = {
         } catch (error) {
             console.error('❌ Logout error:', error);
             alert('Erro ao sair. Tente novamente.');
+        }
+    },
+
+    // Limpar dados locais
+    clearLocalData() {
+        localStorage.removeItem('farma-pocket-lang');
+        localStorage.removeItem('farma-pocket-current-dependent');
+        if (typeof AppState !== 'undefined' && AppState.clearCurrentDependent) {
+            AppState.clearCurrentDependent();
+        }
+    },
+
+    // Excluir conta e todos os dados (LGPD)
+    async deleteAccount() {
+        console.log('🗑️ Starting account deletion...');
+
+        const confirmInput = document.getElementById('delete-account-confirm');
+        const errorMsg = document.getElementById('delete-account-error');
+
+        if (!confirmInput || confirmInput.value.trim().toUpperCase() !== 'EXCLUIR') {
+            if (errorMsg) errorMsg.classList.remove('hidden');
+            return;
+        }
+
+        if (errorMsg) errorMsg.classList.add('hidden');
+
+        const btn = document.getElementById('btn-confirm-delete-account');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Excluindo...';
+        }
+
+        try {
+            // Chamar a função RPC no Supabase que deleta tudo
+            const { error } = await supabase.rpc('delete_user_account');
+
+            if (error) throw error;
+
+            console.log('✅ Account deleted successfully');
+
+            // Limpar dados locais
+            this.clearLocalData();
+
+            // Limpar caches do IndexedDB se disponível
+            if (typeof OfflineDB !== 'undefined' && OfflineDB.clearAll) {
+                try {
+                    await OfflineDB.clearAll();
+                    console.log('✅ Local IndexedDB cleared');
+                } catch (dbError) {
+                    console.warn('⚠️ Could not clear IndexedDB:', dbError);
+                }
+            }
+
+            alert('Sua conta e todos os seus dados foram excluídos com sucesso.');
+            window.location.href = 'index.html';
+
+        } catch (error) {
+            console.error('❌ Account deletion error:', error);
+            alert('Erro ao excluir conta: ' + (error.message || 'Tente novamente mais tarde.'));
+
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Excluir';
+            }
         }
     },
 
@@ -364,6 +439,26 @@ const Auth = {
 // Função global de logout
 function logout() {
     Auth.signOut();
+}
+
+// Abrir modal de exclusão de conta
+function showDeleteAccountModal() {
+    const modal = document.getElementById('modal-delete-account');
+    const confirmInput = document.getElementById('delete-account-confirm');
+    const errorMsg = document.getElementById('delete-account-error');
+
+    if (confirmInput) confirmInput.value = '';
+    if (errorMsg) errorMsg.classList.add('hidden');
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        if (confirmInput) confirmInput.focus();
+    }
+}
+
+// Confirmar exclusão de conta
+function confirmDeleteAccount() {
+    Auth.deleteAccount();
 }
 
 // Inicializar quando DOM estiver pronto - APENAS UM DOMContentLoaded

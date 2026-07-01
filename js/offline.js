@@ -314,6 +314,24 @@ const OfflineDB = {
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
         });
+    },
+
+    async clearAll() {
+        if (!this.db) await this.init();
+
+        const stores = Array.from(this.db.objectStoreNames);
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(stores, 'readwrite');
+
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error);
+
+            stores.forEach(storeName => {
+                const store = transaction.objectStore(storeName);
+                store.clear();
+            });
+        });
     }
 };
 

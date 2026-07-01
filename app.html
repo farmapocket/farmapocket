@@ -448,6 +448,23 @@
             <button onclick="logout()" class="w-full py-4 bg-red-50 text-red-600 rounded-xl font-medium hover:bg-red-100 transition-colors mt-6" data-i18n="nav.logout">
                 Sair
             </button>
+
+            <div class="mt-8 text-center space-y-2">
+                <p class="text-xs text-gray-400">FarmaPocket v1.0</p>
+                <div class="flex items-center justify-center gap-2 text-xs text-gray-500">
+                    <a href="/termos.html" target="_blank" class="hover:text-sky-600 hover:underline">Termos de Uso</a>
+                    <span>•</span>
+                    <a href="/privacidade.html" target="_blank" class="hover:text-sky-600 hover:underline">Política de Privacidade</a>
+                </div>
+            </div>
+
+            <div class="mt-8 border-t border-gray-200 pt-6">
+                <h3 class="text-sm font-semibold text-gray-800 mb-3">Zona de Perigo</h3>
+                <button onclick="showDeleteAccountModal()" class="w-full py-3 border border-red-300 text-red-600 rounded-xl font-medium hover:bg-red-50 transition-colors">
+                    🗑️ Excluir minha conta
+                </button>
+                <p class="text-xs text-gray-400 mt-2 text-center">Esta ação é irreversível e apagará todos os seus dados.</p>
+            </div>
         </div>
 
         <!-- PAGE: Activity Log -->
@@ -999,6 +1016,51 @@
                 </div>
                 <button type="submit" class="w-full py-3 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 transition-colors" data-i18n="common.save">Salvar</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal: Delete Account -->
+    <div id="modal-delete-account" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-3">
+                    <span class="text-3xl">⚠️</span>
+                </div>
+                <h2 class="text-xl font-bold text-gray-800">Excluir conta?</h2>
+                <p class="text-sm text-gray-500 mt-1">Esta ação não pode ser desfeita.</p>
+            </div>
+
+            <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+                <p class="text-sm text-red-700 mb-2">
+                    Todos os seus dados serão permanentemente removidos, incluindo:
+                </p>
+                <ul class="text-sm text-red-700 list-disc list-inside space-y-1">
+                    <li>Perfil e conta Google vinculada</li>
+                    <li>Dependentes e perfis de saúde</li>
+                    <li>Medicamentos e tratamentos</li>
+                    <li>Receituários, sintomas e registros</li>
+                </ul>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Digite <strong>EXCLUIR</strong> para confirmar:
+                </label>
+                <input type="text" id="delete-account-confirm" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:outline-none uppercase" placeholder="EXCLUIR" autocomplete="off">
+            </div>
+
+            <div id="delete-account-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm text-center">
+                Você precisa digitar EXCLUIR corretamente.
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="closeModal('modal-delete-account')" class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                    Cancelar
+                </button>
+                <button id="btn-confirm-delete-account" onclick="confirmDeleteAccount()" class="flex-1 py-3 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors">
+                    Excluir
+                </button>
+            </div>
         </div>
     </div>
 

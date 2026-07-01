@@ -92,9 +92,51 @@
         </p>
     </div>
 
+    <!-- Modal: Terms and Privacy Acceptance -->
+    <div id="terms-modal" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 mx-auto bg-sky-100 rounded-full flex items-center justify-center mb-3">
+                    <span class="text-3xl">📋</span>
+                </div>
+                <h2 class="text-xl font-bold text-gray-800">Bem-vindo ao FarmaPocket!</h2>
+                <p class="text-sm text-gray-500 mt-1">Para continuar, você precisa aceitar nossos termos.</p>
+            </div>
+
+            <div class="space-y-4 mb-6">
+                <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50">
+                    <input type="checkbox" id="accept-terms" class="w-5 h-5 text-sky-500 rounded mt-0.5">
+                    <div class="text-sm text-gray-600">
+                        Li e aceito os <a href="/termos.html" target="_blank" class="text-sky-600 underline font-medium">Termos de Uso</a>.
+                    </div>
+                </label>
+
+                <label class="flex items-start gap-3 p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50">
+                    <input type="checkbox" id="accept-privacy" class="w-5 h-5 text-sky-500 rounded mt-0.5">
+                    <div class="text-sm text-gray-600">
+                        Li e aceito a <a href="/privacidade.html" target="_blank" class="text-sky-600 underline font-medium">Política de Privacidade</a>.
+                    </div>
+                </label>
+            </div>
+
+            <div id="terms-error" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm text-center">
+                Você precisa aceitar ambos os documentos para continuar.
+            </div>
+
+            <button id="btn-continue" disabled class="w-full py-3 bg-gray-300 text-white rounded-lg font-medium cursor-not-allowed transition-colors">
+                Continuar
+            </button>
+
+            <button id="btn-logout" class="w-full mt-3 py-3 text-gray-500 hover:text-gray-700 font-medium transition-colors">
+                Sair
+            </button>
+        </div>
+    </div>
+
     <script src="js/i18n.js"></script>
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/terms.js"></script>
     <script>
         // Language selector (não depende de DOMContentLoaded - elementos já existem)
         document.getElementById('lang-selector').addEventListener('change', (e) => {
