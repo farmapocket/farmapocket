@@ -311,7 +311,12 @@ const DB = {
                     *,
                     medications:medication_id (id, name, stock_quantity, is_controlled, is_continuous_use),
                     healthcare_professionals:prescribed_by (name, specialty),
-                    medication_times_on_treatment (*)
+                    medication_times_on_treatment (*),
+                    subcategories:subcategory_id (
+                        id,
+                        name,
+                        categories:category_id (id, name)
+                    )
                 `)
                 .eq('dependent_id', dependentId)
                 .order('start_date', { ascending: false });
@@ -1638,7 +1643,7 @@ const DB = {
                 ...row,
                 prescription_count: counts[row.medication_id] || 1,
                 days_until_expiration: row.days_until_expiration ??
-                    (row.expiration_date ? Math.max(Math.ceil((new Date(row.expiration_date) - new Date().setHours(0,0,0,0)) / (1000 * 60 * 60 * 24)), 0) : null)
+                    (row.expiration_date ? Math.max(Math.ceil((new Date(row.expiration_date) - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)), 0) : null)
             }));
 
             return result;

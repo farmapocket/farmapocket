@@ -4,7 +4,18 @@
 
 - Gestão dos remédios avulsos
 ---
-- 
+- incluir categoria e subcategoria no cadastro de tratamento
+    - Já incluí o campo no banco e já atualizei o arquivo TABLES_SCHEMA.sql
+    - Quero adicionar logo acima do campo "Objetivo do Tratamento"
+    - No seletor, quero que mostre as categorias e, selecionando uma categoria, mostre as subcategorias existentes. Ao selecionar a subcategoria, volta para a tela de cadastro e exibe a categoria e a subcategoria
+---
+- Tipos diferentes de administração de medicamentos: Líquido, sublingual, soblingual
+---
+- Base nacional de medicamentos
+---
+- Termos de uso
+    - Política de privacidade
+    - Explicação de como os dados são protegidos
 ---
 - Implementar visualização da linha do tempo dos tratamentos, sintomas e procedimentos
     - Ordenar os tratamentos por subcategoria

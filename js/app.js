@@ -1040,6 +1040,25 @@ function handleMedicationSelectChange(select) {
     resetTreatmentFrequency();
 }
 
+function handleTreatmentCategoryChange(select) {
+    const categoryId = select.value;
+    const subcategorySelect = document.querySelector('#form-treatment select[name="subcategory_id"]');
+    if (!subcategorySelect) return;
+
+    if (!categoryId) {
+        subcategorySelect.innerHTML = '<option value="">Selecione uma subcategoria...</option>';
+        subcategorySelect.disabled = true;
+        return;
+    }
+
+    const category = treatmentCategoriesCache.find(c => c.id === categoryId);
+    const subcategories = category?.subcategories || [];
+
+    subcategorySelect.innerHTML = '<option value="">Selecione uma subcategoria...</option>' +
+        subcategories.map(sc => `<option value="${sc.id}">${sc.name}</option>`).join('');
+    subcategorySelect.disabled = subcategories.length === 0;
+}
+
 function openQuickAddMedication(targetSelect) {
     window._pendingMedicationSelect = targetSelect;
     showAddMedication((newMedication) => {
@@ -1130,6 +1149,11 @@ async function loadTreatments() {
             const specialty = t.healthcare_professionals?.specialty || t.prescribed_by_specialty || '';
             const prescribedByText = specialty ? `prescrito por ${specialty}` : '';
             const goalText = t.treatment_goal || '';
+            const categoryName = t.categories?.name || t.category_name || '';
+            const subcategoryName = t.subcategories?.name || t.subcategory_name || '';
+            const categoryText = categoryName && subcategoryName
+                ? `${categoryName} / ${subcategoryName}`
+                : (categoryName || subcategoryName || '');
             const startDateText = t.start_date ? new Date(t.start_date).toLocaleDateString('pt-BR') : '';
             const durationText = formatTreatmentDuration(t.start_date, t.end_date);
 
@@ -1165,6 +1189,7 @@ async function loadTreatments() {
                 <div class="flex items-start justify-between mb-2">
                     <div class="flex-1 pr-2">
                         <h3 class="font-semibold text-gray-800">${t.medications?.name || t.medication_name || 'Medicamento'}</h3>
+                        ${categoryText ? `<p class="text-xs text-sky-600 font-medium mb-1">${categoryText}</p>` : ''}
                         <p class="text-sm text-gray-500">${subtitleParts.join(', ')}</p>
                     </div>
                     <div class="flex items-center gap-1">
@@ -1191,21 +1216,36 @@ async function loadTreatmentOptions() {
     const depId = AppState.getCurrentDependent();
     if (!depId) return;
 
-    const [medications, professionals, treatments] = await Promise.all([
+    const [medications, professionals, treatments, categories] = await Promise.all([
         DB.getMedications(depId),
         DB.getProfessionals(depId),
-        DB.getTreatments(depId)
+        DB.getTreatments(depId),
+        DB.getCategories()
     ]);
+
+    treatmentCategoriesCache = categories || [];
 
     const medSelect = document.querySelector('#form-treatment select[name="medication_id"]');
     const profSelect = document.querySelector('#form-treatment select[name="prescribed_by"]');
     const replacedSelect = document.querySelector('#form-treatment select[name="replaced_treatment_id"]');
     const replacedBySelect = document.querySelector('#form-treatment select[name="replaced_by_treatment_id"]');
+    const categorySelect = document.querySelector('#form-treatment select[name="category_id"]');
+    const subcategorySelect = document.querySelector('#form-treatment select[name="subcategory_id"]');
 
     if (medSelect) {
         medSelect.innerHTML = '<option value="">Selecione um medicamento...</option>' +
             medications.map(m => `<option value="${m.id}">${m.name}</option>`).join('') +
             `<option value="__new__">+ ${i18n.t('medication.addNew')}</option>`;
+    }
+
+    if (categorySelect) {
+        categorySelect.innerHTML = '<option value="">Selecione uma categoria...</option>' +
+            treatmentCategoriesCache.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    }
+
+    if (subcategorySelect) {
+        subcategorySelect.innerHTML = '<option value="">Selecione uma subcategoria...</option>';
+        subcategorySelect.disabled = true;
     }
 
     if (profSelect) {
@@ -1284,6 +1324,7 @@ let currentEditingCategoryId = null;
 let currentEditingSubcategoryId = null;
 let showInactiveTreatments = false;
 let showOnlyValidPrescriptions = true;
+let treatmentCategoriesCache = [];
 
 // Estado temporário da programação de frequência no formulário de tratamento
 let currentTreatmentFrequency = {
@@ -1363,6 +1404,17 @@ async function editTreatment(id) {
     form.querySelector('[name="prescribed_by"]').value = treatment.prescribed_by || '';
     form.querySelector('[name="start_date"]').value = treatment.start_date || '';
     form.querySelector('[name="end_date"]').value = treatment.end_date || '';
+
+    const categorySelect = form.querySelector('[name="category_id"]');
+    if (categorySelect) {
+        categorySelect.value = treatment.category_id || '';
+        handleTreatmentCategoryChange(categorySelect);
+    }
+    const subcategorySelect = form.querySelector('[name="subcategory_id"]');
+    if (subcategorySelect) {
+        subcategorySelect.value = treatment.subcategory_id || '';
+    }
+
     form.querySelector('[name="treatment_goal"]').value = treatment.treatment_goal || '';
     form.querySelector('[name="admin_notes"]').value = treatment.administration_notes || treatment.admin_notes || '';
     form.querySelector('[name="is_active"]').checked = treatment.is_active !== false;
@@ -2501,6 +2553,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     : null,
                 treatment_goal: formData.get('treatment_goal') || null,
                 administration_notes: formData.get('admin_notes') || null,
+                //category_id: formData.get('category_id') || null,
+                subcategory_id: formData.get('subcategory_id') || null,
                 is_active: formData.has('is_active'),
                 is_rescue: isRescue
             };
@@ -2955,6 +3009,7 @@ window.selectDependent = selectDependent;
 window.showAddDependent = showAddDependent;
 window.showAddMedication = showAddMedication;
 window.handleMedicationSelectChange = handleMedicationSelectChange;
+window.handleTreatmentCategoryChange = handleTreatmentCategoryChange;
 window.showAddTreatment = showAddTreatment;
 window.editTreatment = editTreatment;
 window.deleteTreatment = deleteTreatment;

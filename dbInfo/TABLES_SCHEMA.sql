@@ -82,16 +82,18 @@ CREATE TABLE public.treatments (
   replaced_treatment_id uuid,
   replaced_by_treatment_id uuid,
   is_active boolean DEFAULT true,
-  schedule_type text DEFAULT 'periodic'::text,
-  is_rescue boolean DEFAULT false,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  schedule_type text DEFAULT 'periodic'::text,
+  subcategory_id uuid,
+  is_rescue boolean NOT NULL DEFAULT false,
   CONSTRAINT treatments_pkey PRIMARY KEY (id),
   CONSTRAINT treatments_dependent_id_fkey FOREIGN KEY (dependent_id) REFERENCES public.dependents(id),
   CONSTRAINT treatments_prescribed_by_fkey FOREIGN KEY (prescribed_by) REFERENCES public.healthcare_professionals(id),
   CONSTRAINT treatments_medication_id_fkey FOREIGN KEY (medication_id) REFERENCES public.medications(id),
+  CONSTRAINT treatments_replaced_by_treatment_id_fkey FOREIGN KEY (replaced_by_treatment_id) REFERENCES public.treatments(id),
   CONSTRAINT treatments_replaced_treatment_id_fkey FOREIGN KEY (replaced_treatment_id) REFERENCES public.treatments(id),
-  CONSTRAINT treatments_replaced_by_treatment_id_fkey FOREIGN KEY (replaced_by_treatment_id) REFERENCES public.treatments(id)
+  CONSTRAINT treatments_subcategory_id_fkey FOREIGN KEY (subcategory_id) REFERENCES public.subcategories(id)
 );
 CREATE TABLE public.medication_times_on_treatment (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
