@@ -396,7 +396,7 @@ const DB = {
         }
     },
 
-    async addTreatment(treatment) {
+    async addTreatment(treatment, weeklyTimes = null) {
         if (!treatment.dependent_id) throw new Error('dependent_id is required');
         if (!treatment.medication_id) throw new Error('medication_id is required');
 
@@ -415,10 +415,22 @@ const DB = {
             if (error) throw error;
             await OfflineDB.set('treatments', data.id, data);
 
+            // Insere os horarios semanais ANTES de criar o schedule
+            if (Array.isArray(weeklyTimes) && weeklyTimes.length > 0) {
+                try {
+                    await this.addTreatmentTimes(data.id, weeklyTimes);
+                } catch (timesError) {
+                    console.error('Error adding treatment times:', timesError);
+                }
+            }
+
             // Cria automaticamente o registro NEXT para a próxima dose
             try {
+                console.log('🔍 addTreatment: creating next schedule for', data.id, 'schedule_type=', data.schedule_type, 'is_active=', data.is_active);
                 if (data.schedule_type !== 'rescue') {
                     await this._ensureNextScheduleForTreatment(data);
+                } else {
+                    console.log('🔍 addTreatment: skipping rescue treatment');
                 }
             } catch (nextError) {
                 console.error('Error creating next schedule for treatment:', nextError);
@@ -432,7 +444,7 @@ const DB = {
         }
     },
 
-    async updateTreatment(id, updates) {
+    async updateTreatment(id, updates, weeklyTimes = null) {
         const payload = {
             ...updates,
             updated_at: new Date().toISOString()
@@ -448,6 +460,30 @@ const DB = {
 
             if (error) throw error;
             await OfflineDB.set('treatments', id, data);
+
+            // Atualiza os horarios semanais ANTES de recriar o schedule
+            if (Array.isArray(weeklyTimes)) {
+                try {
+                    await this.updateTreatmentTimes(id, weeklyTimes);
+                } catch (timesError) {
+                    console.error('Error updating treatment times:', timesError);
+                }
+            }
+
+            // Atualiza o schedule NEXT quando horario/frequencia mudam
+            try {
+                console.log('🔍 updateTreatment: updating next schedule for', data.id, 'schedule_type=', data.schedule_type, 'is_active=', data.is_active);
+                if (data.schedule_type !== 'rescue' && data.is_active !== false) {
+                    await this._removeNextScheduleForTreatment(id);
+                    await this._ensureNextScheduleForTreatment(data);
+                } else {
+                    console.log('🔍 updateTreatment: removing schedule for rescue/inactive treatment');
+                    await this._removeNextScheduleForTreatment(id);
+                }
+            } catch (nextError) {
+                console.error('Error updating next schedule for treatment:', nextError);
+            }
+
             return data;
 
         } catch (error) {
@@ -927,12 +963,15 @@ const DB = {
     },
 
     async _calculateNextDoseTime(treatment, referenceTime = new Date()) {
+        console.log('🔍 _calculateNextDoseTime called:', { treatmentId: treatment?.id, schedule_type: treatment?.schedule_type, start_date: treatment?.start_date, first_dose_time: treatment?.first_dose_time, frequency_hours: treatment?.frequency_hours });
         // Busca ultimo horario executado (Taken/Skipped) para este tratamento
         const lastExecuted = await this._getLastExecutedScheduleForTreatment(treatment.id);
+        console.log('🔍 _calculateNextDoseTime: lastExecuted=', lastExecuted);
 
         // Weekly schedule
         if (treatment.schedule_type === 'weekly') {
             const times = await this.getTreatmentTimes(treatment.id);
+            console.log('🔍 _calculateNextDoseTime: weekly times=', times);
             if (!times || times.length === 0) return null;
 
             const startDate = treatment.start_date ? new Date(treatment.start_date + 'T00:00:00') : null;
@@ -941,9 +980,11 @@ const DB = {
             // Se nunca foi executado, pula horarios passados (usando referenceTime)
             // Se ja foi executado, busca o proximo horario na sequencia (sem pular)
             let startSearch;
-            if (lastExecuted && lastExecuted.schedule_date) {
+            if (lastExecuted && lastExecuted.schedule_date && lastExecuted.schedule_time) {
                 const [y, m, d] = lastExecuted.schedule_date.split('-').map(Number);
-                startSearch = new Date(y, m - 1, d + 1, 0, 0, 0, 0);
+                const [h, min] = lastExecuted.schedule_time.split(':').map(Number);
+                startSearch = new Date(y, m - 1, d, h, min, 0, 0);
+                startSearch = new Date(startSearch.getTime() + 60000); // 1 min apos ultima dose
             } else {
                 startSearch = referenceTime;
             }
@@ -952,6 +993,7 @@ const DB = {
             for (let i = 0; i < 28; i++) {
                 const candidate = new Date(startSearch);
                 candidate.setDate(candidate.getDate() + i);
+                candidate.setHours(0, 0, 0, 0);
 
                 if (startDate && candidate < startDate) continue;
                 if (endDate && candidate > endDate) continue;
@@ -965,7 +1007,9 @@ const DB = {
                     const [hours, minutes] = slot.time.split(':').map(Number);
                     const doseTime = new Date(candidate);
                     doseTime.setHours(hours, minutes, 0, 0);
-                    return doseTime;
+                    if (doseTime > startSearch) {
+                        return doseTime;
+                    }
                 }
             }
             return null;
@@ -996,6 +1040,7 @@ const DB = {
             }
         }
 
+        console.log('🔍 _calculateNextDoseTime: periodic baseTime=', baseTime);
         return baseTime;
     },
 
@@ -1100,9 +1145,13 @@ const DB = {
     },
 
     async _findOrCreateNextSchedule(dependentId, dateTime) {
-        if (!dependentId || !dateTime) return null;
+        if (!dependentId || !dateTime) {
+            console.log('🔍 _findOrCreateNextSchedule: missing dependentId or dateTime', { dependentId, dateTime });
+            return null;
+        }
         const dateStr = this._toISODate(dateTime);
         const timeStr = this._toLocalTimeString(dateTime);
+        console.log('🔍 _findOrCreateNextSchedule:', { dependentId, dateStr, timeStr });
 
         try {
             const { data: existing, error } = await supabase
@@ -1113,7 +1162,10 @@ const DB = {
                 .eq('schedule_time', timeStr)
                 .eq('action', 'NEXT');
             if (error) throw error;
-            if (existing && existing.length > 0) return existing[0];
+            if (existing && existing.length > 0) {
+                console.log('🔍 _findOrCreateNextSchedule: existing schedule found', existing[0]);
+                return existing[0];
+            }
 
             const payload = {
                 dependent_id: dependentId,
@@ -1121,12 +1173,14 @@ const DB = {
                 schedule_time: timeStr,
                 action: 'NEXT'
             };
+            console.log('🔍 _findOrCreateNextSchedule: inserting schedule', payload);
             const { data, error: insertError } = await supabase
                 .from('scheduling')
                 .insert(payload)
                 .select()
                 .single();
             if (insertError) throw insertError;
+            console.log('🔍 _findOrCreateNextSchedule: schedule created', data);
             await OfflineDB.set('scheduling', data.id, data);
             return data;
         } catch (error) {
@@ -1154,7 +1208,10 @@ const DB = {
     },
 
     async _linkTreatmentToSchedule(scheduleId, treatment, scheduleTime) {
-        if (!scheduleId || !treatment) return;
+        if (!scheduleId || !treatment) {
+            console.log('🔍 _linkTreatmentToSchedule: missing scheduleId or treatment', { scheduleId, treatment });
+            return;
+        }
         const dose = await this._getTreatmentDoseForTime(treatment, scheduleTime);
         const payload = {
             scheduling_id: scheduleId,
@@ -1162,6 +1219,7 @@ const DB = {
             medication_id: treatment.medication_id,
             dosage: dose
         };
+        console.log('🔍 _linkTreatmentToSchedule:', payload);
         try {
             const { data: existing, error: existingError } = await supabase
                 .from('treatments_in_schedule')
@@ -1169,7 +1227,10 @@ const DB = {
                 .eq('scheduling_id', scheduleId)
                 .eq('treatment_id', treatment.id);
             if (existingError) throw existingError;
-            if (existing && existing.length > 0) return existing[0];
+            if (existing && existing.length > 0) {
+                console.log('🔍 _linkTreatmentToSchedule: existing link found', existing[0]);
+                return existing[0];
+            }
 
             const { data, error } = await supabase
                 .from('treatments_in_schedule')
@@ -1177,6 +1238,7 @@ const DB = {
                 .select()
                 .single();
             if (error) throw error;
+            console.log('🔍 _linkTreatmentToSchedule: link created', data);
             await OfflineDB.set('treatments_in_schedule', data.id, data);
             return data;
         } catch (error) {
@@ -1185,11 +1247,66 @@ const DB = {
         }
     },
 
+    async _removeNextScheduleForTreatment(treatmentId) {
+        if (!treatmentId) return;
+
+        try {
+            const { data: links, error } = await supabase
+                .from('treatments_in_schedule')
+                .select(`
+                    id,
+                    scheduling_id,
+                    scheduling:scheduling_id (action)
+                `)
+                .eq('treatment_id', treatmentId)
+                .eq('scheduling.action', 'NEXT');
+
+            if (error) throw error;
+            if (!links || links.length === 0) return;
+
+            for (const link of links) {
+                const scheduleId = link.scheduling_id;
+
+                try {
+                    await supabase.from('treatments_in_schedule').delete().eq('id', link.id);
+                    await OfflineDB.delete('treatments_in_schedule', link.id);
+                } catch (deleteError) {
+                    console.error('Error deleting treatment-schedule link:', deleteError);
+                    await OfflineDB.queueForSync('treatments_in_schedule', 'delete', { id: link.id });
+                }
+
+                // Se o schedule nao tem mais nenhum tratamento, remove ele tambem
+                try {
+                    const { data: remainingLinks, error: countError } = await supabase
+                        .from('treatments_in_schedule')
+                        .select('id')
+                        .eq('scheduling_id', scheduleId);
+                    if (countError) throw countError;
+
+                    if (!remainingLinks || remainingLinks.length === 0) {
+                        await supabase.from('scheduling').delete().eq('id', scheduleId);
+                        await OfflineDB.delete('scheduling', scheduleId);
+                    }
+                } catch (e) {
+                    console.error('Error checking remaining schedule links:', e);
+                }
+            }
+        } catch (error) {
+            console.error('Error removing next schedule for treatment:', error);
+        }
+    },
+
     async _ensureNextScheduleForTreatment(treatment, referenceTime = new Date()) {
-        if (!treatment || treatment.schedule_type === 'rescue' || treatment.is_active === false) return null;
+        console.log('🔍 _ensureNextScheduleForTreatment called:', { treatmentId: treatment?.id, schedule_type: treatment?.schedule_type, is_active: treatment?.is_active, dependent_id: treatment?.dependent_id });
+        if (!treatment || treatment.schedule_type === 'rescue' || treatment.is_active === false) {
+            console.log('🔍 _ensureNextScheduleForTreatment: early return');
+            return null;
+        }
         const nextDoseTime = await this._calculateNextDoseTime(treatment, referenceTime);
+        console.log('🔍 _ensureNextScheduleForTreatment: nextDoseTime=', nextDoseTime);
         if (!nextDoseTime) return null;
         const schedule = await this._findOrCreateNextSchedule(treatment.dependent_id, nextDoseTime);
+        console.log('🔍 _ensureNextScheduleForTreatment: schedule=', schedule);
         if (schedule) {
             await this._linkTreatmentToSchedule(schedule.id, treatment, nextDoseTime);
         }
@@ -1889,6 +2006,115 @@ const DB = {
         } catch (error) {
             console.error('Error loading expiring prescriptions:', error);
             return [];
+        }
+    },
+
+    // ========== CONFIGURATION ==========
+
+    async getConfig() {
+        const userId = Auth.getUserId();
+        if (!userId) return null;
+
+        try {
+            const { data, error } = await supabase
+                .from('configuration')
+                .select('*')
+                .eq('owner_id', userId)
+                .single();
+
+            // PGRST116 = no rows returned
+            if (error && error.code !== 'PGRST116') throw error;
+
+            if (data) {
+                await OfflineDB.set('configuration', userId, data);
+                return data;
+            }
+
+            return await this.ensureConfig();
+
+        } catch (error) {
+            console.error('Error fetching configuration:', error);
+            return await OfflineDB.get('configuration', userId);
+        }
+    },
+
+    async ensureConfig() {
+        const userId = Auth.getUserId();
+        if (!userId) return null;
+
+        try {
+            const { data: existing, error: selectError } = await supabase
+                .from('configuration')
+                .select('*')
+                .eq('owner_id', userId)
+                .single();
+
+            if (selectError && selectError.code !== 'PGRST116') throw selectError;
+            if (existing) return existing;
+
+            const payload = {
+                owner_id: userId,
+                language: (typeof i18n !== 'undefined' && i18n.getLanguage) ? i18n.getLanguage() : 'pt-BR',
+                selected_dependent_id: null,
+                alarm: false,
+                notifications: false,
+                show_all_dependents: false,
+                show_all_treatments: false,
+                show_all_prescriptions: false,
+                show_all_events: false,
+                show_all_symptoms: false
+            };
+
+            const { data, error } = await supabase
+                .from('configuration')
+                .insert(payload)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('configuration', userId, data);
+            return data;
+
+        } catch (error) {
+            console.error('Error ensuring configuration:', error);
+            return null;
+        }
+    },
+
+    async saveConfig(updates) {
+        const userId = Auth.getUserId();
+        if (!userId) throw new Error('User not authenticated');
+
+        const payload = {
+            ...updates,
+            updated_at: new Date().toISOString()
+        };
+
+        try {
+            const { data, error } = await supabase
+                .from('configuration')
+                .update(payload)
+                .eq('owner_id', userId)
+                .select()
+                .single();
+
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    await this.ensureConfig();
+                    return await this.saveConfig(updates);
+                }
+                throw error;
+            }
+
+            await OfflineDB.set('configuration', userId, data);
+            return data;
+
+        } catch (error) {
+            console.error('Error saving configuration:', error);
+            // Keep local copy up to date; will sync when user toggles again online
+            const current = await OfflineDB.get('configuration', userId) || { owner_id: userId };
+            await OfflineDB.set('configuration', userId, { ...current, ...payload });
+            throw error;
         }
     }
 };

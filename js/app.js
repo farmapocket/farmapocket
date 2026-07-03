@@ -8,14 +8,32 @@ const AppState = {
     currentDependent: null,  // ID do dependente selecionado
     dependents: [],          // Lista de dependentes
 
-    setCurrentDependent(id) {
+    setCurrentDependent(id, skipConfigSave = false) {
+        console.log('🔍 AppState.setCurrentDependent:', { id, skipConfigSave, stack: new Error().stack.split('\n').slice(2, 5) });
         this.currentDependent = id;
         localStorage.setItem('farma-pocket-current-dependent', id);
+        if (!skipConfigSave) {
+            this._saveSelectedToConfig(id);
+        }
     },
 
     getCurrentDependent() {
-        return this.currentDependent || localStorage.getItem('farma-pocket-current-dependent');
+        const id = this.currentDependent || localStorage.getItem('farma-pocket-current-dependent');
+        console.log('🔍 AppState.getCurrentDependent:', { current: this.currentDependent, localStorage: localStorage.getItem('farma-pocket-current-dependent'), returned: id });
+        return id;
     },
+
+    async _saveSelectedToConfig(id) {
+        if (typeof AppConfig !== 'undefined' && AppConfig.loaded && id) {
+            try {
+                await AppConfig.save({ selected_dependent_id: id }, true);
+            } catch (e) {
+                console.error('❌ Error saving selected dependent to config:', e);
+            }
+        }
+    },
+
+
 
     clearCurrentDependent() {
         this.currentDependent = null;
@@ -30,6 +48,94 @@ function toggleShowAllDependents() {
     showAllDependentsDashboard = toggle ? toggle.checked : false;
     loadTodaySchedule();
     loadLastAction();
+}
+
+// ========== APP CONFIGURATION ==========
+
+const AppConfig = {
+    alarm: false,
+    notifications: false,
+    loaded: false,
+
+    async load() {
+        try {
+            const config = await DB.getConfig();
+            if (config) {
+                this.alarm = !!config.alarm;
+                this.notifications = !!config.notifications;
+                this.selected_dependent_id = config.selected_dependent_id || null;
+                this.loaded = true;
+                updateSettingsTogglesUI();
+            }
+        } catch (error) {
+            console.error('❌ Error loading app config:', error);
+        }
+    },
+
+    async save(partial, skipNotifications = false) {
+        Object.assign(this, partial);
+        try {
+            await DB.saveConfig(partial);
+            if (!skipNotifications && typeof Notifications !== 'undefined') {
+                Notifications.updateConfig(partial);
+            }
+        } catch (error) {
+            console.error('❌ Error saving app config:', error);
+            alert('Erro ao salvar configuração. Tente novamente.');
+            // Reverte UI e módulo de notificações em caso de erro
+            await this.load();
+            if (typeof Notifications !== 'undefined') {
+                Notifications.updateConfig({ alarm: this.alarm, notifications: this.notifications });
+            }
+        }
+    }
+};
+
+function updateToggleUI(button, isOn) {
+    if (!button) return;
+    const knob = button.querySelector('span');
+    if (isOn) {
+        button.classList.remove('bg-gray-300');
+        button.classList.add('bg-sky-500');
+        if (knob) knob.classList.add('translate-x-6');
+        button.setAttribute('aria-pressed', 'true');
+    } else {
+        button.classList.remove('bg-sky-500');
+        button.classList.add('bg-gray-300');
+        if (knob) knob.classList.remove('translate-x-6');
+        button.setAttribute('aria-pressed', 'false');
+    }
+}
+
+function updateSettingsTogglesUI() {
+    updateToggleUI(document.getElementById('toggle-alarm'), AppConfig.alarm);
+    updateToggleUI(document.getElementById('toggle-notifications'), AppConfig.notifications);
+}
+
+async function toggleAlarmSetting() {
+    const newValue = !AppConfig.alarm;
+    if (newValue && typeof Notifications !== 'undefined') {
+        const permission = await Notifications.requestPermission();
+        if (permission !== 'granted') {
+            alert('Permissão de notificação/áudio é necessária para o alarme funcionar.');
+            return;
+        }
+    }
+    await AppConfig.save({ alarm: newValue });
+    updateSettingsTogglesUI();
+}
+
+async function toggleNotificationsSetting() {
+    const newValue = !AppConfig.notifications;
+    if (newValue && typeof Notifications !== 'undefined') {
+        const permission = await Notifications.requestPermission();
+        if (permission !== 'granted') {
+            alert('Permissão de notificação é necessária para os lembretes funcionarem.');
+            return;
+        }
+    }
+    await AppConfig.save({ notifications: newValue });
+    updateSettingsTogglesUI();
 }
 
 // ========== NAVEGAÇÃO ==========
@@ -360,7 +466,45 @@ function renderDependentAvatar(avatarUrl) {
     return `<span class="text-lg">${avatarUrl}</span>`;
 }
 
+function applySelectedDependentFromConfig() {
+    console.log('🔍 applySelectedDependentFromConfig:', { loaded: AppConfig.loaded, dependentCount: AppState.dependents.length, configSelected: AppConfig.selected_dependent_id, current: AppState.getCurrentDependent() });
+    if (!AppConfig.loaded || AppState.dependents.length === 0) return;
+
+    const currentId = AppState.getCurrentDependent();
+    const configDepId = AppConfig.selected_dependent_id;
+
+    // 1. Mantem a selecao atual do usuario se for valida (nao sobrescreve com a config)
+    if (currentId && AppState.dependents.some(d => d.id === currentId)) {
+        console.log('🔍 applySelectedDependentFromConfig: keeping current selection', currentId);
+        if (currentId !== configDepId) {
+            AppState._saveSelectedToConfig(currentId);
+        }
+        renderDependentSelector();
+        return;
+    }
+
+    // 2. Se nao ha selecao atual, usa o valor salvo na config
+    if (configDepId && AppState.dependents.some(d => d.id === configDepId)) {
+        console.log('🔍 applySelectedDependentFromConfig: applying config selection', configDepId);
+        AppState.setCurrentDependent(configDepId, true);
+        renderDependentSelector();
+        return;
+    }
+
+    // 3. Fallback: seleciona o primeiro (ordenado com self primeiro)
+    const sortedDependents = [...AppState.dependents].sort((a, b) => {
+        if (a.relationship === 'self' && b.relationship !== 'self') return -1;
+        if (a.relationship !== 'self' && b.relationship === 'self') return 1;
+        return a.name.localeCompare(b.name);
+    });
+    if (sortedDependents.length > 0) {
+        console.log('🔍 applySelectedDependentFromConfig: fallback to first dependent', sortedDependents[0].id);
+        AppState.setCurrentDependent(sortedDependents[0].id);
+    }
+}
+
 function renderDependentSelector() {
+    console.log('🔍 renderDependentSelector:', { currentId: AppState.getCurrentDependent(), dependents: AppState.dependents.map(d => ({ id: d.id, name: d.name, relationship: d.relationship })) });
     const selector = document.getElementById('dependent-selector');
     if (!selector) return;
 
@@ -382,11 +526,6 @@ function renderDependentSelector() {
         if (a.relationship !== 'self' && b.relationship === 'self') return 1;
         return a.name.localeCompare(b.name);
     });
-
-    // Se não tem dependente selecionado, seleciona o primeiro
-    if (!currentId && sortedDependents.length > 0) {
-        AppState.setCurrentDependent(sortedDependents[0].id);
-    }
 
     selector.innerHTML = `
         <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
@@ -411,6 +550,7 @@ function renderDependentSelector() {
 }
 
 function selectDependent(id) {
+    console.log('🔍 selectDependent:', { id });
     AppState.setCurrentDependent(id);
     renderDependentSelector();
 
@@ -1361,6 +1501,7 @@ async function reactivateMedication(id) {
 async function loadTreatments() {
     const listEl = document.getElementById('treatments-list');
     const depId = AppState.getCurrentDependent();
+    console.log('🔍 loadTreatments depId:', depId);
 
     if (!depId) {
         listEl.innerHTML = `
@@ -2843,24 +2984,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 administration_notes: formData.get('admin_notes') || null,
                 //category_id: formData.get('category_id') || null,
                 subcategory_id: formData.get('subcategory_id') || null,
-                is_active: formData.has('is_active'),
+                is_active: treatmentForm.querySelector('[name="is_active"]')?.checked ?? true,
                 is_rescue: isRescue
             };
 
             try {
                 let savedTreatment;
+                const weeklyTimes = isWeekly ? currentTreatmentFrequency.weeklyTimes : [];
                 if (currentEditingTreatmentId) {
-                    savedTreatment = await DB.updateTreatment(currentEditingTreatmentId, treatment);
+                    savedTreatment = await DB.updateTreatment(currentEditingTreatmentId, treatment, weeklyTimes);
                 } else {
-                    savedTreatment = await DB.addTreatment(treatment);
-                }
-
-                // Persist weekly times
-                if (isWeekly) {
-                    await DB.updateTreatmentTimes(savedTreatment.id, currentTreatmentFrequency.weeklyTimes);
-                } else if (currentEditingTreatmentId) {
-                    // Clear any existing weekly times when switching to periodic or rescue
-                    await DB.updateTreatmentTimes(savedTreatment.id, []);
+                    savedTreatment = await DB.addTreatment(treatment, weeklyTimes);
                 }
 
                 currentEditingTreatmentId = null;
@@ -3209,6 +3343,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     notes,
                     extraMedications
                 );
+                if (typeof Notifications !== 'undefined') {
+                    Notifications.onDoseActionTaken(currentDoseSchedule.scheduling.id);
+                }
                 closeModal('modal-dose-action');
                 doseActionForm.reset();
                 document.getElementById('dose-action-extra-medications').innerHTML = '';
@@ -3228,7 +3365,19 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsLang.value = i18n.getLanguage();
         settingsLang.addEventListener('change', (e) => {
             i18n.setLanguage(e.target.value);
+            AppConfig.save({ language: e.target.value }).catch(() => {});
         });
+    }
+
+    // Settings toggles (alarm & notifications)
+    const alarmToggle = document.getElementById('toggle-alarm');
+    if (alarmToggle) {
+        alarmToggle.addEventListener('click', toggleAlarmSetting);
+    }
+
+    const notificationsToggle = document.getElementById('toggle-notifications');
+    if (notificationsToggle) {
+        notificationsToggle.addEventListener('click', toggleNotificationsSetting);
     }
 });
 
@@ -3333,6 +3482,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Carregar dependentes primeiro
         loadDependents().then(() => {
+            // Inicializa configurações e notificações após autenticação
+            AppConfig.load().then(() => {
+                applySelectedDependentFromConfig();
+                if (typeof Notifications !== 'undefined') {
+                    Notifications.init();
+                }
+            });
+
             if (!hasSeenTour()) {
                 navigateTo('tour');
             } else {
@@ -3396,3 +3553,10 @@ window.handleTourTouchStart = handleTourTouchStart;
 window.handleTourTouchEnd = handleTourTouchEnd;
 window.closeModal = closeModal;
 window.exportData = exportData;
+window.toggleAlarmSetting = toggleAlarmSetting;
+window.toggleNotificationsSetting = toggleNotificationsSetting;
+window.dismissAlarmModal = () => {
+    if (typeof Notifications !== 'undefined') {
+        Notifications.dismissAlarmModal();
+    }
+};

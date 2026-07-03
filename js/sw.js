@@ -127,3 +127,57 @@ self.addEventListener('sync', (event) => {
         );
     }
 });
+
+// Push notifications (para notificações push futuras)
+self.addEventListener('push', (event) => {
+    if (!event.data) return;
+    const payload = event.data.json();
+    event.waitUntil(
+        self.registration.showNotification(payload.title || 'FarmaPocket', {
+            body: payload.body || '',
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            tag: payload.tag || 'farma-pocket-push',
+            data: payload.data || {}
+        })
+    );
+});
+
+// Clique na notificação
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const data = event.notification.data || {};
+    const url = data.url || '/app.html';
+
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+            // Se já houver uma janela do app, foca nela
+            for (const client of clients) {
+                if (client.url.includes(url) && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            // Senão, abre uma nova
+            if (self.clients.openWindow) {
+                return self.clients.openWindow(url);
+            }
+        })
+    );
+});
+
+// Mensagens do app principal para mostrar notificações locais
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+
+    if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+        const { title, options } = event.data;
+        self.registration.showNotification(title || 'FarmaPocket', {
+            icon: '/android-chrome-192x192.png',
+            badge: '/android-chrome-192x192.png',
+            requireInteraction: true,
+            ...options
+        });
+    }
+});

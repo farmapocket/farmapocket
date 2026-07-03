@@ -6,27 +6,23 @@
 ---
 - verificar questão legar de registro de propriedade intelectual
 ---
-- Alteração na lógica de próximas doses:
-    - Adicionei as colunas schedule_date e taken_at na tabela scheduling, já atualizei o arquivo TABLES_SCHEMA.sql
-    - Usaremos um novo valor no campo "action": NEXT
-    - Ao cadastrar um novo tratamento, iremos verificar se há algum registro na tabela scheduling para aquele horário e dia e a informação "NEXT" no campo action. Se não existir, criaremos; Se existir, usaremos o mesmo ID. Inseriremos também na tabela treatments_in_schedule.
-    - O card de Próximas doses exibirá o que tivermos de NEXT na tabela
-    - As ações TOMAR ou PULAR devem:
-        - Alterar o campo action do registro NEXT
-        - Inserir o próximo registro NEXT com base na programação dos tratamentos
-        - TOMAR deve Preencher o campo taken_at
-    - A ação REVERTER deve excluir o registro NEXT e alterar o campo action do schedule para NEXT
-    - NOVA REGRA: Só podemos PULAR se o timestamp atual for MAIOR do que o que está programado nos campos schedule_date e schedule_time. Antes disso, o botão deve ficar invisível
-
-    - Observação: Para essa primeira alteração, preciso de um script sql para criar os registros NEXT dos tratamentos que já existem
-    
+- Categoria e subcategoria precisa ser por dependente
+---
+- Incluir opção de criar nova categoria no seletor
+- Incluir opção de criar nova subcategoria no seletor
 ---
 - Tipos diferentes de administração de medicamentos: Líquido, sublingual, soblingual
 ---
 - Implementar visualização da linha do tempo dos tratamentos, sintomas e procedimentos
     - Ordenar os tratamentos por subcategoria
 ---
-- É possível fazer com que o aplicativo envie notificações e alarmes?
+- Expurgo de últimas ações (manter apenas 10 por dependente)
+---
+- Notificação/Alarme
+    - Quero que o aplicativo toque um alarme no momento da próxima dose. Se essa dose não for tomada ou pulada, a cada 5 minutos preciso que uma notificação seja enviada
+    - O alarme e as notificações acontecerão se ouver parametrização para isso na tabela configurations (notifications=true, alarm=true)
+    - Na tela de configurações, há um toggle chamado "Ativar Lembretes de Medicamento". Renomear para alarme de medicação" e vincular com o campo alarm da tabela configurations
+    - Incluir um novo toggle chamado "Notificar pendência" e vincular com o campo notifications da tabela configurations
 ---
 
 ## Próximos passos
@@ -54,7 +50,27 @@
 
 ## Últimas implementações:
 
-- Exportação dos dados em JSON
+- [x] Tela de alteração de dependentes
+---
+- [x] Toggle "Exibir todos os dependentes"
+---
+- [x] Lógica de inativação de medicamento
+---
+- [x] Alteração na lógica de próximas doses:
+    - Adicionei as colunas schedule_date e taken_at na tabela scheduling, já atualizei o arquivo TABLES_SCHEMA.sql
+    - Usaremos um novo valor no campo "action": NEXT
+    - Ao cadastrar um novo tratamento, iremos verificar se há algum registro na tabela scheduling para aquele horário e dia e a informação "NEXT" no campo action. Se não existir, criaremos; Se existir, usaremos o mesmo ID. Inseriremos também na tabela treatments_in_schedule.
+    - O card de Próximas doses exibirá o que tivermos de NEXT na tabela
+    - As ações TOMAR ou PULAR devem:
+        - Alterar o campo action do registro NEXT
+        - Inserir o próximo registro NEXT com base na programação dos tratamentos
+        - TOMAR deve Preencher o campo taken_at
+    - A ação REVERTER deve excluir o registro NEXT e alterar o campo action do schedule para NEXT
+    - NOVA REGRA: Só podemos PULAR se o timestamp atual for MAIOR do que o que está programado nos campos schedule_date e schedule_time. Antes disso, o botão deve ficar invisível
+
+    - Observação: Para essa primeira alteração, preciso de um script sql para criar os registros NEXT dos tratamentos que já existem
+---
+- [x] Exportação dos dados em JSON
 ---
 - [x] Opção de excluir a conta
 ---

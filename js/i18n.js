@@ -239,9 +239,20 @@ const i18n = {
         // SETTINGS
         'settings.language': { 'en': 'Language', 'pt-BR': 'Idioma', 'es': 'Idioma' },
         'settings.notifications': { 'en': 'Notifications', 'pt-BR': 'Notificações', 'es': 'Notificaciones' },
-        'settings.enableReminders': { 'en': 'Enable Medication Reminders', 'pt-BR': 'Ativar Lembretes de Medicamento', 'es': 'Activar Recordatorios de Medicamentos' },
+        'settings.medicationAlarm': { 'en': 'Medication Alarm', 'pt-BR': 'Alarme de medicação', 'es': 'Alarma de medicación' },
+        'settings.medicationAlarmHint': { 'en': 'Plays an alarm at dose time', 'pt-BR': 'Toca um alarme no horário da dose', 'es': 'Suena una alarma a la hora de la dosis' },
+        'settings.pendingNotification': { 'en': 'Notify Pending Dose', 'pt-BR': 'Notificar pendência', 'es': 'Notificar pendiente' },
+        'settings.pendingNotificationHint': { 'en': 'Reminds every 5 min if dose is not taken', 'pt-BR': 'Lembrete a cada 5 min se a dose não for tomada', 'es': 'Recordatorio cada 5 min si no se toma la dosis' },
         'settings.dataExport': { 'en': 'Export Data', 'pt-BR': 'Exportar Dados', 'es': 'Exportar Datos' },
         'settings.log': { 'en': 'Activity Log', 'pt-BR': 'Registro de Atividades', 'es': 'Registro de Actividades' },
+
+        // NOTIFICATIONS
+        'notifications.pendingTitle': { 'en': '⏰ Pending dose', 'pt-BR': '⏰ Dose pendente', 'es': '⏰ Dosis pendiente' },
+
+        // ALARM MODAL
+        'alarm.title': { 'en': 'It\'s time for your medication', 'pt-BR': 'Está na hora da medicação', 'es': 'Es hora de tu medicación' },
+        'alarm.subtitle': { 'en': 'Next pending doses', 'pt-BR': 'Próximas doses pendentes', 'es': 'Próximas dosis pendientes' },
+        'alarm.okButton': { 'en': 'OK, I understand', 'pt-BR': 'OK, entendi', 'es': 'OK, entendido' },
 
         // LOG
         'log.title': { 'en': 'Activity Log', 'pt-BR': 'Registro de Atividades', 'es': 'Registro de Actividades' },

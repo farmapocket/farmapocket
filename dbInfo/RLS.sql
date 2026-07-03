@@ -25,7 +25,8 @@ BEGIN
             'events',
             'prescriptions',
             'scheduling',
-            'treatments_in_schedule'
+            'treatments_in_schedule',
+            'configuration'
         )
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', pol.policyname, 'public', pol.tablename);
@@ -44,6 +45,7 @@ ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE prescriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scheduling ENABLE ROW LEVEL SECURITY;
 ALTER TABLE treatments_in_schedule ENABLE ROW LEVEL SECURITY;
+ALTER TABLE configuration ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -441,6 +443,22 @@ CREATE POLICY treatments_in_schedule_delete_policy ON treatments_in_schedule
         WHERE s.id = treatments_in_schedule.scheduling_id
         AND d.account_owner_id = auth.uid()
     ));
+
+
+-- ============================================================
+-- CONFIGURATION
+-- ============================================================
+CREATE POLICY configuration_select_policy ON configuration
+    FOR SELECT TO authenticated USING (owner_id = auth.uid());
+
+CREATE POLICY configuration_insert_policy ON configuration
+    FOR INSERT TO authenticated WITH CHECK (owner_id = auth.uid());
+
+CREATE POLICY configuration_update_policy ON configuration
+    FOR UPDATE TO authenticated USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
+
+CREATE POLICY configuration_delete_policy ON configuration
+    FOR DELETE TO authenticated USING (owner_id = auth.uid());
 
 
 -- ============================================================

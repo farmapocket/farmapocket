@@ -179,3 +179,21 @@ CREATE TABLE public.medication_times_on_treatment (
   CONSTRAINT medication_times_on_treatment_pkey PRIMARY KEY (id),
   CONSTRAINT medication_times_on_treatment_treatment_id_fkey FOREIGN KEY (treatment_id) REFERENCES public.treatments(id)
 );
+CREATE TABLE public.configuration (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  owner_id uuid UNIQUE,
+  language text,
+  alarm boolean DEFAULT false,
+  notifications boolean DEFAULT false,
+  show_all_dependents boolean DEFAULT false,
+  show_all_treatments boolean DEFAULT false,
+  show_all_prescriptions boolean DEFAULT false,
+  show_all_events boolean DEFAULT false,
+  show_all_symptoms boolean DEFAULT false,
+  selected_dependent_id uuid,
+  CONSTRAINT configuration_pkey PRIMARY KEY (id),
+  CONSTRAINT configuration_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES auth.users(id),
+  CONSTRAINT configuration_selected_dependent_id_fkey FOREIGN KEY (selected_dependent_id) REFERENCES public.dependents(id)
+);
