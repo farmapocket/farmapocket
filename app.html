@@ -153,6 +153,15 @@
                 <!-- <h2 class="text-2xl font-bold text-gray-800" data-i18n="nav.dashboard">Painel</h2>-->
             </div>
 
+            <!-- Toggle: Exibir todos os dependentes -->
+            <div class="flex items-center justify-end mb-4">
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="toggle-show-all-dependents" class="sr-only peer" onchange="toggleShowAllDependents()">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-sky-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+                    <span class="ml-2 text-sm font-medium text-gray-700">Exibir todos os dependentes</span>
+                </label>
+            </div>
+
             <!-- Next Doses -->
             <div class="bg-white rounded-xl shadow-sm mb-6">
                 <div class="p-4 border-b border-gray-100 flex items-center justify-between">
@@ -169,7 +178,7 @@
                 <div class="p-4 border-b border-gray-100">
                     <h3 class="font-semibold text-gray-800" data-i18n="dashboard.lastAction">Última Ação</h3>
                 </div>
-                <div id="last-action" class="p-4">
+                <div id="last-action" class="p-4 space-y-3">
                     <p class="text-gray-400 text-sm text-center py-4" data-i18n="dashboard.noLastAction">Nenhuma ação registrada</p>
                 </div>
             </div>
@@ -310,6 +319,12 @@
         <div id="page-more" class="page">
             <h2 class="text-xl font-bold text-gray-800 mb-6" data-i18n="nav.more">Mais</h2>
             <div class="grid grid-cols-3 gap-3">
+                <button onclick="navigateTo('dependents')" class="bg-white rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 hover:bg-gray-50 transition-colors">
+                    <div class="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center text-xl text-sky-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    </div>
+                    <span class="text-sm font-medium text-gray-700">Dependentes</span>
+                </button>
                 <button onclick="navigateTo('professionals')" class="bg-white rounded-xl p-4 shadow-sm flex flex-col items-center gap-2 hover:bg-gray-50 transition-colors">
                     <div class="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center text-xl text-sky-600">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
@@ -352,6 +367,24 @@
                     </div>
                     <span class="text-sm font-medium text-gray-700" data-i18n="nav.tour">Tour</span>
                 </button>
+            </div>
+        </div>
+
+        <!-- PAGE: Dependents -->
+        <div id="page-dependents" class="page">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Dependentes</h2>
+                <div class="flex items-center gap-2">
+                    <button onclick="showAddDependent()" class="w-10 h-10 rounded-full bg-sky-500 text-white flex items-center justify-center fab">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    </button>
+                    <button onclick="navigateTo('more')" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                        ✕
+                    </button>
+                </div>
+            </div>
+            <div id="dependents-management-list" class="space-y-3">
+                <!-- Populated by JS -->
             </div>
         </div>
 
@@ -516,6 +549,7 @@
                 <button onclick="closeModal('modal-dependent')" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">✕</button>
             </div>
             <form id="form-dependent" class="space-y-4">
+                <input type="hidden" name="id">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nome</label>
                     <input type="text" name="name" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: João Silva">

@@ -23,6 +23,15 @@ const AppState = {
     }
 };
 
+let showAllDependentsDashboard = false;
+
+function toggleShowAllDependents() {
+    const toggle = document.getElementById('toggle-show-all-dependents');
+    showAllDependentsDashboard = toggle ? toggle.checked : false;
+    loadTodaySchedule();
+    loadLastAction();
+}
+
 // ========== NAVEGAÇÃO ==========
 
 function navigateTo(page) {
@@ -55,6 +64,7 @@ function navigateTo(page) {
     if (page === 'procedures') loadProcedures();
     if (page === 'categories') loadCategories();
     if (page === 'inventory-update') loadInventoryUpdate();
+    if (page === 'dependents') loadDependentsManagement();
     if (page === 'tour') loadTour();
     if (page === 'more') loadMore();
     if (page === 'activity-log') loadActivityLog();
@@ -253,6 +263,90 @@ async function loadDependents() {
     }
 }
 
+async function loadDependentsManagement() {
+    const listEl = document.getElementById('dependents-management-list');
+    if (!listEl) return;
+
+    listEl.innerHTML = '<div class="skeleton h-20 rounded-xl"></div>'.repeat(2);
+
+    try {
+        await loadDependents();
+        const dependents = AppState.dependents;
+
+        if (dependents.length === 0) {
+            listEl.innerHTML = `
+                <div class="text-center py-8">
+                    <span class="text-4xl mb-2 block">👤</span>
+                    <p class="text-gray-400">Nenhum dependente cadastrado</p>
+                </div>
+            `;
+            return;
+        }
+
+        const relationshipLabels = {
+            self: 'Eu mesmo',
+            child: 'Filho(a)',
+            spouse: 'Cônjuge',
+            parent: 'Pai/Mãe',
+            sibling: 'Irmão(ã)',
+            other: 'Outro'
+        };
+
+        listEl.innerHTML = dependents.map(dep => {
+            const currentId = AppState.getCurrentDependent();
+            const isCurrent = dep.id === currentId;
+            const relationshipText = relationshipLabels[dep.relationship] || dep.relationship || '';
+            const ageText = dep.date_of_birth ? calculateAge(dep.date_of_birth) + ' anos' : '';
+            const subtitleParts = [relationshipText, ageText].filter(Boolean);
+
+            return `
+            <div class="bg-white rounded-xl p-4 shadow-sm">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center text-sky-600">
+                            ${renderDependentAvatar(dep.avatar_url)}
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-semibold text-gray-800">${dep.name}</h3>
+                                ${isCurrent ? '<span class="text-xs bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full">Selecionado</span>' : ''}
+                            </div>
+                            ${subtitleParts.length > 0 ? `<p class="text-sm text-gray-500">${subtitleParts.join(' · ')}</p>` : ''}
+                            ${dep.notes ? `<p class="text-xs text-gray-400 mt-1">${dep.notes}</p>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="editDependent('${dep.id}')" class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center" title="Editar">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        ${!isCurrent ? `
+                        <button onclick="selectDependent('${dep.id}')" class="w-8 h-8 rounded-full bg-sky-50 flex items-center justify-center" title="Selecionar">
+                            <svg class="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error('Error loading dependents management:', error);
+        listEl.innerHTML = '<p class="text-center text-red-500 py-4">Erro ao carregar dependentes</p>';
+    }
+}
+
+function calculateAge(dateOfBirth) {
+    const birth = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+    }
+    return age;
+}
+
 // Renderiza o avatar de um dependente (URL de imagem ou emoji/texto)
 function renderDependentAvatar(avatarUrl) {
     if (!avatarUrl) {
@@ -282,14 +376,21 @@ function renderDependentSelector() {
 
     const currentId = AppState.getCurrentDependent();
 
+    // Ordena para que "Eu mesmo" (self) apareça primeiro
+    const sortedDependents = [...AppState.dependents].sort((a, b) => {
+        if (a.relationship === 'self' && b.relationship !== 'self') return -1;
+        if (a.relationship !== 'self' && b.relationship === 'self') return 1;
+        return a.name.localeCompare(b.name);
+    });
+
     // Se não tem dependente selecionado, seleciona o primeiro
-    if (!currentId && AppState.dependents.length > 0) {
-        AppState.setCurrentDependent(AppState.dependents[0].id);
+    if (!currentId && sortedDependents.length > 0) {
+        AppState.setCurrentDependent(sortedDependents[0].id);
     }
 
     selector.innerHTML = `
         <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            ${AppState.dependents.map(dep => `
+            ${sortedDependents.map(dep => `
                 <button 
                     onclick="selectDependent('${dep.id}')"
                     class="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all ${
@@ -325,6 +426,37 @@ function selectDependent(id) {
 }
 
 function showAddDependent() {
+    const form = document.getElementById('form-dependent');
+    if (form) {
+        form.reset();
+        const idInput = form.querySelector('[name="id"]');
+        if (idInput) idInput.value = '';
+    }
+    const titleEl = document.querySelector('#modal-dependent h3');
+    if (titleEl) titleEl.textContent = 'Adicionar Dependente';
+    openModal('modal-dependent');
+}
+
+async function editDependent(id) {
+    const dep = AppState.dependents.find(d => d.id === id);
+    if (!dep) {
+        alert('Dependente não encontrado');
+        return;
+    }
+
+    const form = document.getElementById('form-dependent');
+    if (!form) return;
+
+    form.reset();
+    form.querySelector('[name="id"]').value = dep.id;
+    form.querySelector('[name="name"]').value = dep.name || '';
+    form.querySelector('[name="date_of_birth"]').value = dep.date_of_birth || '';
+    form.querySelector('[name="relationship"]').value = dep.relationship || '';
+    form.querySelector('[name="notes"]').value = dep.notes || '';
+
+    const titleEl = document.querySelector('#modal-dependent h3');
+    if (titleEl) titleEl.textContent = 'Editar Dependente';
+
     openModal('modal-dependent');
 }
 
@@ -541,83 +673,149 @@ async function loadDashboard() {
 
 let currentDoseSchedule = null;
 
+function renderScheduleCard(schedule, dependentName, prescriptionCounts) {
+    if (!schedule || !schedule.time) return '';
+
+    const timeStr = schedule.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const dateLabel = schedule.time.toDateString() === new Date().toDateString()
+        ? 'Hoje'
+        : schedule.time.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'short' });
+    const scheduleId = schedule.scheduling.id;
+    const now = new Date();
+    const canSkip = now > schedule.time;
+
+    const treatmentsHtml = schedule.treatments.map(t => {
+        const med = t.medications || {};
+        const name = med.name || t.medication_name || t.name || 'Medicamento';
+        const stock = parseFloat(med.stock_quantity) || 0;
+        const badgeClass = getStockBadgeClass(t, prescriptionCounts);
+        return `
+            <div class="flex items-center justify-between gap-3">
+                <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(t.dosage)} un.)</p>
+                <span class="text-xs px-2 py-0.5 rounded-full ${badgeClass} flex-shrink-0">${i18n.t('dashboard.stockUnits', { units: formatDosage(stock) })}</span>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="bg-gray-50 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex flex-col">
+                    <p class="text-xs text-gray-500 mb-0.5">${dateLabel}${dependentName ? ` · <span class="font-medium text-sky-600">${dependentName}</span>` : ''}</p>
+                    <p class="text-4xl font-bold text-sky-700 leading-none">${timeStr}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="showDoseActionModal('Taken', '${timeStr}', '${scheduleId}')" class="px-5 py-2 bg-emerald-500 text-white rounded-lg font-medium text-sm hover:bg-emerald-600 transition-colors">
+                        TOMAR
+                    </button>
+                    ${canSkip ? `
+                    <button onclick="showDoseActionModal('Skipped', '${timeStr}', '${scheduleId}')" class="px-5 py-2 bg-amber-500 text-white rounded-lg font-medium text-sm hover:bg-amber-600 transition-colors">
+                        PULAR
+                    </button>
+                    ` : ''}
+                </div>
+            </div>
+            <div class="space-y-2">
+                ${treatmentsHtml}
+            </div>
+        </div>
+    `;
+}
+
+function renderLastActionCard(lastAction, dependentName) {
+    if (!lastAction || !lastAction.scheduling) return '';
+
+    const scheduling = lastAction.scheduling;
+    const scheduleDate = (scheduling.schedule_date && scheduling.schedule_time)
+        ? new Date(`${scheduling.schedule_date}T${scheduling.schedule_time}`)
+        : null;
+    const timeStr = scheduleDate
+        ? scheduleDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        : '--:--';
+    const dateLabel = scheduleDate && scheduleDate.toDateString() === new Date().toDateString()
+        ? 'Hoje'
+        : (scheduleDate ? scheduleDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'short' }) : '--');
+    const isTaken = scheduling.action === 'Taken';
+    const actionLabel = isTaken ? i18n.t('dashboard.taken') : i18n.t('dashboard.skipped');
+    const actionBadgeClass = isTaken
+        ? 'bg-emerald-100 text-emerald-700'
+        : 'bg-amber-100 text-amber-700';
+
+    const items = lastAction.items || [];
+    const itemsHtml = items.length > 0
+        ? items.map(item => {
+            const name = item.medications?.name
+                || item.treatments?.medications?.name
+                || item.treatments?.medication_name
+                || 'Medicamento';
+            const dosage = item.dosage || item.treatments?.dosage || 0;
+            return `
+                <div class="flex items-center justify-between gap-3">
+                    <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(dosage)} un.)</p>
+                </div>
+            `;
+        }).join('')
+        : '<p class="text-sm text-gray-400">Nenhuma medicação vinculada</p>';
+
+    return `
+        <div class="bg-gray-50 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex flex-col">
+                    <p class="text-xs text-gray-500 mb-0.5">${dateLabel}${dependentName ? ` · <span class="font-medium text-sky-600">${dependentName}</span>` : ''}</p>
+                    <p class="text-4xl font-bold text-sky-700 leading-none">${timeStr}</p>
+                </div>
+                <div class="flex flex-col items-end gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full ${actionBadgeClass}">${actionLabel}</span>
+                    <button onclick="revertLastDose()" class="px-4 py-1.5 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 transition-colors">
+                        REVERTER
+                    </button>
+                </div>
+            </div>
+            <div class="space-y-2">
+                ${itemsHtml}
+            </div>
+        </div>
+    `;
+}
+
 async function loadTodaySchedule() {
     const scheduleEl = document.getElementById('today-schedule');
-    const depId = AppState.getCurrentDependent();
+    const currentDepId = AppState.getCurrentDependent();
 
-    if (!depId) {
+    if (!currentDepId) {
         scheduleEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Selecione um dependente</p>';
         return;
     }
 
     try {
-        const schedules = await DB.getNextDoseSchedules(depId, 1);
-        console.log('🔍 loadTodaySchedule schedules:', schedules);
+        let dependentsToShow;
+        if (showAllDependentsDashboard) {
+            dependentsToShow = await DB.getDependents();
+        } else {
+            const dep = AppState.dependents.find(d => d.id === currentDepId);
+            dependentsToShow = dep ? [dep] : await DB.getDependents();
+        }
 
-        if (!schedules || schedules.length === 0) {
-            scheduleEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4" data-i18n="dashboard.noSchedule">Nenhum medicamento agendado para hoje</p>';
+        if (!dependentsToShow || dependentsToShow.length === 0) {
+            scheduleEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Nenhum dependente encontrado</p>';
             return;
         }
 
-        const schedule = schedules[0];
-        console.log('🔍 loadTodaySchedule first schedule:', schedule, 'time:', schedule.time, 'isValid:', schedule.time instanceof Date && !isNaN(schedule.time));
-        const timeStr = schedule.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        const dateLabel = schedule.time.toDateString() === new Date().toDateString()
-            ? 'Hoje'
-            : schedule.time.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'short' });
-        const scheduleId = schedule.scheduling.id;
-        const prescriptionCounts = await DB.getPrescriptionCountsByMedication(depId);
-
-        // Nova regra: só pode PULAR se o horário atual já passou
-        const now = new Date();
-        const canSkip = now > schedule.time;
-
-        console.log('🔍 loadTodaySchedule rendering:', { timeStr, dateLabel, canSkip, treatmentsCount: schedule.treatments.length });
-
-        let treatmentsHtml;
-        try {
-            treatmentsHtml = schedule.treatments.map(t => {
-                const med = t.medications || {};
-                const name = med.name || t.medication_name || t.name || 'Medicamento';
-                const stock = parseFloat(med.stock_quantity) || 0;
-                const badgeClass = getStockBadgeClass(t, prescriptionCounts);
-                return `
-                    <div class="flex items-center justify-between gap-3">
-                        <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(t.dosage)} un.)</p>
-                        <span class="text-xs px-2 py-0.5 rounded-full ${badgeClass} flex-shrink-0">${i18n.t('dashboard.stockUnits', { units: formatDosage(stock) })}</span>
-                    </div>
-                `;
-            }).join('');
-        } catch (renderError) {
-            console.error('🔍 Error rendering treatments HTML:', renderError, 'treatment:', schedule.treatments);
-            throw renderError;
+        const cardsHtml = [];
+        for (const dep of dependentsToShow) {
+            const schedules = await DB.getNextDoseSchedules(dep.id, 1);
+            if (schedules && schedules.length > 0) {
+                const prescriptionCounts = await DB.getPrescriptionCountsByMedication(dep.id);
+                cardsHtml.push(renderScheduleCard(schedules[0], dep.name, prescriptionCounts));
+            }
         }
 
-        scheduleEl.innerHTML = `
-            <div class="bg-gray-50 rounded-xl p-4">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex flex-col">
-                        <p class="text-xs text-gray-500 mb-0.5">${dateLabel}</p>
-                        <p class="text-4xl font-bold text-sky-700 leading-none">${timeStr}</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="showDoseActionModal('Taken', '${timeStr}', '${scheduleId}')" class="px-5 py-2 bg-emerald-500 text-white rounded-lg font-medium text-sm hover:bg-emerald-600 transition-colors">
-                            TOMAR
-                        </button>
-                        ${canSkip ? `
-                        <button onclick="showDoseActionModal('Skipped', '${timeStr}', '${scheduleId}')" class="px-5 py-2 bg-amber-500 text-white rounded-lg font-medium text-sm hover:bg-amber-600 transition-colors">
-                            PULAR
-                        </button>
-                        ` : ''}
-                    </div>
-                </div>
-                <div class="space-y-2">
-                    ${treatmentsHtml}
-                </div>
-            </div>
-        `;
+        if (cardsHtml.length === 0) {
+            scheduleEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4" data-i18n="dashboard.noSchedule">Nenhum medicamento agendado</p>';
+            return;
+        }
 
-        console.log('🔍 loadTodaySchedule HTML rendered');
+        scheduleEl.innerHTML = cardsHtml.join('');
 
     } catch (error) {
         console.error('Error loading today schedule:', error);
@@ -627,72 +825,41 @@ async function loadTodaySchedule() {
 
 async function loadLastAction() {
     const actionEl = document.getElementById('last-action');
-    const depId = AppState.getCurrentDependent();
+    const currentDepId = AppState.getCurrentDependent();
 
-    if (!depId) {
+    if (!currentDepId) {
         actionEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Selecione um dependente</p>';
         return;
     }
 
     try {
-        const lastAction = await DB.getLastAction(depId);
+        let dependentsToShow;
+        if (showAllDependentsDashboard) {
+            dependentsToShow = await DB.getDependents();
+        } else {
+            const dep = AppState.dependents.find(d => d.id === currentDepId);
+            dependentsToShow = dep ? [dep] : await DB.getDependents();
+        }
 
-        if (!lastAction || !lastAction.scheduling) {
+        if (!dependentsToShow || dependentsToShow.length === 0) {
+            actionEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">Nenhum dependente encontrado</p>';
+            return;
+        }
+
+        const cardsHtml = [];
+        for (const dep of dependentsToShow) {
+            const lastAction = await DB.getLastAction(dep.id);
+            if (lastAction && lastAction.scheduling) {
+                cardsHtml.push(renderLastActionCard(lastAction, dep.name));
+            }
+        }
+
+        if (cardsHtml.length === 0) {
             actionEl.innerHTML = `<p class="text-gray-400 text-sm text-center py-4" data-i18n="dashboard.noLastAction">Nenhuma ação registrada</p>`;
             return;
         }
 
-        const scheduling = lastAction.scheduling;
-        const scheduleDate = (scheduling.schedule_date && scheduling.schedule_time)
-            ? new Date(`${scheduling.schedule_date}T${scheduling.schedule_time}`)
-            : null;
-        const timeStr = scheduleDate
-            ? scheduleDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-            : '--:--';
-        const dateLabel = scheduleDate && scheduleDate.toDateString() === new Date().toDateString()
-            ? 'Hoje'
-            : (scheduleDate ? scheduleDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'short' }) : '--');
-        const isTaken = scheduling.action === 'Taken';
-        const actionLabel = isTaken ? i18n.t('dashboard.taken') : i18n.t('dashboard.skipped');
-        const actionBadgeClass = isTaken
-            ? 'bg-emerald-100 text-emerald-700'
-            : 'bg-amber-100 text-amber-700';
-
-        const items = lastAction.items || [];
-        const itemsHtml = items.length > 0
-            ? items.map(item => {
-                const name = item.medications?.name
-                    || item.treatments?.medications?.name
-                    || item.treatments?.medication_name
-                    || 'Medicamento';
-                const dosage = item.dosage || item.treatments?.dosage || 0;
-                return `
-                    <div class="flex items-center justify-between gap-3">
-                        <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(dosage)} un.)</p>
-                    </div>
-                `;
-            }).join('')
-            : '<p class="text-sm text-gray-400">Nenhuma medicação vinculada</p>';
-
-        actionEl.innerHTML = `
-            <div class="bg-gray-50 rounded-xl p-4">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex flex-col">
-                        <p class="text-xs text-gray-500 mb-0.5">${dateLabel}</p>
-                        <p class="text-4xl font-bold text-sky-700 leading-none">${timeStr}</p>
-                    </div>
-                    <div class="flex flex-col items-end gap-2">
-                        <span class="text-xs px-2 py-0.5 rounded-full ${actionBadgeClass}">${actionLabel}</span>
-                        <button onclick="revertLastDose()" class="px-4 py-1.5 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 transition-colors">
-                            REVERTER
-                        </button>
-                    </div>
-                </div>
-                <div class="space-y-2">
-                    ${itemsHtml}
-                </div>
-            </div>
-        `;
+        actionEl.innerHTML = cardsHtml.join('');
 
     } catch (error) {
         console.error('Error loading last action:', error);
@@ -747,6 +914,8 @@ function renderLogCarousel() {
 
     const slidesHtml = activityLogData.map((entry, index) => {
         const schedule = entry.scheduling;
+        const dependent = AppState.dependents.find(d => d.id === schedule.dependent_id);
+        const dependentName = dependent ? dependent.name : '';
         const timeStr = (schedule.schedule_date && schedule.schedule_time)
             ? new Date(`${schedule.schedule_date}T${schedule.schedule_time}`).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             : '--:--';
@@ -782,6 +951,7 @@ function renderLogCarousel() {
         return `
             <div class="log-slide">
                 <div class="text-center mb-4">
+                    ${dependentName ? `<p class="text-sm font-medium text-sky-600 mb-1">${dependentName}</p>` : ''}
                     <p class="text-5xl font-bold text-sky-700">${timeStr}</p>
                     <p class="text-sm text-gray-400 mt-1">${dateStr}</p>
                     ${takenAtStr ? `<p class="text-xs text-gray-500 mt-1">Registrado em: ${takenAtStr}</p>` : ''}
@@ -2526,6 +2696,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
 
             const formData = new FormData(depForm);
+            const id = formData.get('id');
             const dependent = {
                 name: formData.get('name'),
                 date_of_birth: formData.get('date_of_birth') || null,
@@ -2534,13 +2705,29 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
-                const newDep = await DB.addDependent(dependent);
+                let savedDep;
+                if (id) {
+                    savedDep = await DB.updateDependent(id, dependent);
+                } else {
+                    savedDep = await DB.addDependent(dependent);
+                }
+
                 closeModal('modal-dependent');
                 depForm.reset();
 
-                // Atualizar lista e selecionar o novo
+                // Atualizar lista
                 await loadDependents();
-                selectDependent(newDep.id);
+
+                // Selecionar o dependente (novo ou atual)
+                if (!id || AppState.getCurrentDependent() === id) {
+                    selectDependent(savedDep.id);
+                }
+
+                // Recarregar página de gerenciamento se estiver aberta
+                if (document.getElementById('page-dependents')?.classList.contains('active')) {
+                    loadDependentsManagement();
+                }
+
                 scrollPageToTop();
 
             } catch (error) {
@@ -3171,6 +3358,8 @@ window.loadDashboard = loadDashboard;
 window.navigateTo = navigateTo;
 window.selectDependent = selectDependent;
 window.showAddDependent = showAddDependent;
+window.editDependent = editDependent;
+window.loadDependentsManagement = loadDependentsManagement;
 window.showAddMedication = showAddMedication;
 window.editMedication = editMedication;
 window.deactivateMedication = deactivateMedication;
@@ -3191,6 +3380,7 @@ window.deletePrescription = deletePrescription;
 window.showUsePrescriptionModal = showUsePrescriptionModal;
 window.confirmUsePrescription = confirmUsePrescription;
 window.togglePrescriptionUsedDate = togglePrescriptionUsedDate;
+window.toggleShowAllDependents = toggleShowAllDependents;
 window.showActivityLog = showActivityLog;
 window.showDoseActionModal = showDoseActionModal;
 window.addExtraMedicationRow = addExtraMedicationRow;
