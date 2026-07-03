@@ -563,8 +563,12 @@ async function loadTodaySchedule() {
         const dateLabel = schedule.time.toDateString() === new Date().toDateString()
             ? 'Hoje'
             : schedule.time.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'short' });
-        const scheduleJson = encodeURIComponent(JSON.stringify(schedule));
+        const scheduleId = schedule.scheduling.id;
         const prescriptionCounts = await DB.getPrescriptionCountsByMedication(depId);
+
+        // Nova regra: só pode PULAR se o horário atual já passou
+        const now = new Date();
+        const canSkip = now > schedule.time;
 
         scheduleEl.innerHTML = `
             <div class="bg-gray-50 rounded-xl p-4">
@@ -574,12 +578,14 @@ async function loadTodaySchedule() {
                         <p class="text-4xl font-bold text-sky-700 leading-none">${timeStr}</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button onclick="showDoseActionModal('Taken', '${timeStr}', '${scheduleJson}')" class="px-5 py-2 bg-emerald-500 text-white rounded-lg font-medium text-sm hover:bg-emerald-600 transition-colors">
+                        <button onclick="showDoseActionModal('Taken', '${timeStr}', '${scheduleId}')" class="px-5 py-2 bg-emerald-500 text-white rounded-lg font-medium text-sm hover:bg-emerald-600 transition-colors">
                             TOMAR
                         </button>
-                        <button onclick="showDoseActionModal('Skipped', '${timeStr}', '${scheduleJson}')" class="px-5 py-2 bg-amber-500 text-white rounded-lg font-medium text-sm hover:bg-amber-600 transition-colors">
+                        ${canSkip ? `
+                        <button onclick="showDoseActionModal('Skipped', '${timeStr}', '${scheduleId}')" class="px-5 py-2 bg-amber-500 text-white rounded-lg font-medium text-sm hover:bg-amber-600 transition-colors">
                             PULAR
                         </button>
+                        ` : ''}
                     </div>
                 </div>
                 <div class="space-y-2">
@@ -623,7 +629,9 @@ async function loadLastAction() {
         }
 
         const scheduling = lastAction.scheduling;
-        const scheduleDate = scheduling.schedule_time ? new Date(scheduling.schedule_time) : null;
+        const scheduleDate = (scheduling.schedule_date && scheduling.schedule_time)
+            ? new Date(`${scheduling.schedule_date}T${scheduling.schedule_time}`)
+            : null;
         const timeStr = scheduleDate
             ? scheduleDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             : '--:--';
@@ -725,8 +733,8 @@ function renderLogCarousel() {
 
     const slidesHtml = activityLogData.map((entry, index) => {
         const schedule = entry.scheduling;
-        const timeStr = schedule.schedule_time
-            ? new Date(schedule.schedule_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+        const timeStr = (schedule.schedule_date && schedule.schedule_time)
+            ? new Date(`${schedule.schedule_date}T${schedule.schedule_time}`).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             : '--:--';
         const dateStr = schedule.created_at
             ? new Date(schedule.created_at).toLocaleDateString('pt-BR')
@@ -836,9 +844,12 @@ function handleLogSwipe() {
     }
 }
 
-async function showDoseActionModal(action, timeStr, scheduleJson) {
-    const schedule = JSON.parse(decodeURIComponent(scheduleJson));
-    currentDoseSchedule = { ...schedule, action };
+async function showDoseActionModal(action, timeStr, scheduleId) {
+    const scheduleData = await DB.getScheduleWithLinks(scheduleId);
+    if (!scheduleData) return;
+
+    const scheduleTime = new Date(scheduleData.scheduling.schedule_date + 'T' + scheduleData.scheduling.schedule_time);
+    currentDoseSchedule = { ...scheduleData, action, time: scheduleTime };
 
     const titleEl = document.getElementById('dose-action-title');
     const timeEl = document.getElementById('dose-action-time');
@@ -851,13 +862,17 @@ async function showDoseActionModal(action, timeStr, scheduleJson) {
 
     titleEl.textContent = action === 'Taken' ? 'Confirmar Medicação Tomada' : 'Confirmar Medicação Pulada';
     timeEl.textContent = timeStr;
-    scheduleTimeInput.value = schedule.time;
+    scheduleTimeInput.value = scheduleTime.toISOString();
     actionTypeInput.value = action;
 
-    treatmentsEl.innerHTML = schedule.treatments.map(t => `
+    const treatments = scheduleData.items
+        .filter(l => l.treatments)
+        .map(l => ({ ...l.treatments, dosage: l.dosage }));
+
+    treatmentsEl.innerHTML = treatments.map(t => `
         <div class="flex items-center justify-between bg-gray-50 rounded-lg p-2">
             <span class="font-medium text-gray-800">${t.medications?.name || t.medication_name || t.name || 'Medicamento'}</span>
-            <span class="text-sm text-gray-500">${t.dosage || 0} un</span>
+            <span class="text-sm text-gray-500">${formatDosage(t.dosage || 0)} un</span>
         </div>
     `).join('');
 
@@ -2923,10 +2938,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 await DB.recordDose(
-                    depId,
-                    currentDoseSchedule.time,
+                    currentDoseSchedule.scheduling.id,
                     currentDoseSchedule.action,
-                    currentDoseSchedule.treatments,
                     notes,
                     extraMedications
                 );
@@ -2956,25 +2969,90 @@ document.addEventListener('DOMContentLoaded', () => {
 // ========== EXPORT DATA ==========
 
 async function exportData() {
+    const btn = document.querySelector('button[onclick="exportData()"]');
+    const originalText = btn ? btn.textContent : '📥 Exportar para JSON';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Exportando...';
+    }
+
     try {
         const dependents = await DB.getDependents();
+        const user = Auth.getUser();
+
+        // Buscar dados de cada dependente em paralelo
+        const dependentsWithData = await Promise.all(
+            dependents.map(async (dependent) => {
+                const [
+                    medications,
+                    professionals,
+                    treatments,
+                    prescriptions,
+                    symptoms,
+                    procedures
+                ] = await Promise.all([
+                    DB.getMedications(dependent.id),
+                    DB.getProfessionals(dependent.id),
+                    DB.getTreatments(dependent.id),
+                    DB.getPrescriptions(dependent.id),
+                    DB.getSymptoms(dependent.id),
+                    DB.getProcedures(dependent.id)
+                ]);
+
+                return {
+                    ...dependent,
+                    medications,
+                    professionals,
+                    treatments,
+                    prescriptions,
+                    symptoms,
+                    procedures
+                };
+            })
+        );
+
         const data = {
             app: 'FarmaPocket',
-            version: CONFIG.APP_VERSION,
+            version: CONFIG.APP_VERSION || '2.0',
             exportedAt: new Date().toISOString(),
-            dependents
+            user: user ? {
+                id: user.id,
+                email: user.email,
+                name: Auth.getUserName(),
+                provider: user.app_metadata?.provider || 'google'
+            } : null,
+            summary: {
+                totalDependents: dependents.length,
+                totalMedications: dependentsWithData.reduce((sum, d) => sum + (d.medications?.length || 0), 0),
+                totalTreatments: dependentsWithData.reduce((sum, d) => sum + (d.treatments?.length || 0), 0),
+                totalPrescriptions: dependentsWithData.reduce((sum, d) => sum + (d.prescriptions?.length || 0), 0),
+                totalSymptoms: dependentsWithData.reduce((sum, d) => sum + (d.symptoms?.length || 0), 0),
+                totalProcedures: dependentsWithData.reduce((sum, d) => sum + (d.procedures?.length || 0), 0)
+            },
+            dependents: dependentsWithData
         };
 
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `farma-pocket-backup-${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `farma-pocket-export-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
+        console.log('✅ Data exported successfully');
+
     } catch (error) {
-        alert('Erro ao exportar: ' + error.message);
+        console.error('❌ Export error:', error);
+        alert('Erro ao exportar: ' + (error.message || 'Tente novamente.'));
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
     }
 }
 

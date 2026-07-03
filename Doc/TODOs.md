@@ -4,11 +4,24 @@
 
 - Gestão dos remédios avulsos
 ---
+- verificar questão legar de registro de propriedade intelectual
+---
+- Alteração na lógica de próximas doses:
+    - Adicionei as colunas schedule_date e taken_at na tabela scheduling, já atualizei o arquivo TABLES_SCHEMA.sql
+    - Usaremos um novo valor no campo "action": NEXT
+    - Ao cadastrar um novo tratamento, iremos verificar se há algum registro na tabela scheduling para aquele horário e dia e a informação "NEXT" no campo action. Se não existir, criaremos; Se existir, usaremos o mesmo ID. Inseriremos também na tabela treatments_in_schedule.
+    - O card de Próximas doses exibirá o que tivermos de NEXT na tabela
+    - As ações TOMAR ou PULAR devem:
+        - Alterar o campo action do registro NEXT
+        - Inserir o próximo registro NEXT com base na programação dos tratamentos
+        - TOMAR deve Preencher o campo taken_at
+    - A ação REVERTER deve excluir o registro NEXT e alterar o campo action do schedule para NEXT
+    - NOVA REGRA: Só podemos PULAR se o timestamp atual for MAIOR do que o que está programado nos campos schedule_date e schedule_time. Antes disso, o botão deve ficar invisível
+
+    - Observação: Para essa primeira alteração, preciso de um script sql para criar os registros NEXT dos tratamentos que já existem
+    
+---
 - Tipos diferentes de administração de medicamentos: Líquido, sublingual, soblingual
----
-- Exportação dos dados em JSON
----
-- Opção de excluir a conta
 ---
 - Implementar visualização da linha do tempo dos tratamentos, sintomas e procedimentos
     - Ordenar os tratamentos por subcategoria
@@ -41,6 +54,10 @@
 
 ## Últimas implementações:
 
+- Exportação dos dados em JSON
+---
+- [x] Opção de excluir a conta
+---
 - [x] Termos de uso
     - Política de privacidade
     - Explicação de como os dados são protegidos

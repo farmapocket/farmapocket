@@ -44,17 +44,13 @@ CREATE TABLE public.medications (
   is_controlled boolean DEFAULT false,
   is_continuous_use boolean DEFAULT false,
   laboratory_id uuid,
-  category_id uuid,
-  subcategory_id uuid,
   stock_quantity integer DEFAULT 0,
   stock_last_updated timestamp with time zone,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT medications_pkey PRIMARY KEY (id),
   CONSTRAINT medications_dependent_id_fkey FOREIGN KEY (dependent_id) REFERENCES public.dependents(id),
-  CONSTRAINT medications_laboratory_id_fkey FOREIGN KEY (laboratory_id) REFERENCES public.laboratories(id),
-  CONSTRAINT medications_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id),
-  CONSTRAINT medications_subcategory_id_fkey FOREIGN KEY (subcategory_id) REFERENCES public.subcategories(id)
+  CONSTRAINT medications_laboratory_id_fkey FOREIGN KEY (laboratory_id) REFERENCES public.laboratories(id)
 );
 CREATE TABLE public.healthcare_professionals (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -94,16 +90,6 @@ CREATE TABLE public.treatments (
   CONSTRAINT treatments_replaced_by_treatment_id_fkey FOREIGN KEY (replaced_by_treatment_id) REFERENCES public.treatments(id),
   CONSTRAINT treatments_replaced_treatment_id_fkey FOREIGN KEY (replaced_treatment_id) REFERENCES public.treatments(id),
   CONSTRAINT treatments_subcategory_id_fkey FOREIGN KEY (subcategory_id) REFERENCES public.subcategories(id)
-);
-CREATE TABLE public.medication_times_on_treatment (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  treatment_id uuid NOT NULL,
-  day_of_week integer NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
-  time time without time zone NOT NULL,
-  dosage numeric NOT NULL,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT medication_times_on_treatment_pkey PRIMARY KEY (id),
-  CONSTRAINT medication_times_on_treatment_treatment_id_fkey FOREIGN KEY (treatment_id) REFERENCES public.treatments(id) ON DELETE CASCADE
 );
 CREATE TABLE public.symptoms (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -150,14 +136,15 @@ CREATE TABLE public.prescriptions (
 CREATE TABLE public.scheduling (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  dependent_id uuid,
   schedule_time text,
-  action text CHECK (action = ANY (ARRAY['Taken'::text, 'Skipped'::text])),
+  action text,
   notes text,
+  dependent_id uuid,
+  schedule_date date,
+  taken_at timestamp with time zone,
   CONSTRAINT scheduling_pkey PRIMARY KEY (id),
   CONSTRAINT scheduling_dependent_id_fkey FOREIGN KEY (dependent_id) REFERENCES public.dependents(id)
 );
-
 CREATE TABLE public.treatments_in_schedule (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   scheduling_id uuid,
@@ -169,7 +156,6 @@ CREATE TABLE public.treatments_in_schedule (
   CONSTRAINT treatments_in_schedule_treatment_id_fkey FOREIGN KEY (treatment_id) REFERENCES public.treatments(id),
   CONSTRAINT treatments_in_schedule_medication_id_fkey FOREIGN KEY (medication_id) REFERENCES public.medications(id)
 );
-
 CREATE TABLE public.medical_procedures (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -181,4 +167,14 @@ CREATE TABLE public.medical_procedures (
   CONSTRAINT medical_procedures_pkey PRIMARY KEY (id),
   CONSTRAINT medical_procedures_dependent_id_fkey FOREIGN KEY (dependent_id) REFERENCES public.dependents(id),
   CONSTRAINT medical_procedures_prescribed_by_fkey FOREIGN KEY (prescribed_by) REFERENCES public.healthcare_professionals(id)
+);
+CREATE TABLE public.medication_times_on_treatment (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  treatment_id uuid NOT NULL,
+  day_of_week integer NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
+  time time without time zone NOT NULL,
+  dosage numeric NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT medication_times_on_treatment_pkey PRIMARY KEY (id),
+  CONSTRAINT medication_times_on_treatment_treatment_id_fkey FOREIGN KEY (treatment_id) REFERENCES public.treatments(id)
 );
