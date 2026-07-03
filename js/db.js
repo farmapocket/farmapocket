@@ -172,9 +172,7 @@ const DB = {
                 .from('medications')
                 .select(`
                     *,
-                    laboratories:laboratory_id (name),
-                    categories:category_id (name),
-                    subcategories:subcategory_id (name)
+                    laboratories:laboratory_id (name)
                 `)
                 .eq('dependent_id', dependentId)
                 .order('name');
@@ -785,6 +783,7 @@ const DB = {
                 .order('schedule_time', { ascending: true })
                 .limit(limit);
 
+            console.log('🔍 getNextDoseSchedules raw:', { dependentId, count: schedules?.length, error, schedules });
             if (error) throw error;
             if (!schedules || schedules.length === 0) return [];
 
@@ -806,6 +805,7 @@ const DB = {
                 };
             }));
 
+            console.log('🔍 getNextDoseSchedules enriched:', enriched);
             return enriched;
 
         } catch (error) {
@@ -829,18 +829,60 @@ const DB = {
         }
     },
 
-    async _calculateNextDoseTime(treatment, lastScheduling, now, weeklyTimes) {
-        // Weekly schedule: find next day_of_week + time on/after now
+    async _getLastExecutedScheduleForTreatment(treatmentId) {
+        if (!treatmentId) return null;
+        try {
+            const { data, error } = await supabase
+                .from('treatments_in_schedule')
+                .select(`
+                    scheduling_id,
+                    scheduling:scheduling_id (schedule_date, schedule_time, action)
+                `)
+                .eq('treatment_id', treatmentId)
+                .neq('scheduling.action', 'NEXT');
+
+            if (error) throw error;
+            if (!data || data.length === 0) return null;
+
+            // Ordena localmente pois Supabase nao permite order por coluna de tabela relacionada
+            const sorted = data.sort((a, b) => {
+                const da = `${a.scheduling.schedule_date || ''}T${a.scheduling.schedule_time || ''}`;
+                const db = `${b.scheduling.schedule_date || ''}T${b.scheduling.schedule_time || ''}`;
+                return db.localeCompare(da);
+            });
+
+            return sorted[0].scheduling;
+        } catch (error) {
+            console.error('Error fetching last executed schedule:', error);
+            return null;
+        }
+    },
+
+    async _calculateNextDoseTime(treatment, referenceTime = new Date()) {
+        // Busca ultimo horario executado (Taken/Skipped) para este tratamento
+        const lastExecuted = await this._getLastExecutedScheduleForTreatment(treatment.id);
+
+        // Weekly schedule
         if (treatment.schedule_type === 'weekly') {
-            const times = weeklyTimes || await this.getTreatmentTimes(treatment.id);
+            const times = await this.getTreatmentTimes(treatment.id);
             if (!times || times.length === 0) return null;
 
-            const startDate = treatment.start_date ? new Date(treatment.start_date) : null;
-            const endDate = treatment.end_date ? new Date(treatment.end_date) : null;
+            const startDate = treatment.start_date ? new Date(treatment.start_date + 'T00:00:00') : null;
+            const endDate = treatment.end_date ? new Date(treatment.end_date + 'T00:00:00') : null;
 
-            // Search up to 14 days ahead
-            for (let i = 0; i < 14; i++) {
-                const candidate = new Date(now);
+            // Se nunca foi executado, pula horarios passados (usando referenceTime)
+            // Se ja foi executado, busca o proximo horario na sequencia (sem pular)
+            let startSearch;
+            if (lastExecuted && lastExecuted.schedule_date) {
+                const [y, m, d] = lastExecuted.schedule_date.split('-').map(Number);
+                startSearch = new Date(y, m - 1, d + 1, 0, 0, 0, 0);
+            } else {
+                startSearch = referenceTime;
+            }
+
+            // Busca o primeiro horario valido a partir do ponto de partida
+            for (let i = 0; i < 28; i++) {
+                const candidate = new Date(startSearch);
                 candidate.setDate(candidate.getDate() + i);
 
                 if (startDate && candidate < startDate) continue;
@@ -855,10 +897,7 @@ const DB = {
                     const [hours, minutes] = slot.time.split(':').map(Number);
                     const doseTime = new Date(candidate);
                     doseTime.setHours(hours, minutes, 0, 0);
-
-                    if (doseTime > now) {
-                        return doseTime;
-                    }
+                    return doseTime;
                 }
             }
             return null;
@@ -872,16 +911,19 @@ const DB = {
 
         if (!treatment.start_date || !treatment.first_dose_time) return null;
         const [hours, minutes] = treatment.first_dose_time.split(':').map(Number);
-        let baseTime = new Date(treatment.start_date);
-        baseTime.setHours(hours, minutes, 0, 0);
 
-        while (baseTime <= now) {
+        let baseTime;
+        if (lastExecuted && lastExecuted.schedule_date && lastExecuted.schedule_time) {
+            // Proximo horario apos o ultimo executado (sem pular)
+            const [y, m, d] = lastExecuted.schedule_date.split('-').map(Number);
+            const [h, min] = lastExecuted.schedule_time.split(':').map(Number);
+            baseTime = new Date(y, m - 1, d, h, min, 0, 0);
             baseTime = new Date(baseTime.getTime() + freqMs);
-        }
-
-        if (lastScheduling && lastScheduling.schedule_time) {
-            const lastTime = new Date(lastScheduling.schedule_time);
-            if (this._isSameDoseTime(lastTime, baseTime, freqMs)) {
+        } else {
+            // Nunca executado: primeiro horario futuro a partir de referenceTime
+            baseTime = new Date(treatment.start_date + 'T00:00:00');
+            baseTime.setHours(hours, minutes, 0, 0);
+            while (baseTime <= referenceTime) {
                 baseTime = new Date(baseTime.getTime() + freqMs);
             }
         }
@@ -905,10 +947,10 @@ const DB = {
 
     _scheduleToDate(schedule) {
         if (!schedule || !schedule.schedule_date || !schedule.schedule_time) return null;
+        const [year, month, day] = schedule.schedule_date.split('-').map(Number);
         const [hours, minutes] = schedule.schedule_time.split(':').map(Number);
-        const date = new Date(schedule.schedule_date + 'T00:00:00');
-        date.setHours(hours, minutes, 0, 0);
-        return date;
+        // Cria o Date em horario local (sem conversao UTC)
+        return new Date(year, month - 1, day, hours, minutes, 0, 0);
     },
 
     async _getSchedule(id) {
@@ -1077,7 +1119,7 @@ const DB = {
 
     async _ensureNextScheduleForTreatment(treatment, referenceTime = new Date()) {
         if (!treatment || treatment.schedule_type === 'rescue' || treatment.is_active === false) return null;
-        const nextDoseTime = await this._calculateNextDoseTime(treatment, null, referenceTime);
+        const nextDoseTime = await this._calculateNextDoseTime(treatment, referenceTime);
         if (!nextDoseTime) return null;
         const schedule = await this._findOrCreateNextSchedule(treatment.dependent_id, nextDoseTime);
         if (schedule) {
@@ -1121,18 +1163,23 @@ const DB = {
         if (schedule.action !== 'NEXT') throw new Error('Schedule is not a pending dose');
 
         const updates = { action, notes: notes || null };
-        if (action === 'Taken') updates.taken_at = new Date().toISOString();
+        // Armazena timestamp tanto para TOMAR quanto para PULAR
+        if (action === 'Taken' || action === 'Skipped') {
+            updates.taken_at = new Date().toISOString();
+        }
 
         try {
             // Update NEXT schedule to Taken/Skipped
-            const { data: updatedSchedule, error } = await supabase
+            const { data: updatedRows, error } = await supabase
                 .from('scheduling')
                 .update(updates)
                 .eq('id', scheduleId)
-                .select()
-                .single();
+                .select();
 
+            console.log('🔍 recordDose update result:', { scheduleId, updates, rows: updatedRows, error });
             if (error) throw error;
+
+            const updatedSchedule = updatedRows && updatedRows.length > 0 ? updatedRows[0] : { ...schedule, ...updates };
             await OfflineDB.set('scheduling', updatedSchedule.id, updatedSchedule);
 
             // Add extra medication links (only for Taken)

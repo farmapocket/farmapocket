@@ -398,122 +398,49 @@ CREATE POLICY scheduling_delete_policy ON scheduling
 -- ============================================================
 -- TREATMENTS IN SCHEDULE
 -- ============================================================
+-- A tabela treatments_in_schedule nao possui dependent_id proprio.
+-- O acesso e controlado pelo schedule vinculado (scheduling_id).
 CREATE POLICY treatments_in_schedule_select_policy ON treatments_in_schedule
     FOR SELECT TO authenticated
-    USING (
-    EXISTS (
-        SELECT 1 FROM dependents d
-        WHERE d.id = treatments_in_schedule.dependent_id
+    USING (EXISTS (
+        SELECT 1 FROM scheduling s
+        JOIN dependents d ON s.dependent_id = d.id
+        WHERE s.id = treatments_in_schedule.scheduling_id
         AND d.account_owner_id = auth.uid()
-    )
-    OR
-    EXISTS (
-        SELECT 1 FROM treatments t
-        JOIN dependents d ON t.dependent_id = d.id
-        WHERE t.id = treatments_in_schedule.treatment_id
-        AND d.account_owner_id = auth.uid()
-    )
-    OR
-    EXISTS (
-        SELECT 1 FROM medications m
-        JOIN dependents d ON m.dependent_id = d.id
-        WHERE m.id = treatments_in_schedule.medication_id
-        AND d.account_owner_id = auth.uid()
-    )
-);
+    ));
 
 CREATE POLICY treatments_in_schedule_insert_policy ON treatments_in_schedule
     FOR INSERT TO authenticated
-    WITH CHECK (
-    EXISTS (
-        SELECT 1 FROM dependents d
-        WHERE d.id = treatments_in_schedule.dependent_id
+    WITH CHECK (EXISTS (
+        SELECT 1 FROM scheduling s
+        JOIN dependents d ON s.dependent_id = d.id
+        WHERE s.id = treatments_in_schedule.scheduling_id
         AND d.account_owner_id = auth.uid()
-    )
-    OR
-    EXISTS (
-        SELECT 1 FROM treatments t
-        JOIN dependents d ON t.dependent_id = d.id
-        WHERE t.id = treatments_in_schedule.treatment_id
-        AND d.account_owner_id = auth.uid()
-    )
-    OR
-    EXISTS (
-        SELECT 1 FROM medications m
-        JOIN dependents d ON m.dependent_id = d.id
-        WHERE m.id = treatments_in_schedule.medication_id
-        AND d.account_owner_id = auth.uid()
-    )
-);
+    ));
 
 CREATE POLICY treatments_in_schedule_update_policy ON treatments_in_schedule
     FOR UPDATE TO authenticated
-    USING (
-    EXISTS (
-        SELECT 1 FROM dependents d
-        WHERE d.id = treatments_in_schedule.dependent_id
+    USING (EXISTS (
+        SELECT 1 FROM scheduling s
+        JOIN dependents d ON s.dependent_id = d.id
+        WHERE s.id = treatments_in_schedule.scheduling_id
         AND d.account_owner_id = auth.uid()
-    )
-    OR
-    EXISTS (
-        SELECT 1 FROM treatments t
-        JOIN dependents d ON t.dependent_id = d.id
-        WHERE t.id = treatments_in_schedule.treatment_id
+    ))
+    WITH CHECK (EXISTS (
+        SELECT 1 FROM scheduling s
+        JOIN dependents d ON s.dependent_id = d.id
+        WHERE s.id = treatments_in_schedule.scheduling_id
         AND d.account_owner_id = auth.uid()
-    )
-    OR
-    EXISTS (
-        SELECT 1 FROM medications m
-        JOIN dependents d ON m.dependent_id = d.id
-        WHERE m.id = treatments_in_schedule.medication_id
-        AND d.account_owner_id = auth.uid()
-    )
-)
-WITH CHECK (
-    EXISTS (
-        SELECT 1 FROM dependents d
-        WHERE d.id = treatments_in_schedule.dependent_id
-        AND d.account_owner_id = auth.uid()
-    )
-    OR
-    EXISTS (
-        SELECT 1 FROM treatments t
-        JOIN dependents d ON t.dependent_id = d.id
-        WHERE t.id = treatments_in_schedule.treatment_id
-        AND d.account_owner_id = auth.uid()
-    )
-    OR
-    EXISTS (
-        SELECT 1 FROM medications m
-        JOIN dependents d ON m.dependent_id = d.id
-        WHERE m.id = treatments_in_schedule.medication_id
-        AND d.account_owner_id = auth.uid()
-    )
-);
+    ));
 
 CREATE POLICY treatments_in_schedule_delete_policy ON treatments_in_schedule
     FOR DELETE TO authenticated
-    USING (
-    EXISTS (
-        SELECT 1 FROM dependents d
-        WHERE d.id = treatments_in_schedule.dependent_id
+    USING (EXISTS (
+        SELECT 1 FROM scheduling s
+        JOIN dependents d ON s.dependent_id = d.id
+        WHERE s.id = treatments_in_schedule.scheduling_id
         AND d.account_owner_id = auth.uid()
-    )
-    OR
-    EXISTS (
-        SELECT 1 FROM treatments t
-        JOIN dependents d ON t.dependent_id = d.id
-        WHERE t.id = treatments_in_schedule.treatment_id
-        AND d.account_owner_id = auth.uid()
-    )
-    OR
-    EXISTS (
-        SELECT 1 FROM medications m
-        JOIN dependents d ON m.dependent_id = d.id
-        WHERE m.id = treatments_in_schedule.medication_id
-        AND d.account_owner_id = auth.uid()
-    )
-);
+    ));
 
 
 -- ============================================================

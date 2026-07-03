@@ -1,4 +1,8 @@
 -- ============================================================
+-- REMOVE VERSAO ANTIGA DA FUNCAO (com 2 argumentos)
+DROP FUNCTION IF EXISTS public.calculate_next_dose_for_treatment(uuid, timestamp with time zone);
+
+-- ============================================================
 -- MIGRAÇÃO: Criar registros NEXT para tratamentos existentes
 -- FarmaPocket v2
 --
@@ -6,17 +10,37 @@
 -- após as colunas schedule_date e taken_at terem sido adicionadas
 -- à tabela scheduling.
 --
--- Para cada tratamento ativo (exceto resgate), calcula a próxima
--- dose futura e insere um registro na scheduling com action='NEXT',
--- vinculando o tratamento em treatments_in_schedule.
--- Tratamentos que compartilham o mesmo horário/dia no mesmo
--- dependente compartilham o mesmo registro scheduling.
+-- Para cada tratamento ativo (exceto resgate), calcula a PRÓXIMA
+-- DOSE PROGRAMADA a partir do último horário executado (Taken/Skipped).
+-- Se nunca foi executado, usa o start_date/first_dose_time original,
+-- sem pular horários passados.
+--
+-- Isso garante que, se o usuário ainda não tomou/pulou a dose das 8h,
+-- ela continue aparecendo no card como NEXT.
 -- ============================================================
+
+-- Função auxiliar: retorna o último schedule executado (Taken/Skipped) de um tratamento
+CREATE OR REPLACE FUNCTION public.get_last_executed_schedule(p_treatment_id uuid)
+RETURNS TABLE(schedule_date date, schedule_time text)
+LANGUAGE plpgsql
+STABLE
+SET search_path = public
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT s.schedule_date, s.schedule_time
+    FROM public.treatments_in_schedule tis
+    JOIN public.scheduling s ON s.id = tis.scheduling_id
+    WHERE tis.treatment_id = p_treatment_id
+      AND s.action != 'NEXT'
+    ORDER BY s.schedule_date DESC, s.schedule_time DESC
+    LIMIT 1;
+END;
+$$;
 
 -- Função auxiliar: calcula próxima data/hora para um tratamento
 CREATE OR REPLACE FUNCTION public.calculate_next_dose_for_treatment(
-    p_treatment_id uuid,
-    p_reference_time timestamp with time zone DEFAULT now()
+    p_treatment_id uuid
 )
 RETURNS TABLE(schedule_date date, schedule_time text)
 LANGUAGE plpgsql
@@ -30,6 +54,8 @@ DECLARE
     v_first_dose_time time without time zone;
     v_freq_hours integer;
     v_schedule_type text;
+    v_last_date date;
+    v_last_time text;
     v_candidate timestamp with time zone;
     v_day_of_week integer;
     v_time_str text;
@@ -50,15 +76,27 @@ BEGIN
     -- Tratamentos de resgate não geram NEXT automático
     IF v_schedule_type = 'rescue' THEN RETURN; END IF;
 
-    -- Horário semanal: busca próximo dia/horário nos próximos 14 dias
+    -- Busca último horário executado
+    SELECT ls.schedule_date, ls.schedule_time
+    INTO v_last_date, v_last_time
+    FROM public.get_last_executed_schedule(p_treatment_id) ls;
+
+    -- Horário semanal
     IF v_schedule_type = 'weekly' THEN
         v_best_date := NULL;
         v_best_time := NULL;
 
-        FOR i IN 0..14 LOOP
-            v_candidate := p_reference_time + (i || ' days')::interval;
+        -- Se nunca foi executado, usa now() como referencia (pula passado)
+        -- Se ja foi executado, busca o proximo dia valido apos o ultimo
+        IF v_last_date IS NOT NULL THEN
+            v_candidate := (v_last_date + 1)::timestamp;
+        ELSE
+            v_candidate := now();
+        END IF;
+
+        FOR i IN 0..28 LOOP
+            v_candidate := v_candidate + (i || ' days')::interval;
             v_day_of_week := EXTRACT(DOW FROM v_candidate)::integer;
-            v_time_str := TO_CHAR(v_candidate, 'HH24:MI');
 
             IF v_start_date IS NOT NULL AND v_candidate::date < v_start_date THEN CONTINUE; END IF;
             IF v_end_date IS NOT NULL AND v_candidate::date > v_end_date THEN CONTINUE; END IF;
@@ -68,7 +106,6 @@ BEGIN
                 FROM public.medication_times_on_treatment mt
                 WHERE mt.treatment_id = p_treatment_id
                   AND mt.day_of_week = v_day_of_week
-                  AND TO_CHAR(mt.time, 'HH24:MI') >= v_time_str
                 ORDER BY mt.time ASC
             LOOP
                 v_best_date := v_candidate::date;
@@ -91,11 +128,17 @@ BEGIN
     -- Horário periódico (legacy)
     IF v_freq_hours <= 0 OR v_first_dose_time IS NULL OR v_start_date IS NULL THEN RETURN; END IF;
 
-    v_candidate := timezone('UTC', (v_start_date || ' ' || v_first_dose_time)::timestamp);
-
-    WHILE v_candidate <= p_reference_time LOOP
+    IF v_last_date IS NOT NULL AND v_last_time IS NOT NULL THEN
+        -- Próximo horário após o último executado (sem pular)
+        v_candidate := timezone('UTC', (v_last_date || ' ' || v_last_time)::timestamp);
         v_candidate := v_candidate + (v_freq_hours || ' hours')::interval;
-    END LOOP;
+    ELSE
+        -- Nunca executado: primeiro horario futuro a partir de now()
+        v_candidate := timezone('UTC', (v_start_date || ' ' || v_first_dose_time)::timestamp);
+        WHILE v_candidate <= now() LOOP
+            v_candidate := v_candidate + (v_freq_hours || ' hours')::interval;
+        END LOOP;
+    END IF;
 
     IF v_end_date IS NOT NULL AND v_candidate::date > v_end_date THEN RETURN; END IF;
 
@@ -129,7 +172,7 @@ BEGIN
     LOOP
         SELECT nd.schedule_date, nd.schedule_time
         INTO v_next_date, v_next_time
-        FROM public.calculate_next_dose_for_treatment(v_treatment.id, now()) nd
+        FROM public.calculate_next_dose_for_treatment(v_treatment.id) nd
         LIMIT 1;
 
         IF v_next_date IS NULL THEN CONTINUE; END IF;

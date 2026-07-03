@@ -552,13 +552,15 @@ async function loadTodaySchedule() {
 
     try {
         const schedules = await DB.getNextDoseSchedules(depId, 1);
+        console.log('🔍 loadTodaySchedule schedules:', schedules);
 
-        if (schedules.length === 0) {
+        if (!schedules || schedules.length === 0) {
             scheduleEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4" data-i18n="dashboard.noSchedule">Nenhum medicamento agendado para hoje</p>';
             return;
         }
 
         const schedule = schedules[0];
+        console.log('🔍 loadTodaySchedule first schedule:', schedule, 'time:', schedule.time, 'isValid:', schedule.time instanceof Date && !isNaN(schedule.time));
         const timeStr = schedule.time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         const dateLabel = schedule.time.toDateString() === new Date().toDateString()
             ? 'Hoje'
@@ -569,6 +571,27 @@ async function loadTodaySchedule() {
         // Nova regra: só pode PULAR se o horário atual já passou
         const now = new Date();
         const canSkip = now > schedule.time;
+
+        console.log('🔍 loadTodaySchedule rendering:', { timeStr, dateLabel, canSkip, treatmentsCount: schedule.treatments.length });
+
+        let treatmentsHtml;
+        try {
+            treatmentsHtml = schedule.treatments.map(t => {
+                const med = t.medications || {};
+                const name = med.name || t.medication_name || t.name || 'Medicamento';
+                const stock = parseFloat(med.stock_quantity) || 0;
+                const badgeClass = getStockBadgeClass(t, prescriptionCounts);
+                return `
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(t.dosage)} un)</p>
+                        <span class="text-xs px-2 py-0.5 rounded-full ${badgeClass} flex-shrink-0">${i18n.t('dashboard.stockUnits', { units: formatDosage(stock) })}</span>
+                    </div>
+                `;
+            }).join('');
+        } catch (renderError) {
+            console.error('🔍 Error rendering treatments HTML:', renderError, 'treatment:', schedule.treatments);
+            throw renderError;
+        }
 
         scheduleEl.innerHTML = `
             <div class="bg-gray-50 rounded-xl p-4">
@@ -589,21 +612,12 @@ async function loadTodaySchedule() {
                     </div>
                 </div>
                 <div class="space-y-2">
-                    ${schedule.treatments.map(t => {
-                        const med = t.medications || {};
-                        const name = med.name || t.medication_name || t.name || 'Medicamento';
-                        const stock = parseFloat(med.stock_quantity) || 0;
-                        const badgeClass = getStockBadgeClass(t, prescriptionCounts);
-                        return `
-                            <div class="flex items-center justify-between gap-3">
-                                <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(t.dosage)} un)</p>
-                                <span class="text-xs px-2 py-0.5 rounded-full ${badgeClass} flex-shrink-0">${i18n.t('dashboard.stockUnits', { units: formatDosage(stock) })}</span>
-                            </div>
-                        `;
-                    }).join('')}
+                    ${treatmentsHtml}
                 </div>
             </div>
         `;
+
+        console.log('🔍 loadTodaySchedule HTML rendered');
 
     } catch (error) {
         console.error('Error loading today schedule:', error);
@@ -739,6 +753,9 @@ function renderLogCarousel() {
         const dateStr = schedule.created_at
             ? new Date(schedule.created_at).toLocaleDateString('pt-BR')
             : '';
+        const takenAtStr = schedule.taken_at
+            ? new Date(schedule.taken_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : null;
         const isTaken = schedule.action === 'Taken';
         const actionLabel = isTaken ? i18n.t('dashboard.taken') : i18n.t('dashboard.skipped');
         const actionBadgeClass = isTaken
@@ -767,6 +784,7 @@ function renderLogCarousel() {
                 <div class="text-center mb-4">
                     <p class="text-5xl font-bold text-sky-700">${timeStr}</p>
                     <p class="text-sm text-gray-400 mt-1">${dateStr}</p>
+                    ${takenAtStr ? `<p class="text-xs text-gray-500 mt-1">Registrado em: ${takenAtStr}</p>` : ''}
                     <span class="inline-block mt-2 text-xs px-3 py-1 rounded-full ${actionBadgeClass}">${actionLabel}</span>
                 </div>
                 ${schedule.notes ? `<p class="text-sm text-gray-600 italic mb-3">"${schedule.notes}"</p>` : ''}
@@ -848,7 +866,10 @@ async function showDoseActionModal(action, timeStr, scheduleId) {
     const scheduleData = await DB.getScheduleWithLinks(scheduleId);
     if (!scheduleData) return;
 
-    const scheduleTime = new Date(scheduleData.scheduling.schedule_date + 'T' + scheduleData.scheduling.schedule_time);
+    const scheduling = scheduleData.scheduling;
+    const [year, month, day] = scheduling.schedule_date.split('-').map(Number);
+    const [hours, minutes] = scheduling.schedule_time.split(':').map(Number);
+    const scheduleTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
     currentDoseSchedule = { ...scheduleData, action, time: scheduleTime };
 
     const titleEl = document.getElementById('dose-action-title');
