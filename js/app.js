@@ -476,7 +476,7 @@ async function loadDashboard() {
                                     <div>
                                         <p class="font-medium text-gray-800">${item.medication_name}</p>
                                         <p class="text-xs text-gray-500">${item.dependent_name}</p>
-                                        <p class="text-xs text-amber-600">${Math.round(item.weeks_remaining)} semana(s) • ${item.stock_quantity} un em estoque</p>
+                                        <p class="text-xs text-amber-600">${Math.round(item.weeks_remaining)} semana(s) • ${item.stock_quantity} un. em estoque</p>
                                     </div>
                                 </div>
                             `).join('')}
@@ -583,7 +583,7 @@ async function loadTodaySchedule() {
                 const badgeClass = getStockBadgeClass(t, prescriptionCounts);
                 return `
                     <div class="flex items-center justify-between gap-3">
-                        <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(t.dosage)} un)</p>
+                        <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(t.dosage)} un.)</p>
                         <span class="text-xs px-2 py-0.5 rounded-full ${badgeClass} flex-shrink-0">${i18n.t('dashboard.stockUnits', { units: formatDosage(stock) })}</span>
                     </div>
                 `;
@@ -668,7 +668,7 @@ async function loadLastAction() {
                 const dosage = item.dosage || item.treatments?.dosage || 0;
                 return `
                     <div class="flex items-center justify-between gap-3">
-                        <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(dosage)} un)</p>
+                        <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(dosage)} un.)</p>
                     </div>
                 `;
             }).join('')
@@ -773,7 +773,7 @@ function renderLogCarousel() {
                 return `
                     <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                         <span class="text-sm text-gray-800">${name}</span>
-                        <span class="text-xs text-gray-500">${formatDosage(dosage)} un</span>
+                        <span class="text-xs text-gray-500">${formatDosage(dosage)} un.</span>
                     </div>
                 `;
             }).join('')
@@ -893,7 +893,7 @@ async function showDoseActionModal(action, timeStr, scheduleId) {
     treatmentsEl.innerHTML = treatments.map(t => `
         <div class="flex items-center justify-between bg-gray-50 rounded-lg p-2">
             <span class="font-medium text-gray-800">${t.medications?.name || t.medication_name || t.name || 'Medicamento'}</span>
-            <span class="text-sm text-gray-500">${formatDosage(t.dosage || 0)} un</span>
+            <span class="text-sm text-gray-500">${formatDosage(t.dosage || 0)} un.</span>
         </div>
     `).join('');
 
@@ -915,7 +915,7 @@ async function loadDoseActionMedicationOptions() {
     const depId = AppState.getCurrentDependent();
     if (!depId) return [];
 
-    const medications = await DB.getMedications(depId);
+    const medications = await DB.getActiveMedications(depId);
     window._doseActionMedications = medications;
     return medications;
 }
@@ -1000,22 +1000,37 @@ async function loadMedications() {
             const prescriptionInfo = prescriptionCounts[med.id] || { count: 0, totalUnits: 0 };
             const prescriptionCount = prescriptionInfo.count;
             const prescriptionUnits = prescriptionInfo.totalUnits;
+            const isActive = med.is_active !== false;
+            const opacityClass = isActive ? '' : 'opacity-60';
+            const inactiveBadge = !isActive ? '<span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">Inativo</span>' : '';
+            const actionButton = isActive
+                ? `<button class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center" onclick="event.stopPropagation(); deactivateMedication('${med.id}')" title="Desativar">
+                    <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                   </button>`
+                : `<button class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center" onclick="event.stopPropagation(); reactivateMedication('${med.id}')" title="Reativar">
+                    <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                   </button>`;
+
             return `
-            <div class="bg-white rounded-xl p-4 shadow-sm card-hover" onclick="showMedicationDetail('${med.id}')">
+            <div class="bg-white rounded-xl p-4 shadow-sm card-hover ${opacityClass}" onclick="showMedicationDetail('${med.id}')">
                 <div class="flex items-start justify-between">
                     <div class="flex-1">
                         <h3 class="font-semibold text-gray-800">${med.name}</h3>
-                        <p class="text-sm text-gray-500">${med.active_ingredient || 'Sem princípio ativo'}</p>
+                        <p class="text-sm text-gray-500">${med.active_ingredient || ''}</p>
                         <div class="flex items-center gap-2 mt-2 flex-wrap">
                             ${med.is_controlled ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Controlado</span>' : ''}
                             ${med.is_continuous_use ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Uso Contínuo</span>' : ''}
-                            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${med.stock_quantity || 0} un</span>
-                            ${prescriptionCount > 0 ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${prescriptionCount} receita${prescriptionCount > 1 ? 's' : ''} (${prescriptionUnits} un)</span>` : ''}
+                            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${med.stock_quantity || 0} un.</span>
+                            ${prescriptionCount > 0 ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${prescriptionCount} receita${prescriptionCount > 1 ? 's' : ''} (${prescriptionUnits} un.)</span>` : ''}
+                            ${inactiveBadge}
                         </div>
                     </div>
-                    <button class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center" onclick="event.stopPropagation(); editMedication('${med.id}')">
-                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                    </button>
+                    <div class="flex items-center gap-1">
+                        <button class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center" onclick="event.stopPropagation(); editMedication('${med.id}')" title="Editar">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </button>
+                        ${actionButton}
+                    </div>
                 </div>
             </div>
             `;
@@ -1147,6 +1162,30 @@ async function editMedication(id) {
     openModal('modal-medication');
 }
 
+async function deactivateMedication(id) {
+    event.stopPropagation();
+    if (!confirm('Deseja desativar este medicamento?')) return;
+
+    try {
+        await DB.deactivateMedication(id);
+        loadMedications();
+        loadDashboard();
+    } catch (error) {
+        alert(error.message || 'Erro ao desativar medicamento');
+    }
+}
+
+async function reactivateMedication(id) {
+    event.stopPropagation();
+    try {
+        await DB.reactivateMedication(id);
+        loadMedications();
+        loadDashboard();
+    } catch (error) {
+        alert(error.message || 'Erro ao reativar medicamento');
+    }
+}
+
 // ========== TREATMENTS ==========
 
 async function loadTreatments() {
@@ -1253,7 +1292,7 @@ async function loadTreatmentOptions() {
     if (!depId) return;
 
     const [medications, professionals, treatments, categories] = await Promise.all([
-        DB.getMedications(depId),
+        DB.getActiveMedications(depId),
         DB.getProfessionals(depId),
         DB.getTreatments(depId),
         DB.getCategories()
@@ -1614,7 +1653,7 @@ function renderFrequencySummary() {
         const firstDose = currentTreatmentFrequency.first_dose_time || '';
 
         if (dosage > 0 && hours > 0 && firstDose) {
-            content.innerHTML = `<p>${dosage} un a cada ${hours} horas, primeira dose às ${firstDose}</p>`;
+            content.innerHTML = `<p>${dosage} un. a cada ${hours} horas, primeira dose às ${firstDose}</p>`;
         } else {
             content.innerHTML = `<p class="text-gray-400">Clique em "Definir frequência" para configurar a programação</p>`;
         }
@@ -1807,7 +1846,7 @@ async function loadPrescriptionOptions() {
     if (!depId) return;
 
     const [medications, professionals] = await Promise.all([
-        DB.getMedications(depId),
+        DB.getActiveMedications(depId),
         DB.getProfessionals(depId)
     ]);
 
@@ -2365,7 +2404,7 @@ async function loadInventoryUpdate() {
     containerEl.innerHTML = '<div class="skeleton h-20 rounded-xl"></div>'.repeat(3);
 
     try {
-        const medications = await DB.getMedications(depId);
+        const medications = await DB.getActiveMedications(depId);
 
         if (medications.length === 0) {
             containerEl.innerHTML = `
@@ -2549,7 +2588,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 scrollPageToTop();
 
             } catch (error) {
-                alert('Erro ao salvar: ' + error.message);
+                if (error.message === 'INACTIVE_MEDICATION_EXISTS' && error.existingMedication) {
+                    if (confirm(`Já existe um medicamento inativo chamado "${error.existingMedication.name}". Deseja reativá-lo?`)) {
+                        try {
+                            await DB.reactivateMedication(error.existingMedication.id);
+                            const reactivated = await DB.getMedication(error.existingMedication.id);
+                            if (window._medicationSaveCallback) {
+                                window._medicationSaveCallback(reactivated);
+                                window._medicationSaveCallback = null;
+                            }
+                            closeModal('modal-medication');
+                            medForm.reset();
+                            loadMedications();
+                            loadDashboard();
+                        } catch (reactivateError) {
+                            alert('Erro ao reativar: ' + reactivateError.message);
+                        }
+                    }
+                } else {
+                    alert('Erro ao salvar: ' + error.message);
+                }
             }
         });
     }
@@ -3114,6 +3172,9 @@ window.navigateTo = navigateTo;
 window.selectDependent = selectDependent;
 window.showAddDependent = showAddDependent;
 window.showAddMedication = showAddMedication;
+window.editMedication = editMedication;
+window.deactivateMedication = deactivateMedication;
+window.reactivateMedication = reactivateMedication;
 window.handleMedicationSelectChange = handleMedicationSelectChange;
 window.handleTreatmentCategoryChange = handleTreatmentCategoryChange;
 window.showAddTreatment = showAddTreatment;

@@ -164,11 +164,11 @@ const DB = {
 
     // ========== MEDICATIONS (now require dependentId) ==========
 
-    async getMedications(dependentId) {
+    async getMedications(dependentId, includeInactive = true) {
         if (!dependentId) return [];
 
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('medications')
                 .select(`
                     *,
@@ -177,21 +177,49 @@ const DB = {
                 .eq('dependent_id', dependentId)
                 .order('name');
 
+            if (!includeInactive) {
+                query = query.eq('is_active', true);
+            }
+
+            const { data, error } = await query;
+
             if (error) throw error;
             return data || [];
 
         } catch (error) {
             console.error('Error fetching medications:', error);
             const all = await OfflineDB.getAll('medications');
-            return all.filter(m => m.dependent_id === dependentId);
+            const filtered = all.filter(m => m.dependent_id === dependentId);
+            if (!includeInactive) return filtered.filter(m => m.is_active !== false);
+            return filtered;
         }
+    },
+
+    async getActiveMedications(dependentId) {
+        return this.getMedications(dependentId, false);
     },
 
     async addMedication(medication) {
         if (!medication.dependent_id) throw new Error('dependent_id is required');
+        if (!medication.name || !medication.name.trim()) throw new Error('Nome do medicamento é obrigatório');
+
+        const normalizedName = medication.name.trim().toLowerCase();
+
+        // Verifica se já existe medicamento com mesmo nome
+        const existing = await this._findMedicationByName(medication.dependent_id, normalizedName);
+        if (existing) {
+            if (existing.is_active === false) {
+                const error = new Error('INACTIVE_MEDICATION_EXISTS');
+                error.existingMedication = existing;
+                throw error;
+            }
+            throw new Error('Já existe um medicamento ativo com este nome.');
+        }
 
         const payload = {
             ...medication,
+            name: medication.name.trim(),
+            is_active: medication.is_active !== false,
             stock_last_updated: medication.stock_quantity > 0 ? new Date().toISOString() : null
         };
 
@@ -209,6 +237,25 @@ const DB = {
         } catch (error) {
             await OfflineDB.queueForSync('medications', 'insert', payload);
             throw error;
+        }
+    },
+
+    async _findMedicationByName(dependentId, name) {
+        if (!dependentId || !name) return null;
+        try {
+            const { data, error } = await supabase
+                .from('medications')
+                .select('*')
+                .eq('dependent_id', dependentId)
+                .ilike('name', name)
+                .limit(1);
+
+            if (error) throw error;
+            return data && data.length > 0 ? data[0] : null;
+        } catch (error) {
+            console.error('Error finding medication by name:', error);
+            const all = await OfflineDB.getAll('medications');
+            return all.find(m => m.dependent_id === dependentId && m.name && m.name.trim().toLowerCase() === name) || null;
         }
     },
 
@@ -240,20 +287,41 @@ const DB = {
         }
     },
 
-    async deleteMedication(id) {
+    async _hasActiveTreatmentWithMedication(medicationId) {
+        if (!medicationId) return false;
         try {
-            const { error } = await supabase
-                .from('medications')
-                .delete()
-                .eq('id', id);
+            const { data, error } = await supabase
+                .from('treatments')
+                .select('*')
+                .eq('medication_id', medicationId)
+                .eq('is_active', true)
+                .limit(1);
 
             if (error) throw error;
-            await OfflineDB.delete('medications', id);
-
+            return data && data.length > 0;
         } catch (error) {
-            await OfflineDB.queueForSync('medications', 'delete', { id });
-            throw error;
+            console.error('Error checking active treatments:', error);
+            const all = await OfflineDB.getAll('treatments');
+            return all.some(t => t.medication_id === medicationId && t.is_active !== false);
         }
+    },
+
+    async deactivateMedication(id) {
+        const hasActiveTreatment = await this._hasActiveTreatmentWithMedication(id);
+        if (hasActiveTreatment) {
+            throw new Error('Este medicamento não pode ser desativado porque está vinculado a um tratamento ativo.');
+        }
+
+        return await this.updateMedication(id, { is_active: false });
+    },
+
+    async reactivateMedication(id) {
+        return await this.updateMedication(id, { is_active: true });
+    },
+
+    async deleteMedication(id) {
+        // Mantido para compatibilidade, mas agora faz soft delete
+        return await this.deactivateMedication(id);
     },
 
     // ========== HEALTHCARE PROFESSIONALS ==========
