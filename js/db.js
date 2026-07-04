@@ -94,20 +94,22 @@ const DB = {
         }
     },
 
-    // Cria um dependente "Eu mesmo" automaticamente se o usuário não tiver nenhum
+    // Cria um dependente "Eu mesmo" automaticamente se o usuário nao tiver um
     async ensureSelfDependent() {
         const userId = Auth.getUserId();
         if (!userId) return null;
 
         try {
             const existing = await this.getDependents();
-            if (existing && existing.length > 0) {
-                console.log('✅ User already has dependents, skipping auto-create');
-                return existing[0];
+            const selfDependent = existing.find(d => d.relationship === 'self');
+
+            if (selfDependent) {
+                console.log('✅ Self dependent found:', selfDependent.name);
+                return selfDependent;
             }
 
             const userName = Auth.getUserName();
-            const selfDependent = {
+            const newSelfDependent = {
                 name: userName,
                 relationship: 'self',
                 account_owner_id: userId,
@@ -115,8 +117,8 @@ const DB = {
                 avatar_url: Auth.getUserAvatar() || '👤'
             };
 
-            console.log('🆕 Creating self dependent:', selfDependent.name);
-            return await this.addDependent(selfDependent);
+            console.log('🆕 Creating self dependent:', newSelfDependent.name);
+            return await this.addDependent(newSelfDependent);
 
         } catch (error) {
             console.error('❌ Error creating self dependent:', error);
@@ -494,6 +496,20 @@ const DB = {
 
     async deleteTreatment(id) {
         try {
+            // Remove todos os vinculos com schedules (NEXT e executados)
+            await this._removeAllScheduleLinksForTreatment(id);
+
+            // Remove horarios semanais, se houver
+            try {
+                await supabase.from('medication_times_on_treatment').delete().eq('treatment_id', id);
+                const allTimes = await OfflineDB.getAll('medication_times_on_treatment');
+                for (const item of allTimes.filter(mt => mt.treatment_id === id)) {
+                    await OfflineDB.delete('medication_times_on_treatment', item.id);
+                }
+            } catch (e) {
+                console.error('Error deleting treatment times:', e);
+            }
+
             const { error } = await supabase
                 .from('treatments')
                 .delete()
@@ -505,6 +521,52 @@ const DB = {
         } catch (error) {
             await OfflineDB.queueForSync('treatments', 'delete', { id });
             throw error;
+        }
+    },
+
+    async _removeAllScheduleLinksForTreatment(treatmentId) {
+        if (!treatmentId) return;
+
+        try {
+            const { data: links, error } = await supabase
+                .from('treatments_in_schedule')
+                .select('id, scheduling_id')
+                .eq('treatment_id', treatmentId);
+
+            if (error) throw error;
+            if (!links || links.length === 0) return;
+
+            const scheduleIds = [...new Set(links.map(l => l.scheduling_id).filter(Boolean))];
+
+            // Deleta os links
+            try {
+                await supabase.from('treatments_in_schedule').delete().eq('treatment_id', treatmentId);
+                for (const link of links) {
+                    await OfflineDB.delete('treatments_in_schedule', link.id);
+                }
+            } catch (e) {
+                console.error('Error deleting treatment schedule links:', e);
+            }
+
+            // Deleta schedules que ficaram orfaos
+            for (const scheduleId of scheduleIds) {
+                try {
+                    const { data: remaining, error: countError } = await supabase
+                        .from('treatments_in_schedule')
+                        .select('id')
+                        .eq('scheduling_id', scheduleId);
+                    if (countError) throw countError;
+
+                    if (!remaining || remaining.length === 0) {
+                        await supabase.from('scheduling').delete().eq('id', scheduleId);
+                        await OfflineDB.delete('scheduling', scheduleId);
+                    }
+                } catch (e) {
+                    console.error('Error deleting orphan schedule:', e);
+                }
+            }
+        } catch (error) {
+            console.error('Error removing schedule links for treatment:', error);
         }
     },
 
@@ -1714,12 +1776,18 @@ const DB = {
 
     // ========== CATEGORIES ==========
 
-    async getCategories() {
+    async getCategories(dependentId) {
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('categories')
                 .select('*, subcategories(*)')
                 .order('name', { ascending: true });
+
+            if (dependentId) {
+                query = query.eq('dependent_id', dependentId);
+            }
+
+            const { data, error } = await query;
 
             if (error) throw error;
             return data || [];
@@ -1727,15 +1795,18 @@ const DB = {
         } catch (error) {
             const categories = await OfflineDB.getAll('categories');
             const subcategories = await OfflineDB.getAll('subcategories');
-            return categories.map(cat => ({
-                ...cat,
-                subcategories: subcategories.filter(sc => sc.category_id === cat.id)
-            })).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            return categories
+                .filter(cat => !dependentId || cat.dependent_id === dependentId)
+                .map(cat => ({
+                    ...cat,
+                    subcategories: subcategories.filter(sc => sc.category_id === cat.id)
+                })).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         }
     },
 
     async addCategory(category) {
         if (!category.name) throw new Error('name is required');
+        if (!category.dependent_id) throw new Error('dependent_id is required');
 
         try {
             const { data, error } = await supabase

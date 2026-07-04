@@ -224,8 +224,14 @@ const Auth = {
             try {
                 const dependent = await DB.ensureSelfDependent();
                 if (dependent && typeof AppState !== 'undefined') {
-                    AppState.setCurrentDependent(dependent.id);
-                    console.log('✅ Self dependent selected:', dependent.name);
+                    // So sobrescreve se nao houver dependente selecionado
+                    const currentId = AppState.getCurrentDependent();
+                    if (!currentId) {
+                        AppState.setCurrentDependent(dependent.id);
+                        console.log('✅ Self dependent selected:', dependent.name);
+                    } else {
+                        console.log('✅ Keeping current dependent selection:', currentId);
+                    }
                 }
             } catch (error) {
                 console.error('❌ ensureSelfDependent error:', error);

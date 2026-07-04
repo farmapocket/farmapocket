@@ -1606,7 +1606,7 @@ async function loadTreatmentOptions() {
         DB.getActiveMedications(depId),
         DB.getProfessionals(depId),
         DB.getTreatments(depId),
-        DB.getCategories()
+        DB.getCategories(depId)
     ]);
 
     treatmentCategoriesCache = categories || [];
@@ -2531,7 +2531,7 @@ async function loadCategories() {
     }
 
     try {
-        const categories = await DB.getCategories();
+        const categories = await DB.getCategories(depId);
 
         if (categories.length === 0) {
             listEl.innerHTML = `
@@ -2605,7 +2605,8 @@ function showAddCategory() {
 async function editCategory(id) {
     event.stopPropagation();
 
-    const categories = await DB.getCategories();
+    const depId = AppState.getCurrentDependent();
+    const categories = await DB.getCategories(depId);
     const category = categories.find(c => c.id === id);
     if (!category) {
         alert('Categoria não encontrada');
@@ -2621,7 +2622,8 @@ async function editCategory(id) {
 }
 
 async function deleteCategory(id) {
-    const categories = await DB.getCategories();
+    const depId = AppState.getCurrentDependent();
+    const categories = await DB.getCategories(depId);
     const category = categories.find(c => c.id === id);
     const subcategories = category?.subcategories || [];
     const subCount = subcategories.length;
@@ -2645,7 +2647,7 @@ async function deleteCategory(id) {
 }
 
 async function loadSubcategoryOptions(selectedCategoryId = null) {
-    const categories = await DB.getCategories();
+    const categories = await DB.getCategories(AppState.getCurrentDependent());
     const select = document.querySelector('#form-subcategory select[name="category_id"]');
     if (!select) return;
 
@@ -2668,7 +2670,8 @@ function showAddSubcategory(categoryId = null) {
 async function editSubcategory(id, categoryId) {
     event.stopPropagation();
 
-    const categories = await DB.getCategories();
+    const depId = AppState.getCurrentDependent();
+    const categories = await DB.getCategories(depId);
     const subcategory = categories.flatMap(c => c.subcategories || []).find(s => s.id === id);
     if (!subcategory) {
         alert('Subcategoria não encontrada');
@@ -3261,7 +3264,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const formData = new FormData(categoryForm);
             const category = {
-                name: formData.get('name')
+                name: formData.get('name'),
+                dependent_id: AppState.getCurrentDependent()
             };
 
             try {

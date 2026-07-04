@@ -11,14 +11,18 @@ CREATE TABLE public.categories (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name text NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT categories_pkey PRIMARY KEY (id)
+  dependent_id uuid,
+  CONSTRAINT categories_pkey PRIMARY KEY (id),
+  CONSTRAINT categories_dependent_id_fkey FOREIGN KEY (dependent_id) REFERENCES public.dependents(id)
 );
 CREATE TABLE public.subcategories (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   category_id uuid,
   name text NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
+  dependent_id uuid,
   CONSTRAINT subcategories_pkey PRIMARY KEY (id),
+  CONSTRAINT subcategories_dependent_id_fkey FOREIGN KEY (dependent_id) REFERENCES public.dependents(id),
   CONSTRAINT subcategories_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
 );
 CREATE TABLE public.dependents (
@@ -153,7 +157,7 @@ CREATE TABLE public.treatments_in_schedule (
   medication_id uuid,
   dosage numeric DEFAULT 0,
   CONSTRAINT treatments_in_schedule_pkey PRIMARY KEY (id),
-  CONSTRAINT treatments_in_schedule_treatment_id_fkey FOREIGN KEY (treatment_id) REFERENCES public.treatments(id),
+  CONSTRAINT treatments_in_schedule_treatment_id_fkey FOREIGN KEY (treatment_id) REFERENCES public.treatments(id) ON DELETE CASCADE,
   CONSTRAINT treatments_in_schedule_medication_id_fkey FOREIGN KEY (medication_id) REFERENCES public.medications(id),
   CONSTRAINT treatments_in_schedule_scheduling_id_fkey FOREIGN KEY (scheduling_id) REFERENCES public.scheduling(id)
 );

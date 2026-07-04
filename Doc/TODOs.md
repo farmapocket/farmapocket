@@ -1,12 +1,17 @@
-# TODO 
-
-## MVP
+# MVP
 
 - Gestão dos remédios avulsos
 ---
 - verificar questão legar de registro de propriedade intelectual
 ---
-- Categoria e subcategoria precisa ser por dependente
+- Ao incluir uma medicação, sugerir a criação de um tratamento
+---
+- Um modal semitransparente com a mesma ampulheta da splash screen
+    - Mostrar essa modal nas operações que estão demorando, como:
+        - Ao trocar de dependente, mostrar a modal até terminar de preencher os dados da tela
+        - Nas ações TOMAR, PULAR e REVERTER, até terminar de preencher os dados da tela
+        - Nas ações salvar dos cadastros
+        - Ao mudar as telas (painel, medicamentos, tratamentos, etc)
 ---
 - Incluir opção de criar nova categoria no seletor
 - Incluir opção de criar nova subcategoria no seletor
@@ -18,14 +23,15 @@
 ---
 - Expurgo de últimas ações (manter apenas 10 por dependente)
 ---
-- Notificação/Alarme
-    - Quero que o aplicativo toque um alarme no momento da próxima dose. Se essa dose não for tomada ou pulada, a cada 5 minutos preciso que uma notificação seja enviada
-    - O alarme e as notificações acontecerão se ouver parametrização para isso na tabela configurations (notifications=true, alarm=true)
-    - Na tela de configurações, há um toggle chamado "Ativar Lembretes de Medicamento". Renomear para alarme de medicação" e vincular com o campo alarm da tabela configurations
-    - Incluir um novo toggle chamado "Notificar pendência" e vincular com o campo notifications da tabela configurations
----
+.
 
-## Próximos passos
+# Bugs conhecidos
+
+- O seletor de profissional de saúde às vezes mostra profissionais do dependente que não está selecionado
+---
+.
+
+# Próximos passos
 
 - Base nacional de medicamentos
 ---
@@ -45,11 +51,19 @@
 ---
 - Criptografia de ponta à ponta
 ---
+.
 
 
+# Últimas implementações:
 
-## Últimas implementações:
-
+- Categoria e subcategoria precisa ser por dependente
+---
+- Notificação/Alarme
+    - Quero que o aplicativo toque um alarme no momento da próxima dose. Se essa dose não for tomada ou pulada, a cada 5 minutos preciso que uma notificação seja enviada
+    - O alarme e as notificações acontecerão se ouver parametrização para isso na tabela configurations (notifications=true, alarm=true)
+    - Na tela de configurações, há um toggle chamado "Ativar Lembretes de Medicamento". Renomear para alarme de medicação" e vincular com o campo alarm da tabela configurations
+    - Incluir um novo toggle chamado "Notificar pendência" e vincular com o campo notifications da tabela configurations
+---
 - [x] Tela de alteração de dependentes
 ---
 - [x] Toggle "Exibir todos os dependentes"

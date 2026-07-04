@@ -26,7 +26,9 @@ BEGIN
             'prescriptions',
             'scheduling',
             'treatments_in_schedule',
-            'configuration'
+            'configuration',
+            'categories',
+            'subcategories'
         )
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', pol.policyname, 'public', pol.tablename);
@@ -46,6 +48,8 @@ ALTER TABLE prescriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scheduling ENABLE ROW LEVEL SECURITY;
 ALTER TABLE treatments_in_schedule ENABLE ROW LEVEL SECURITY;
 ALTER TABLE configuration ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subcategories ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================
@@ -462,12 +466,97 @@ CREATE POLICY configuration_delete_policy ON configuration
 
 
 -- ============================================================
+-- CATEGORIES (per-dependent)
+-- ============================================================
+CREATE POLICY categories_select_policy ON categories
+    FOR SELECT TO authenticated
+    USING (EXISTS (
+        SELECT 1 FROM dependents d
+        WHERE d.id = categories.dependent_id
+        AND d.account_owner_id = auth.uid()
+    ));
+
+CREATE POLICY categories_insert_policy ON categories
+    FOR INSERT TO authenticated
+    WITH CHECK (EXISTS (
+        SELECT 1 FROM dependents d
+        WHERE d.id = categories.dependent_id
+        AND d.account_owner_id = auth.uid()
+    ));
+
+CREATE POLICY categories_update_policy ON categories
+    FOR UPDATE TO authenticated
+    USING (EXISTS (
+        SELECT 1 FROM dependents d
+        WHERE d.id = categories.dependent_id
+        AND d.account_owner_id = auth.uid()
+    ))
+    WITH CHECK (EXISTS (
+        SELECT 1 FROM dependents d
+        WHERE d.id = categories.dependent_id
+        AND d.account_owner_id = auth.uid()
+    ));
+
+CREATE POLICY categories_delete_policy ON categories
+    FOR DELETE TO authenticated
+    USING (EXISTS (
+        SELECT 1 FROM dependents d
+        WHERE d.id = categories.dependent_id
+        AND d.account_owner_id = auth.uid()
+    ));
+
+
+-- ============================================================
+-- SUBCATEGORIES (per-dependent via category)
+-- ============================================================
+CREATE POLICY subcategories_select_policy ON subcategories
+    FOR SELECT TO authenticated
+    USING (EXISTS (
+        SELECT 1 FROM categories c
+        JOIN dependents d ON c.dependent_id = d.id
+        WHERE c.id = subcategories.category_id
+        AND d.account_owner_id = auth.uid()
+    ));
+
+CREATE POLICY subcategories_insert_policy ON subcategories
+    FOR INSERT TO authenticated
+    WITH CHECK (EXISTS (
+        SELECT 1 FROM categories c
+        JOIN dependents d ON c.dependent_id = d.id
+        WHERE c.id = subcategories.category_id
+        AND d.account_owner_id = auth.uid()
+    ));
+
+CREATE POLICY subcategories_update_policy ON subcategories
+    FOR UPDATE TO authenticated
+    USING (EXISTS (
+        SELECT 1 FROM categories c
+        JOIN dependents d ON c.dependent_id = d.id
+        WHERE c.id = subcategories.category_id
+        AND d.account_owner_id = auth.uid()
+    ))
+    WITH CHECK (EXISTS (
+        SELECT 1 FROM categories c
+        JOIN dependents d ON c.dependent_id = d.id
+        WHERE c.id = subcategories.category_id
+        AND d.account_owner_id = auth.uid()
+    ));
+
+CREATE POLICY subcategories_delete_policy ON subcategories
+    FOR DELETE TO authenticated
+    USING (EXISTS (
+        SELECT 1 FROM categories c
+        JOIN dependents d ON c.dependent_id = d.id
+        WHERE c.id = subcategories.category_id
+        AND d.account_owner_id = auth.uid()
+    ));
+
+
+-- ============================================================
 -- REFERENCE TABLES (global data - no user-specific restrictions)
 -- ============================================================
--- Categories, subcategories and laboratories are global reference tables.
--- If RLS was enabled on them, disable it so all authenticated users
+-- Laboratories is a global reference table.
+-- If RLS was enabled on it, disable it so all authenticated users
 -- can read and manage the shared reference lists.
-ALTER TABLE IF EXISTS categories DISABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS subcategories DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS laboratories DISABLE ROW LEVEL SECURITY;
 
