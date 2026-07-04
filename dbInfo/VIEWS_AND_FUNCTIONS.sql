@@ -20,6 +20,7 @@ SELECT
     d.id AS dependent_id,
     d.name AS dependent_name,
     m.stock_quantity,
+    m.unit,
     m.is_controlled,
     m.is_continuous_use,
     t.dosage,

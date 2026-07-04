@@ -96,6 +96,35 @@ const i18n = {
         'laboratory.addNew': { 'en': 'Add New Laboratory', 'pt-BR': 'Adicionar Novo Laboratório', 'es': 'Agregar Nuevo Laboratorio' },
         'laboratory.promptName': { 'en': 'Enter the laboratory name:', 'pt-BR': 'Digite o nome do laboratório:', 'es': 'Ingrese el nombre del laboratorio:' },
         'medication.lowStock': { 'en': 'Low Stock', 'pt-BR': 'Estoque Baixo', 'es': 'Stock Bajo' },
+        'medication.expiringDate': { 'en': 'Expiring Date', 'pt-BR': 'Data de Vencimento', 'es': 'Fecha de Vencimiento' },
+        'medication.methodOfAdministration': { 'en': 'Method of Administration', 'pt-BR': 'Via de Administração', 'es': 'Vía de Administración' },
+        'medication.unit': { 'en': 'Unit', 'pt-BR': 'Unidade', 'es': 'Unidad' },
+        'medication.selectMethod': { 'en': 'Select a method...', 'pt-BR': 'Selecione uma via...', 'es': 'Seleccione una vía...' },
+        'medication.selectUnit': { 'en': 'Select a unit...', 'pt-BR': 'Selecione uma unidade...', 'es': 'Seleccione una unidad...' },
+
+        // ADMINISTRATION METHODS
+        'adminMethod.oral': { 'en': 'Oral', 'pt-BR': 'Oral', 'es': 'Oral' },
+        'adminMethod.orodispersible': { 'en': 'Orodispersible', 'pt-BR': 'Orodispersíveis', 'es': 'Orodispersible' },
+        'adminMethod.sublingual': { 'en': 'Sublingual', 'pt-BR': 'Sublingual', 'es': 'Sublingual' },
+        'adminMethod.retal': { 'en': 'Rectal', 'pt-BR': 'Retal', 'es': 'Rectal' },
+        'adminMethod.vaginal': { 'en': 'Vaginal', 'pt-BR': 'Vaginal', 'es': 'Vaginal' },
+        'adminMethod.intraAuricular': { 'en': 'Intra-Auricular', 'pt-BR': 'Intra-Auricular', 'es': 'Intra-Auricular' },
+        'adminMethod.intradermal': { 'en': 'Intradermal', 'pt-BR': 'Intradérmica', 'es': 'Intradermal' },
+        'adminMethod.intramuscular': { 'en': 'Intramuscular', 'pt-BR': 'Intramuscular', 'es': 'Intramuscular' },
+        'adminMethod.intranasal': { 'en': 'Intranasal', 'pt-BR': 'Intranasal', 'es': 'Intranasal' },
+        'adminMethod.intraocular': { 'en': 'Intraocular', 'pt-BR': 'Intraocular', 'es': 'Intraocular' },
+        'adminMethod.intrathecal': { 'en': 'Intrathecal', 'pt-BR': 'Intratecal', 'es': 'Intratecal' },
+        'adminMethod.subcutaneous': { 'en': 'Subcutaneous', 'pt-BR': 'Subcutânea', 'es': 'Subcutánea' },
+        'adminMethod.topicalSkin': { 'en': 'Topical / Skin', 'pt-BR': 'Tópico / Cutânea', 'es': 'Tópico / Cutánea' },
+        'adminMethod.topicalInhalation': { 'en': 'Topical / Inhalation', 'pt-BR': 'Tópico / Inalatória', 'es': 'Tópico / Inhalatoria' },
+        'adminMethod.topicalMucous': { 'en': 'Topical / Mucous', 'pt-BR': 'Tópico / Mucosas', 'es': 'Tópico / Mucosas' },
+
+        // UNITS
+        'unit.un': { 'en': 'un.', 'pt-BR': 'un.', 'es': 'un.' },
+        'unit.ml': { 'en': 'ml.', 'pt-BR': 'ml.', 'es': 'ml.' },
+        'unit.ui': { 'en': 'UI.', 'pt-BR': 'UI.', 'es': 'UI.' },
+        'unit.mg': { 'en': 'mg.', 'pt-BR': 'mg.', 'es': 'mg.' },
+
         'treatment.rescueMedication': { 'en': 'Rescue Medication', 'pt-BR': 'Medicamento de Resgate', 'es': 'Medicamento de Rescate' },
 
         // INVENTORY UPDATE
@@ -180,7 +209,7 @@ const i18n = {
         // TREATMENTS
         'treatment.prescribedBy': { 'en': 'Prescribed By', 'pt-BR': 'Prescrito Por', 'es': 'Recetado Por' },
         'treatment.medication': { 'en': 'Medication', 'pt-BR': 'Medicação', 'es': 'Medicación' },
-        'treatment.dosage': { 'en': 'Dosage (units)', 'pt-BR': 'Dosagem (unidades)', 'es': 'Dosis (unidades)' },
+        'treatment.dosage': { 'en': 'Dosage', 'pt-BR': 'Dosagem', 'es': 'Dosis' },
         'treatment.frequency': { 'en': 'Frequency (every X hours)', 'pt-BR': 'Frequência (a cada X horas)', 'es': 'Frecuencia (cada X horas)' },
         'treatment.firstDoseTime': { 'en': 'First Dose Time', 'pt-BR': 'Horário da Primeira Dose', 'es': 'Hora de la Primera Dosis' },
         'treatment.startDate': { 'en': 'Start Date', 'pt-BR': 'Data de Início', 'es': 'Fecha de Inicio' },
@@ -191,6 +220,7 @@ const i18n = {
         'treatment.adminNotes': { 'en': 'Administration Notes', 'pt-BR': 'Observações de Administração', 'es': 'Observaciones de Administración' },
         'treatment.isActive': { 'en': 'Active Treatment', 'pt-BR': 'Tratamento Ativo', 'es': 'Tratamiento Activo' },
         'treatment.autonomy': { 'en': 'Autonomy', 'pt-BR': 'Autonomia', 'es': 'Autonomía' },
+        'treatment.via': { 'en': 'via', 'pt-BR': 'via', 'es': 'vía' },
         'treatment.daysRemaining': { 'en': 'Days Remaining', 'pt-BR': 'Dias Restantes', 'es': 'Días Restantes' },
         'treatment.replacedTreatment': { 'en': 'Treatment Replaced by This', 'pt-BR': 'Tratamento substituído por este', 'es': 'Tratamiento sustituido por este' },
         'treatment.replacedByTreatment': { 'en': 'Replaced By Treatment', 'pt-BR': 'Por qual tratamento foi substituído', 'es': 'Por qué tratamiento fue sustituido' },
@@ -235,7 +265,7 @@ const i18n = {
         'dashboard.noLastAction': { 'en': 'No action recorded', 'pt-BR': 'Nenhuma ação registrada', 'es': 'Ninguna acción registrada' },
         'dashboard.taken': { 'en': 'Taken', 'pt-BR': 'Tomadas', 'es': 'Tomadas' },
         'dashboard.skipped': { 'en': 'Skipped', 'pt-BR': 'Puladas', 'es': 'Saltadas' },
-        'dashboard.stockUnits': { 'en': '{units} un. in stock', 'pt-BR': '{units} un. em estoque', 'es': '{units} un. en stock' },
+        'dashboard.stockUnits': { 'en': '{units} in stock', 'pt-BR': '{units} em estoque', 'es': '{units} en stock' },
 
         // SETTINGS
         'settings.language': { 'en': 'Language', 'pt-BR': 'Idioma', 'es': 'Idioma' },

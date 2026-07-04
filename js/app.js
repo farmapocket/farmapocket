@@ -43,6 +43,41 @@ const AppState = {
 
 let showAllDependentsDashboard = false;
 
+const ADMINISTRATION_METHODS = [
+    { value: 'oral', key: 'adminMethod.oral' },
+    { value: 'orodispersible', key: 'adminMethod.orodispersible' },
+    { value: 'sublingual', key: 'adminMethod.sublingual' },
+    { value: 'rectal', key: 'adminMethod.retal' },
+    { value: 'vaginal', key: 'adminMethod.vaginal' },
+    { value: 'intra-auricular', key: 'adminMethod.intraAuricular' },
+    { value: 'intradermal', key: 'adminMethod.intradermal' },
+    { value: 'intramuscular', key: 'adminMethod.intramuscular' },
+    { value: 'intranasal', key: 'adminMethod.intranasal' },
+    { value: 'intraocular', key: 'adminMethod.intraocular' },
+    { value: 'intrathecal', key: 'adminMethod.intrathecal' },
+    { value: 'subcutaneous', key: 'adminMethod.subcutaneous' },
+    { value: 'topical-skin', key: 'adminMethod.topicalSkin' },
+    { value: 'topical-inhalation', key: 'adminMethod.topicalInhalation' },
+    { value: 'topical-mucous', key: 'adminMethod.topicalMucous' }
+];
+
+const MEDICATION_UNITS = [
+    { value: 'un.', key: 'unit.un' },
+    { value: 'ml.', key: 'unit.ml' },
+    { value: 'UI.', key: 'unit.ui' },
+    { value: 'mg.', key: 'unit.mg' }
+];
+
+function getAdministrationMethodLabel(value) {
+    const method = ADMINISTRATION_METHODS.find(m => m.value === value);
+    return method ? i18n.t(method.key) : value;
+}
+
+function getUnitLabel(value) {
+    const unit = MEDICATION_UNITS.find(u => u.value === value);
+    return unit ? i18n.t(unit.key) : (value || 'un.');
+}
+
 function toggleShowAllDependents() {
     const toggle = document.getElementById('toggle-show-all-dependents');
     showAllDependentsDashboard = toggle ? toggle.checked : false;
@@ -690,6 +725,14 @@ function formatDosage(dosage) {
     return num.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
+function formatDose(dosage, medication) {
+    const unit = medication?.unit || 'un.';
+    const method = medication?.method_of_administration;
+    const methodLabel = method ? getAdministrationMethodLabel(method) : '';
+    const base = `${formatDosage(dosage)} ${getUnitLabel(unit)}`;
+    return methodLabel ? `${base} ${i18n.t('treatment.via')} ${methodLabel}` : base;
+}
+
 function calculateTreatmentDailyUsage(treatment) {
     if (!treatment) return 0;
 
@@ -790,7 +833,7 @@ async function loadDashboard() {
                                     <div>
                                         <p class="font-medium text-gray-800">${item.medication_name}</p>
                                         <p class="text-xs text-gray-500">${item.dependent_name}</p>
-                                        <p class="text-xs text-amber-600">${Math.round(item.weeks_remaining)} semana(s) • ${item.stock_quantity} un. em estoque</p>
+                                        <p class="text-xs text-amber-600">${Math.round(item.weeks_remaining)} semana(s) • ${item.stock_quantity} ${getUnitLabel(item.unit)} em estoque</p>
                                     </div>
                                 </div>
                             `).join('')}
@@ -873,8 +916,8 @@ function renderScheduleCard(schedule, dependentName, prescriptionCounts) {
         const badgeClass = getStockBadgeClass(t, prescriptionCounts);
         return `
             <div class="flex items-center justify-between gap-3">
-                <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(t.dosage)} un.)</p>
-                <span class="text-xs px-2 py-0.5 rounded-full ${badgeClass} flex-shrink-0">${i18n.t('dashboard.stockUnits', { units: formatDosage(stock) })}</span>
+                <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDose(t.dosage, med)})</p>
+                <span class="text-xs px-2 py-0.5 rounded-full ${badgeClass} flex-shrink-0">${i18n.t('dashboard.stockUnits', { units: formatDosage(stock) + ' ' + getUnitLabel(med.unit) })}</span>
             </div>
         `;
     }).join('');
@@ -926,14 +969,12 @@ function renderLastActionCard(lastAction, dependentName) {
     const items = lastAction.items || [];
     const itemsHtml = items.length > 0
         ? items.map(item => {
-            const name = item.medications?.name
-                || item.treatments?.medications?.name
-                || item.treatments?.medication_name
-                || 'Medicamento';
+            const med = item.medications || item.treatments?.medications || {};
+            const name = med.name || item.treatments?.medication_name || 'Medicamento';
             const dosage = item.dosage || item.treatments?.dosage || 0;
             return `
                 <div class="flex items-center justify-between gap-3">
-                    <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDosage(dosage)} un.)</p>
+                    <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDose(dosage, med)})</p>
                 </div>
             `;
         }).join('')
@@ -1116,15 +1157,13 @@ function renderLogCarousel() {
         const items = entry.items || [];
         const itemsHtml = items.length > 0
             ? items.map(item => {
-                const name = item.medications?.name
-                    || item.treatments?.medications?.name
-                    || item.treatments?.medication_name
-                    || 'Medicamento';
+                const med = item.medications || item.treatments?.medications || {};
+                const name = med.name || item.treatments?.medication_name || 'Medicamento';
                 const dosage = item.dosage || item.treatments?.dosage || 0;
                 return `
                     <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                         <span class="text-sm text-gray-800">${name}</span>
-                        <span class="text-xs text-gray-500">${formatDosage(dosage)} un.</span>
+                        <span class="text-xs text-gray-500">${formatDose(dosage, med)}</span>
                     </div>
                 `;
             }).join('')
@@ -1245,7 +1284,7 @@ async function showDoseActionModal(action, timeStr, scheduleId) {
     treatmentsEl.innerHTML = treatments.map(t => `
         <div class="flex items-center justify-between bg-gray-50 rounded-lg p-2">
             <span class="font-medium text-gray-800">${t.medications?.name || t.medication_name || t.name || 'Medicamento'}</span>
-            <span class="text-sm text-gray-500">${formatDosage(t.dosage || 0)} un.</span>
+            <span class="text-sm text-gray-500">${formatDose(t.dosage || 0, t.medications)}</span>
         </div>
     `).join('');
 
@@ -1375,8 +1414,8 @@ async function loadMedications() {
                         <div class="flex items-center gap-2 mt-2 flex-wrap">
                             ${med.is_controlled ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Controlado</span>' : ''}
                             ${med.is_continuous_use ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Uso Contínuo</span>' : ''}
-                            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${med.stock_quantity || 0} un.</span>
-                            ${prescriptionCount > 0 ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${prescriptionCount} receita${prescriptionCount > 1 ? 's' : ''} (${prescriptionUnits} un.)</span>` : ''}
+                            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${med.stock_quantity || 0} ${getUnitLabel(med.unit)}</span>
+                            ${prescriptionCount > 0 ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${prescriptionCount} receita${prescriptionCount > 1 ? 's' : ''} (${prescriptionUnits} ${getUnitLabel(med.unit)})</span>` : ''}
                             ${inactiveBadge}
                         </div>
                     </div>
@@ -1444,6 +1483,7 @@ function handleMedicationSelectChange(select) {
 
     // Sempre resetar a programação ao trocar de medicamento
     resetTreatmentFrequency();
+    renderFrequencySummary();
 }
 
 function handleTreatmentCategoryChange(select) {
@@ -1541,6 +1581,9 @@ async function editMedication(id) {
     form.querySelector('[name="is_controlled"]').checked = medication.is_controlled === true;
     form.querySelector('[name="is_continuous_use"]').checked = medication.is_continuous_use === true;
     form.querySelector('[name="stock_quantity"]').value = medication.stock_quantity || 0;
+    form.querySelector('[name="expiring_date"]').value = medication.expiring_date || '';
+    form.querySelector('[name="unit"]').value = medication.unit || 'un.';
+    form.querySelector('[name="method_of_administration"]').value = medication.method_of_administration || '';
     await loadLaboratoryOptions(medication.laboratory_id);
 
     document.querySelector('#modal-medication h3').textContent = i18n.t('medication.edit');
@@ -1618,6 +1661,9 @@ async function loadTreatments() {
             const startDateText = t.start_date ? new Date(t.start_date).toLocaleDateString('pt-BR') : '';
             const durationText = formatTreatmentDuration(t.start_date, t.end_date);
 
+            const med = t.medications || {};
+            const methodLabel = med.method_of_administration ? getAdministrationMethodLabel(med.method_of_administration) : '';
+
             let frequencyText = '';
             if (t.is_rescue) {
                 frequencyText = `Medicação de resgate (${t.administration_notes || ''})`;
@@ -1626,7 +1672,10 @@ async function loadTreatments() {
                 const grouped = {};
                 t.medication_times_on_treatment.forEach(mt => {
                     if (!grouped[mt.day_of_week]) grouped[mt.day_of_week] = [];
-                    grouped[mt.day_of_week].push(`${mt.time.substring(0, 5)} (${mt.dosage})`);
+                    const doseText = methodLabel
+                        ? `${mt.dosage}${getUnitLabel(med.unit)} via ${methodLabel}`
+                        : `${mt.dosage}${getUnitLabel(med.unit)}`;
+                    grouped[mt.day_of_week].push(`${mt.time.substring(0, 5)} (${doseText})`);
                 });
                 const daysText = Object.keys(grouped)
                     .sort((a, b) => parseInt(a) - parseInt(b))
@@ -1634,7 +1683,10 @@ async function loadTreatments() {
                     .join('; ');
                 frequencyText = daysText;
             } else {
-                frequencyText = `${t.dosage || 0}un. / ${t.frequency_hours || 0}h`;
+                const baseDose = `${t.dosage || 0}${getUnitLabel(med.unit)}`;
+                frequencyText = methodLabel
+                    ? `${baseDose} via ${methodLabel} / ${t.frequency_hours || 0}h`
+                    : `${baseDose} / ${t.frequency_hours || 0}h`;
             }
 
             const subtitleParts = [
@@ -1684,6 +1736,7 @@ async function loadTreatmentOptions() {
         DB.getCategories(depId)
     ]);
 
+    window._treatmentFormMedications = medications || [];
     treatmentCategoriesCache = categories || [];
 
     const medSelect = document.querySelector('#form-treatment select[name="medication_id"]');
@@ -1697,6 +1750,7 @@ async function loadTreatmentOptions() {
         medSelect.innerHTML = '<option value="">Selecione um medicamento...</option>' +
             medications.map(m => `<option value="${m.id}">${m.name}</option>`).join('') +
             `<option value="__new__">+ ${i18n.t('medication.addNew')}</option>`;
+        medSelect.onchange = () => handleMedicationSelectChange(medSelect);
     }
 
     if (categorySelect) {
@@ -2021,6 +2075,13 @@ function renderFrequencySummary() {
 
     card.classList.remove('hidden');
 
+    // Tenta obter o medicamento selecionado no formulário de tratamento
+    const medicationId = document.querySelector('#form-treatment [name="medication_id"]')?.value;
+    const medications = window._treatmentFormMedications || [];
+    const med = medications.find(m => m.id === medicationId) || {};
+    const unitLabel = getUnitLabel(med.unit);
+    const methodLabel = med.method_of_administration ? getAdministrationMethodLabel(med.method_of_administration) : '';
+
     if (currentTreatmentFrequency.schedule_type === 'rescue') {
         content.innerHTML = `<p class="text-amber-600 font-medium">${i18n.t('treatment.rescueMedication')}</p>`;
     } else if (currentTreatmentFrequency.schedule_type === 'weekly') {
@@ -2028,7 +2089,10 @@ function renderFrequencySummary() {
         const grouped = {};
         (currentTreatmentFrequency.weeklyTimes || []).forEach(slot => {
             if (!grouped[slot.day_of_week]) grouped[slot.day_of_week] = [];
-            grouped[slot.day_of_week].push(`${slot.time} (${slot.dosage})`);
+            const doseText = methodLabel
+                ? `${slot.dosage}${unitLabel} via ${methodLabel}`
+                : `${slot.dosage}${unitLabel}`;
+            grouped[slot.day_of_week].push(`${slot.time} (${doseText})`);
         });
 
         const lines = Object.keys(grouped)
@@ -2042,7 +2106,9 @@ function renderFrequencySummary() {
         const firstDose = currentTreatmentFrequency.first_dose_time || '';
 
         if (dosage > 0 && hours > 0 && firstDose) {
-            content.innerHTML = `<p>${dosage} un. a cada ${hours} horas, primeira dose às ${firstDose}</p>`;
+            const baseDose = `${dosage}${unitLabel}`;
+            const doseText = methodLabel ? `${baseDose} via ${methodLabel}` : baseDose;
+            content.innerHTML = `<p>${doseText} a cada ${hours} horas, primeira dose às ${firstDose}</p>`;
         } else {
             content.innerHTML = `<p class="text-gray-400">Clique em "Definir frequência" para configurar a programação</p>`;
         }
@@ -2214,7 +2280,7 @@ async function loadPrescriptions() {
                         </button>
                     </div>
                 </div>
-                <p class="text-base text-gray-600 mb-2">${p.units || 0} unidades</p>
+                <p class="text-base text-gray-600 mb-2">${p.units || 0} ${getUnitLabel(p.medications?.unit)}</p>
                 ${profText ? `<p class="text-sm text-gray-500 mb-1">👨‍⚕️ ${profText}</p>` : ''}
                 <div class="flex items-center justify-between mt-2">
                     <p class="text-sm text-gray-500">🗓️ ${status === 'Used' && usedDate ? `Utilizado em ${usedDate}` : (p.expiration_date ? `Vence em ${expDate}` : 'Sem data de validade')}</p>
@@ -2321,7 +2387,8 @@ async function showUsePrescriptionModal(id) {
 
     currentUsePrescriptionId = id;
     document.getElementById('use-prescription-medication').textContent = prescription.medications?.name || prescription.medication_name || 'Medicamento';
-    document.getElementById('use-prescription-units').textContent = `${prescription.units || 0} unidades`;
+    const useMed = prescription.medications || {};
+    document.getElementById('use-prescription-units').textContent = `${prescription.units || 0} ${getUnitLabel(useMed.unit)}`;
     openModal('modal-use-prescription');
 }
 
@@ -2819,10 +2886,13 @@ async function loadInventoryUpdate() {
                     <div class="font-medium text-gray-800">${med.name}</div>
                     ${med.active_ingredient ? `<div class="text-xs text-gray-500">${med.active_ingredient}</div>` : ''}
                 </td>
-                <td class="px-4 py-3 w-24">
-                    <input type="number" min="0" step="1" value="${med.stock_quantity || 0}"
-                        class="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none text-right"
-                        onchange="markInventoryRowChanged(this)">
+                <td class="px-4 py-3 w-32">
+                    <div class="flex items-center gap-2">
+                        <input type="number" min="0" step="1" value="${med.stock_quantity || 0}"
+                            class="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none text-right"
+                            onchange="markInventoryRowChanged(this)">
+                        <span class="text-xs text-gray-500 whitespace-nowrap">${getUnitLabel(med.unit)}</span>
+                    </div>
                 </td>
                 <td class="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
                     ${lastUpdated}
@@ -2980,7 +3050,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 laboratory_id: formData.get('laboratory_id') || null,
                 is_controlled: formData.has('is_controlled'),
                 is_continuous_use: formData.has('is_continuous_use'),
-                stock_quantity: parseInt(formData.get('stock_quantity')) || 0
+                stock_quantity: parseInt(formData.get('stock_quantity')) || 0,
+                expiring_date: formData.get('expiring_date') || null,
+                unit: formData.get('unit') || 'un.',
+                method_of_administration: formData.get('method_of_administration') || null
             };
 
             showLoadingModal();

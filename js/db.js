@@ -377,7 +377,7 @@ const DB = {
                 .from('treatments')
                 .select(`
                     *,
-                    medications:medication_id (id, name, stock_quantity, is_controlled, is_continuous_use),
+                    medications:medication_id (id, name, stock_quantity, unit, method_of_administration, is_controlled, is_continuous_use),
                     healthcare_professionals:prescribed_by (name, specialty),
                     medication_times_on_treatment (*),
                     subcategories:subcategory_id (
@@ -2000,6 +2000,7 @@ const DB = {
                         dependent_id: row.dependent_id,
                         dependent_name: row.dependent_name,
                         stock_quantity: parseFloat(row.stock_quantity) || 0,
+                        unit: row.unit,
                         is_controlled: row.is_controlled,
                         is_continuous_use: row.is_continuous_use,
                         daily_usage: 0

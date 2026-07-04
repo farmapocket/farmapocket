@@ -53,6 +53,9 @@ CREATE TABLE public.medications (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   is_active boolean DEFAULT true,
+  expiring_date date,
+  method_of_administration text,
+  unit text,
   CONSTRAINT medications_pkey PRIMARY KEY (id),
   CONSTRAINT medications_dependent_id_fkey FOREIGN KEY (dependent_id) REFERENCES public.dependents(id),
   CONSTRAINT medications_laboratory_id_fkey FOREIGN KEY (laboratory_id) REFERENCES public.laboratories(id)
@@ -157,9 +160,9 @@ CREATE TABLE public.treatments_in_schedule (
   medication_id uuid,
   dosage numeric DEFAULT 0,
   CONSTRAINT treatments_in_schedule_pkey PRIMARY KEY (id),
-  CONSTRAINT treatments_in_schedule_treatment_id_fkey FOREIGN KEY (treatment_id) REFERENCES public.treatments(id) ON DELETE CASCADE,
-  CONSTRAINT treatments_in_schedule_medication_id_fkey FOREIGN KEY (medication_id) REFERENCES public.medications(id),
-  CONSTRAINT treatments_in_schedule_scheduling_id_fkey FOREIGN KEY (scheduling_id) REFERENCES public.scheduling(id)
+  CONSTRAINT treatments_in_schedule_treatment_id_fkey FOREIGN KEY (treatment_id) REFERENCES public.treatments(id),
+  CONSTRAINT treatments_in_schedule_scheduling_id_fkey FOREIGN KEY (scheduling_id) REFERENCES public.scheduling(id),
+  CONSTRAINT treatments_in_schedule_medication_id_fkey FOREIGN KEY (medication_id) REFERENCES public.medications(id)
 );
 CREATE TABLE public.medical_procedures (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
