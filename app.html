@@ -68,6 +68,26 @@
             50% { opacity: 0.6; transform: scale(0.95) rotate(180deg); }
         }
 
+        /* Loading Modal */
+        .loading-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 90;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.2s ease;
+        }
+        .loading-modal.hidden {
+            display: none;
+        }
+        .loading-modal.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
         /* Tour Carousel */
         .tour-carousel {
             display: flex;
@@ -111,6 +131,19 @@
             <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"></path>
             <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"></path>
         </svg>
+    </div>
+
+    <!-- Loading Modal -->
+    <div id="loading-modal" class="loading-modal hidden" aria-hidden="true">
+        <div class="flex flex-col items-center">
+            <svg class="hourglass-icon w-16 h-16 text-sky-500 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 22h14"></path>
+                <path d="M5 2h14"></path>
+                <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"></path>
+                <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"></path>
+            </svg>
+            <p class="text-gray-600 font-medium" data-i18n="common.processing">Processando...</p>
+        </div>
     </div>
 
     <!-- Header -->

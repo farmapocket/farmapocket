@@ -140,8 +140,9 @@ async function toggleNotificationsSetting() {
 
 // ========== NAVEGAÇÃO ==========
 
-function navigateTo(page) {
+async function navigateTo(page) {
     hideSplashScreen();
+    showLoadingModal();
 
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
 
@@ -161,19 +162,23 @@ function navigateTo(page) {
         }
     });
 
-    if (page === 'dashboard') loadDashboard();
-    if (page === 'medications') loadMedications();
-    if (page === 'treatments') loadTreatments();
-    if (page === 'professionals') loadProfessionals();
-    if (page === 'prescriptions') loadPrescriptions();
-    if (page === 'symptoms') loadSymptoms();
-    if (page === 'procedures') loadProcedures();
-    if (page === 'categories') loadCategories();
-    if (page === 'inventory-update') loadInventoryUpdate();
-    if (page === 'dependents') loadDependentsManagement();
-    if (page === 'tour') loadTour();
-    if (page === 'more') loadMore();
-    if (page === 'activity-log') loadActivityLog();
+    try {
+        if (page === 'dashboard') await loadDashboard();
+        if (page === 'medications') await loadMedications();
+        if (page === 'treatments') await loadTreatments();
+        if (page === 'professionals') await loadProfessionals();
+        if (page === 'prescriptions') await loadPrescriptions();
+        if (page === 'symptoms') await loadSymptoms();
+        if (page === 'procedures') await loadProcedures();
+        if (page === 'categories') await loadCategories();
+        if (page === 'inventory-update') await loadInventoryUpdate();
+        if (page === 'dependents') await loadDependentsManagement();
+        if (page === 'tour') await loadTour();
+        if (page === 'more') loadMore();
+        if (page === 'activity-log') await loadActivityLog();
+    } finally {
+        hideLoadingModal();
+    }
 
     window.scrollTo(0, 0);
 }
@@ -199,6 +204,38 @@ function hideSplashScreen() {
     setTimeout(() => {
         splash.classList.add('pointer-events-none');
     }, 500);
+}
+
+// ========== LOADING MODAL ==========
+
+let loadingModalTimeout = null;
+
+function showLoadingModal(text = null) {
+    const modal = document.getElementById('loading-modal');
+    if (!modal) return;
+
+    const textEl = modal.querySelector('p');
+    if (textEl && text) {
+        textEl.textContent = text;
+    } else if (textEl) {
+        textEl.textContent = i18n.t('common.processing') || 'Processando...';
+    }
+
+    modal.classList.remove('hidden', 'fade-out');
+    modal.setAttribute('aria-hidden', 'false');
+}
+
+function hideLoadingModal() {
+    const modal = document.getElementById('loading-modal');
+    if (!modal) return;
+
+    modal.classList.add('fade-out');
+    if (loadingModalTimeout) clearTimeout(loadingModalTimeout);
+    loadingModalTimeout = setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('fade-out');
+        modal.setAttribute('aria-hidden', 'true');
+    }, 200);
 }
 
 // ========== TOUR ==========
@@ -549,7 +586,7 @@ function renderDependentSelector() {
     `;
 }
 
-function selectDependent(id) {
+async function selectDependent(id) {
     console.log('🔍 selectDependent:', { id });
     AppState.setCurrentDependent(id);
     renderDependentSelector();
@@ -558,10 +595,15 @@ function selectDependent(id) {
     const activePage = document.querySelector('.page.active');
     if (activePage) {
         const pageId = activePage.id.replace('page-', '');
-        if (pageId === 'dashboard') loadDashboard();
-        if (pageId === 'medications') loadMedications();
-        if (pageId === 'treatments') loadTreatments();
-        if (pageId === 'professionals') loadProfessionals();
+        showLoadingModal();
+        try {
+            if (pageId === 'dashboard') await loadDashboard();
+            if (pageId === 'medications') await loadMedications();
+            if (pageId === 'treatments') await loadTreatments();
+            if (pageId === 'professionals') await loadProfessionals();
+        } finally {
+            hideLoadingModal();
+        }
     }
 }
 
@@ -1261,13 +1303,16 @@ async function revertLastDose() {
         return;
     }
 
+    showLoadingModal();
     try {
         await DB.revertLastDose(depId);
-        loadTodaySchedule();
-        loadDashboard();
+        await loadTodaySchedule();
+        await loadDashboard();
         scrollPageToTop();
     } catch (error) {
         alert(error.message || 'Erro ao reverter dose');
+    } finally {
+        hideLoadingModal();
     }
 }
 
@@ -1406,6 +1451,14 @@ function handleTreatmentCategoryChange(select) {
     const subcategorySelect = document.querySelector('#form-treatment select[name="subcategory_id"]');
     if (!subcategorySelect) return;
 
+    if (categoryId === '__new__') {
+        select.value = '';
+        openQuickAddCategory(select);
+        subcategorySelect.innerHTML = '<option value="">Selecione uma subcategoria...</option>';
+        subcategorySelect.disabled = true;
+        return;
+    }
+
     if (!categoryId) {
         subcategorySelect.innerHTML = '<option value="">Selecione uma subcategoria...</option>';
         subcategorySelect.disabled = true;
@@ -1416,8 +1469,19 @@ function handleTreatmentCategoryChange(select) {
     const subcategories = category?.subcategories || [];
 
     subcategorySelect.innerHTML = '<option value="">Selecione uma subcategoria...</option>' +
-        subcategories.map(sc => `<option value="${sc.id}">${sc.name}</option>`).join('');
-    subcategorySelect.disabled = subcategories.length === 0;
+        subcategories.map(sc => `<option value="${sc.id}">${sc.name}</option>`).join('') +
+        `<option value="__new__">+ ${i18n.t('subcategory.addNew')}</option>`;
+    subcategorySelect.disabled = false;
+}
+
+function handleTreatmentSubcategoryChange(select) {
+    const value = select.value;
+    if (value !== '__new__') return;
+
+    const categorySelect = document.querySelector('#form-treatment select[name="category_id"]');
+    const categoryId = categorySelect ? categorySelect.value : '';
+    select.value = '';
+    openQuickAddSubcategory(categoryId, select);
 }
 
 function openQuickAddMedication(targetSelect) {
@@ -1441,6 +1505,17 @@ function openQuickAddMedication(targetSelect) {
             window._pendingMedicationSelect = null;
         }
     });
+}
+
+function openQuickAddCategory(targetSelect) {
+    window._pendingCategorySelect = targetSelect;
+    showAddCategory();
+}
+
+function openQuickAddSubcategory(categoryId, targetSelect) {
+    window._pendingSubcategorySelect = targetSelect;
+    window._pendingSubcategoryCategoryId = categoryId;
+    showAddSubcategory(categoryId);
 }
 
 function showMedicationDetail(id) {
@@ -1626,12 +1701,15 @@ async function loadTreatmentOptions() {
 
     if (categorySelect) {
         categorySelect.innerHTML = '<option value="">Selecione uma categoria...</option>' +
-            treatmentCategoriesCache.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            treatmentCategoriesCache.map(c => `<option value="${c.id}">${c.name}</option>`).join('') +
+            `<option value="__new__">+ ${i18n.t('category.addNew')}</option>`;
+        categorySelect.onchange = () => handleTreatmentCategoryChange(categorySelect);
     }
 
     if (subcategorySelect) {
         subcategorySelect.innerHTML = '<option value="">Selecione uma subcategoria...</option>';
         subcategorySelect.disabled = true;
+        subcategorySelect.onchange = () => handleTreatmentSubcategoryChange(subcategorySelect);
     }
 
     if (profSelect) {
@@ -2803,31 +2881,36 @@ async function saveInventoryUpdate() {
     btn.disabled = true;
     btn.textContent = i18n.t('common.loading');
 
+    showLoadingModal();
     const errors = [];
 
-    for (const row of rows) {
-        const id = row.dataset.medId;
-        const input = row.querySelector('input[type="number"]');
-        const stockQuantity = parseInt(input.value) || 0;
+    try {
+        for (const row of rows) {
+            const id = row.dataset.medId;
+            const input = row.querySelector('input[type="number"]');
+            const stockQuantity = parseInt(input.value) || 0;
 
-        try {
-            await DB.updateMedication(id, { stock_quantity: stockQuantity });
-        } catch (error) {
-            console.error(`Error updating medication ${id}:`, error);
-            errors.push({ name: row.querySelector('td:first-child .font-medium').textContent });
+            try {
+                await DB.updateMedication(id, { stock_quantity: stockQuantity });
+            } catch (error) {
+                console.error(`Error updating medication ${id}:`, error);
+                errors.push({ name: row.querySelector('td:first-child .font-medium').textContent });
+            }
         }
-    }
 
-    if (errors.length > 0) {
-        alert(i18n.t('inventoryUpdate.saveError') + '\n' + errors.map(e => `- ${e.name}`).join('\n'));
-    } else {
-        alert(i18n.t('inventoryUpdate.saveSuccess'));
-    }
+        if (errors.length > 0) {
+            alert(i18n.t('inventoryUpdate.saveError') + '\n' + errors.map(e => `- ${e.name}`).join('\n'));
+        } else {
+            alert(i18n.t('inventoryUpdate.saveSuccess'));
+        }
 
-    await loadInventoryUpdate();
-    loadDashboard();
-    loadMedications();
-    btn.textContent = originalText;
+        await loadInventoryUpdate();
+        await loadDashboard();
+        await loadMedications();
+    } finally {
+        btn.textContent = originalText;
+        hideLoadingModal();
+    }
 }
 
 // ========== FORM HANDLERS ==========
@@ -2848,6 +2931,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 notes: formData.get('notes') || null
             };
 
+            showLoadingModal();
             try {
                 let savedDep;
                 if (id) {
@@ -2864,18 +2948,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Selecionar o dependente (novo ou atual)
                 if (!id || AppState.getCurrentDependent() === id) {
-                    selectDependent(savedDep.id);
+                    await selectDependent(savedDep.id);
                 }
 
                 // Recarregar página de gerenciamento se estiver aberta
                 if (document.getElementById('page-dependents')?.classList.contains('active')) {
-                    loadDependentsManagement();
+                    await loadDependentsManagement();
                 }
 
                 scrollPageToTop();
 
             } catch (error) {
                 alert('Erro ao salvar: ' + error.message);
+            } finally {
+                hideLoadingModal();
             }
         });
     }
@@ -2897,6 +2983,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 stock_quantity: parseInt(formData.get('stock_quantity')) || 0
             };
 
+            showLoadingModal();
             try {
                 let savedMedication;
                 if (currentEditingMedicationId) {
@@ -2914,13 +3001,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentEditingMedicationId = null;
                 closeModal('modal-medication');
                 medForm.reset();
-                loadMedications();
-                loadDashboard();
+                await loadMedications();
+                await loadDashboard();
                 scrollPageToTop();
 
             } catch (error) {
                 if (error.message === 'INACTIVE_MEDICATION_EXISTS' && error.existingMedication) {
                     if (confirm(`Já existe um medicamento inativo chamado "${error.existingMedication.name}". Deseja reativá-lo?`)) {
+                        showLoadingModal();
                         try {
                             await DB.reactivateMedication(error.existingMedication.id);
                             const reactivated = await DB.getMedication(error.existingMedication.id);
@@ -2930,15 +3018,19 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                             closeModal('modal-medication');
                             medForm.reset();
-                            loadMedications();
-                            loadDashboard();
+                            await loadMedications();
+                            await loadDashboard();
                         } catch (reactivateError) {
                             alert('Erro ao reativar: ' + reactivateError.message);
+                        } finally {
+                            hideLoadingModal();
                         }
                     }
                 } else {
                     alert('Erro ao salvar: ' + error.message);
                 }
+            } finally {
+                hideLoadingModal();
             }
         });
     }
@@ -2991,6 +3083,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 is_rescue: isRescue
             };
 
+            showLoadingModal();
             try {
                 let savedTreatment;
                 const weeklyTimes = isWeekly ? currentTreatmentFrequency.weeklyTimes : [];
@@ -3004,12 +3097,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeModal('modal-treatment');
                 treatmentForm.reset();
                 resetTreatmentFrequency();
-                loadTreatments();
-                loadDashboard();
+                await loadTreatments();
+                await loadDashboard();
                 scrollPageToTop();
 
             } catch (error) {
                 alert('Erro ao salvar: ' + error.message);
+            } finally {
+                hideLoadingModal();
             }
         });
     }
@@ -3128,6 +3223,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 email: formData.get('email') || null
             };
 
+            showLoadingModal();
             try {
                 const savedProfessional = await DB.addProfessional(professional);
 
@@ -3139,12 +3235,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentEditingProfessionalId = null;
                 closeModal('modal-professional');
                 profForm.reset();
-                loadProfessionals();
-                loadDashboard();
+                await loadProfessionals();
+                await loadDashboard();
                 scrollPageToTop();
 
             } catch (error) {
                 alert('Erro ao salvar: ' + error.message);
+            } finally {
+                hideLoadingModal();
             }
         });
     }
@@ -3167,6 +3265,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 used_date: status === 'Used' ? (formData.get('used_date') || null) : null
             };
 
+            showLoadingModal();
             try {
                 if (currentEditingPrescriptionId) {
                     await DB.updatePrescription(currentEditingPrescriptionId, prescription);
@@ -3177,12 +3276,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeModal('modal-prescription');
                 prescriptionForm.reset();
                 document.getElementById('prescription-used-date-wrapper').classList.add('hidden');
-                loadPrescriptions();
-                loadDashboard();
+                await loadPrescriptions();
+                await loadDashboard();
                 scrollPageToTop();
 
             } catch (error) {
                 alert('Erro ao salvar: ' + error.message);
+            } finally {
+                hideLoadingModal();
             }
         });
     }
@@ -3203,6 +3304,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 notes: formData.get('notes') || null
             };
 
+            showLoadingModal();
             try {
                 if (currentEditingSymptomId) {
                     await DB.updateSymptom(currentEditingSymptomId, symptom);
@@ -3212,11 +3314,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentEditingSymptomId = null;
                 closeModal('modal-symptom');
                 symptomForm.reset();
-                loadSymptoms();
+                await loadSymptoms();
                 scrollPageToTop();
 
             } catch (error) {
                 alert('Erro ao salvar: ' + error.message);
+            } finally {
+                hideLoadingModal();
             }
         });
     }
@@ -3238,6 +3342,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 notes: formData.get('notes') || null
             };
 
+            showLoadingModal();
             try {
                 if (currentEditingProcedureId) {
                     await DB.updateProcedure(currentEditingProcedureId, procedure);
@@ -3247,11 +3352,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentEditingProcedureId = null;
                 closeModal('modal-procedure');
                 procedureForm.reset();
-                loadProcedures();
+                await loadProcedures();
                 scrollPageToTop();
 
             } catch (error) {
                 alert('Erro ao salvar: ' + error.message);
+            } finally {
+                hideLoadingModal();
             }
         });
     }
@@ -3268,20 +3375,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 dependent_id: AppState.getCurrentDependent()
             };
 
+            showLoadingModal();
             try {
+                let savedCategory;
                 if (currentEditingCategoryId) {
-                    await DB.updateCategory(currentEditingCategoryId, category);
+                    savedCategory = await DB.updateCategory(currentEditingCategoryId, category);
                 } else {
-                    await DB.addCategory(category);
+                    savedCategory = await DB.addCategory(category);
                 }
                 currentEditingCategoryId = null;
                 closeModal('modal-category');
                 categoryForm.reset();
-                loadCategories();
+                await loadCategories();
+
+                // Se veio de um seletor de categoria (quick add), atualiza e seleciona
+                if (window._pendingCategorySelect && savedCategory) {
+                    const select = window._pendingCategorySelect;
+                    await loadTreatmentOptions();
+                    select.value = savedCategory.id;
+                    select.dispatchEvent(new Event('change'));
+                    window._pendingCategorySelect = null;
+                }
+
                 scrollPageToTop();
 
             } catch (error) {
                 alert('Erro ao salvar: ' + error.message);
+            } finally {
+                hideLoadingModal();
             }
         });
     }
@@ -3298,20 +3419,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 name: formData.get('name')
             };
 
+            showLoadingModal();
             try {
+                let savedSubcategory;
                 if (currentEditingSubcategoryId) {
-                    await DB.updateSubcategory(currentEditingSubcategoryId, subcategory);
+                    savedSubcategory = await DB.updateSubcategory(currentEditingSubcategoryId, subcategory);
                 } else {
-                    await DB.addSubcategory(subcategory);
+                    savedSubcategory = await DB.addSubcategory(subcategory);
                 }
                 currentEditingSubcategoryId = null;
                 closeModal('modal-subcategory');
                 subcategoryForm.reset();
-                loadCategories();
+                await loadCategories();
+
+                // Se veio de um seletor de subcategoria (quick add), atualiza e seleciona
+                if (window._pendingSubcategorySelect && savedSubcategory) {
+                    const select = window._pendingSubcategorySelect;
+                    const categorySelect = document.querySelector('#form-treatment select[name="category_id"]');
+                    if (categorySelect) {
+                        await loadTreatmentOptions();
+                        categorySelect.value = savedSubcategory.category_id;
+                        categorySelect.dispatchEvent(new Event('change'));
+                    }
+                    select.value = savedSubcategory.id;
+                    window._pendingSubcategorySelect = null;
+                    window._pendingSubcategoryCategoryId = null;
+                }
+
                 scrollPageToTop();
 
             } catch (error) {
                 alert('Erro ao salvar: ' + error.message);
+            } finally {
+                hideLoadingModal();
             }
         });
     }
@@ -3340,6 +3480,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
+            showLoadingModal();
             try {
                 await DB.recordDose(
                     currentDoseSchedule.scheduling.id,
@@ -3354,11 +3495,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 doseActionForm.reset();
                 document.getElementById('dose-action-extra-medications').innerHTML = '';
                 currentDoseSchedule = null;
-                loadTodaySchedule();
-                loadDashboard();
+                await loadTodaySchedule();
+                await loadDashboard();
 
             } catch (error) {
                 alert('Erro ao registrar: ' + error.message);
+            } finally {
+                hideLoadingModal();
             }
         });
     }
@@ -3527,6 +3670,13 @@ window.deactivateMedication = deactivateMedication;
 window.reactivateMedication = reactivateMedication;
 window.handleMedicationSelectChange = handleMedicationSelectChange;
 window.handleTreatmentCategoryChange = handleTreatmentCategoryChange;
+window.handleTreatmentSubcategoryChange = handleTreatmentSubcategoryChange;
+window.showAddCategory = showAddCategory;
+window.editCategory = editCategory;
+window.deleteCategory = deleteCategory;
+window.showAddSubcategory = showAddSubcategory;
+window.editSubcategory = editSubcategory;
+window.deleteSubcategory = deleteSubcategory;
 window.showAddTreatment = showAddTreatment;
 window.editTreatment = editTreatment;
 window.deleteTreatment = deleteTreatment;

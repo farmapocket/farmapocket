@@ -6,17 +6,38 @@
 ---
 - Ao incluir uma medicação, sugerir a criação de um tratamento
 ---
-- Um modal semitransparente com a mesma ampulheta da splash screen
-    - Mostrar essa modal nas operações que estão demorando, como:
-        - Ao trocar de dependente, mostrar a modal até terminar de preencher os dados da tela
-        - Nas ações TOMAR, PULAR e REVERTER, até terminar de preencher os dados da tela
-        - Nas ações salvar dos cadastros
-        - Ao mudar as telas (painel, medicamentos, tratamentos, etc)
----
-- Incluir opção de criar nova categoria no seletor
-- Incluir opção de criar nova subcategoria no seletor
----
 - Tipos diferentes de administração de medicamentos: Líquido, sublingual, soblingual
+    - Adicionei novas colunas na tabela medications:
+        - expiring_date date
+        - method_of_administration text
+        - unit text
+    - method_of_administration deve oferecer a lista abaixo (nessa ordem):
+		- Oral
+		- Orodispersíveis
+		- Subliungual
+		- Retal
+		- Vaginal
+		- Intra-Auricular
+		- Intradérmica
+		- Intramuscular
+		- Intranasal
+		- Intraocular
+		- Intratecal
+		- Subcutânea
+		- Tópico / Cutânea
+		- Tópico / Inalatória
+		- Tópico / Mucosas
+    - Esta lista precisa ficar disponível nas linguagens disponíveis no sistema
+    - No card de tratamento, onde há a informação x[unit] / yh - Substituiremos por x[unit] via [method_of_administration] / yh
+    - nos tratamentos com programação definida manualmente atualmente é exibido [dia]: HH:MM:SS (x) - Ao invés disso exibiremos [dia]: HH:MM (x[unit] via [method_of_administration])
+    - unit deve oferecer a lista abaixo (nessa ordem):
+        - un.
+        - ml.
+        - UI.
+        - mg.
+    - Esta lista precisa ficar disponível nas linguagens disponíveis no sistema
+    - Em todos os lugares que o sistema exibe un. exibiremos o valor de unit
+
 ---
 - Implementar visualização da linha do tempo dos tratamentos, sintomas e procedimentos
     - Ordenar os tratamentos por subcategoria
@@ -56,6 +77,16 @@
 
 # Últimas implementações:
 
+- Incluir opção de criar nova categoria no seletor
+- Incluir opção de criar nova subcategoria no seletor
+---
+3- Um modal semitransparente com a mesma ampulheta da splash screen
+    - Mostrar essa modal nas operações que estão demorando, como:
+        - Ao trocar de dependente, mostrar a modal até terminar de preencher os dados da tela
+        - Nas ações TOMAR, PULAR e REVERTER, até terminar de preencher os dados da tela
+        - Nas ações salvar dos cadastros
+        - Ao mudar as telas (painel, medicamentos, tratamentos, etc)
+---
 - Categoria e subcategoria precisa ser por dependente
 ---
 - Notificação/Alarme

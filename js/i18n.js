@@ -23,6 +23,7 @@ const i18n = {
         'common.add': { 'en': 'Add', 'pt-BR': 'Adicionar', 'es': 'Agregar' },
         'common.search': { 'en': 'Search', 'pt-BR': 'Buscar', 'es': 'Buscar' },
         'common.loading': { 'en': 'Loading...', 'pt-BR': 'Carregando...', 'es': 'Cargando...' },
+        'common.processing': { 'en': 'Processing...', 'pt-BR': 'Processando...', 'es': 'Procesando...' },
         'common.noData': { 'en': 'No data found', 'pt-BR': 'Nenhum dado encontrado', 'es': 'No se encontraron datos' },
         'common.success': { 'en': 'Success!', 'pt-BR': 'Sucesso!', 'es': '¡Éxito!' },
         'common.error': { 'en': 'Error', 'pt-BR': 'Erro', 'es': 'Error' },
