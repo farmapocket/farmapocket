@@ -1,10 +1,63 @@
 # MVP
 
+- Migração para flutter (Dart)
+---
 - Gestão dos remédios avulsos
 ---
 - verificar questão legar de registro de propriedade intelectual
 ---
 - Ao incluir uma medicação, sugerir a criação de um tratamento
+---
+- Implementar visualização da linha do tempo dos tratamentos, sintomas e procedimentos
+    - Ordenar os tratamentos por subcategoria
+---
+- Expurgo de últimas ações (manter apenas 10 por dependente)
+---
+- Exportar tratamentos ativos: clipboard, email e pdf
+---
+- Controle de insumos como agulhas de insulina, tiras de medição de glicemia
+---
+- Permitir indicar no tratamento se utiliza algum insumo, para controle do estoque 
+---
+- Incluir ações em tratamentos, como medir glicemia e pressão 
+---
+- Histórico de informações de saúde (valores de glicemia, pressão, peso)
+---
+- Leitura de receituário digital
+.
+
+# Bugs conhecidos
+
+- O seletor de profissional de saúde às vezes mostra profissionais do dependente que não está selecionado
+---
+.
+
+# Próximos passos
+
+- Base nacional de medicamentos
+---
+- Não podemos ter estoque negativo: Se uma ação "Tomar" encontrar uma quantidade menor que a solicitada
+---
+- No log das últimas ações, na tela "...Mais", preciso trazer a informação created_at da tabela scheduling 
+---
+- Uma opção para receber ou não as notificações de tratamentos
+---
+- Monetização
+---
+- Migração para linguagem mobile
+---
+- Importar arquivo com profissionais, medicações, tratamentos e sintomas
+---
+- As operações estão lentas e dá um aspecto de travamento. Poderíamos ter ações assíncronas?
+---
+- Criptografia de ponta à ponta
+---
+.
+
+
+# Últimas implementações:
+
+- Days de término do medicamento no card
 ---
 - Tipos diferentes de administração de medicamentos: Líquido, sublingual, soblingual
     - Adicionei novas colunas na tabela medications:
@@ -39,43 +92,6 @@
     - Em todos os lugares que o sistema exibe un. exibiremos o valor de unit
 
 ---
-- Implementar visualização da linha do tempo dos tratamentos, sintomas e procedimentos
-    - Ordenar os tratamentos por subcategoria
----
-- Expurgo de últimas ações (manter apenas 10 por dependente)
----
-.
-
-# Bugs conhecidos
-
-- O seletor de profissional de saúde às vezes mostra profissionais do dependente que não está selecionado
----
-.
-
-# Próximos passos
-
-- Base nacional de medicamentos
----
-- Não podemos ter estoque negativo: Se uma ação "Tomar" encontrar uma quantidade menor que a solicitada
----
-- No log das últimas ações, na tela "...Mais", preciso trazer a informação created_at da tabela scheduling 
----
-- Uma opção para receber ou não as notificações de tratamentos
----
-- Monetização
----
-- Migração para linguagem mobile
----
-- Importar arquivo com profissionais, medicações, tratamentos e sintomas
----
-- As operações estão lentas e dá um aspecto de travamento. Poderíamos ter ações assíncronas?
----
-- Criptografia de ponta à ponta
----
-.
-
-
-# Últimas implementações:
 
 - Incluir opção de criar nova categoria no seletor
 - Incluir opção de criar nova subcategoria no seletor

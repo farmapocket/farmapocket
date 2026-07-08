@@ -748,6 +748,34 @@ function calculateTreatmentDailyUsage(treatment) {
     return (24 / freqHours) * dosage;
 }
 
+function calculateMedicationDailyUsage(medicationId, treatments) {
+    if (!medicationId || !treatments) return 0;
+    return treatments
+        .filter(t => t.medication_id === medicationId && t.is_active !== false && !t.end_date)
+        .reduce((sum, t) => sum + calculateTreatmentDailyUsage(t), 0);
+}
+
+function formatStockBadge(medication, dailyUsage) {
+    const stock = parseFloat(medication?.stock_quantity) || 0;
+    const unit = getUnitLabel(medication?.unit);
+
+    if (dailyUsage <= 0 || stock <= 0) {
+        return `Estoque: ${formatDosage(stock)} ${unit}`;
+    }
+
+    const daysRemaining = Math.round(stock / dailyUsage);
+    const baseDate = medication?.stock_last_updated
+        ? new Date(medication.stock_last_updated)
+        : new Date();
+    const runoutDate = new Date(baseDate);
+    runoutDate.setDate(runoutDate.getDate() + daysRemaining);
+    const dateStr = runoutDate.toLocaleDateString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+
+    return `Estoque: ${formatDosage(stock)} ${unit}<br>${daysRemaining} dias (${dateStr})`;
+}
+
 function getStockBadgeClass(treatment, prescriptionCounts) {
     const medication = treatment?.medications || {};
     const stock = parseFloat(medication.stock_quantity) || 0;
@@ -912,12 +940,12 @@ function renderScheduleCard(schedule, dependentName, prescriptionCounts) {
     const treatmentsHtml = schedule.treatments.map(t => {
         const med = t.medications || {};
         const name = med.name || t.medication_name || t.name || 'Medicamento';
-        const stock = parseFloat(med.stock_quantity) || 0;
         const badgeClass = getStockBadgeClass(t, prescriptionCounts);
+        const stockBadge = formatStockBadge(med, calculateTreatmentDailyUsage(t));
         return `
             <div class="flex items-center justify-between gap-3">
                 <p class="text-sm text-gray-800 leading-relaxed">${name} (${formatDose(t.dosage, med)})</p>
-                <span class="text-xs px-2 py-0.5 rounded-full ${badgeClass} flex-shrink-0">${i18n.t('dashboard.stockUnits', { units: formatDosage(stock) + ' ' + getUnitLabel(med.unit) })}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full ${badgeClass} flex-shrink-0">${stockBadge}</span>
             </div>
         `;
     }).join('');
@@ -1374,9 +1402,10 @@ async function loadMedications() {
     listEl.innerHTML = '<div class="skeleton h-20 rounded-xl"></div>'.repeat(3);
 
     try {
-        const [medications, prescriptionCounts] = await Promise.all([
+        const [medications, prescriptionCounts, treatments] = await Promise.all([
             DB.getMedications(depId),
-            DB.getPrescriptionCountsByMedication(depId)
+            DB.getPrescriptionCountsByMedication(depId),
+            DB.getTreatments(depId)
         ]);
 
         if (medications.length === 0) {
@@ -1414,7 +1443,7 @@ async function loadMedications() {
                         <div class="flex items-center gap-2 mt-2 flex-wrap">
                             ${med.is_controlled ? '<span class="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Controlado</span>' : ''}
                             ${med.is_continuous_use ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Uso Contínuo</span>' : ''}
-                            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${med.stock_quantity || 0} ${getUnitLabel(med.unit)}</span>
+                            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${formatStockBadge(med, calculateMedicationDailyUsage(med.id, treatments))}</span>
                             ${prescriptionCount > 0 ? `<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">${prescriptionCount} receita${prescriptionCount > 1 ? 's' : ''} (${prescriptionUnits} ${getUnitLabel(med.unit)})</span>` : ''}
                             ${inactiveBadge}
                         </div>
@@ -1576,6 +1605,8 @@ async function editMedication(id) {
 
     currentEditingMedicationId = id;
     const form = document.getElementById('form-medication');
+    form.reset();
+    console.log('[Edit Medication] medication.method_of_administration:', medication.method_of_administration, 'medication:', medication);
     form.querySelector('[name="name"]').value = medication.name || '';
     form.querySelector('[name="active_ingredient"]').value = medication.active_ingredient || '';
     form.querySelector('[name="is_controlled"]').checked = medication.is_controlled === true;
@@ -1583,8 +1614,10 @@ async function editMedication(id) {
     form.querySelector('[name="stock_quantity"]').value = medication.stock_quantity || 0;
     form.querySelector('[name="expiring_date"]').value = medication.expiring_date || '';
     form.querySelector('[name="unit"]').value = medication.unit || 'un.';
-    form.querySelector('[name="method_of_administration"]').value = medication.method_of_administration || '';
-    await loadLaboratoryOptions(medication.laboratory_id);
+    const methodSelect = form.querySelector('[name="method_of_administration"]');
+    const methodValue = (medication.method_of_administration || '').toString().toLowerCase();
+    methodSelect.value = methodValue;
+    console.log('[Edit Medication] select value after set:', methodSelect.value, 'options:', Array.from(methodSelect.options).map(o => o.value));
 
     document.querySelector('#modal-medication h3').textContent = i18n.t('medication.edit');
     openModal('modal-medication');
@@ -3053,8 +3086,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 stock_quantity: parseInt(formData.get('stock_quantity')) || 0,
                 expiring_date: formData.get('expiring_date') || null,
                 unit: formData.get('unit') || 'un.',
-                method_of_administration: formData.get('method_of_administration') || null
+                method_of_administration: (formData.get('method_of_administration') || '').toString().toLowerCase() || null
             };
+            console.log('[Save Medication] method_of_administration to save:', medication.method_of_administration, 'full medication:', medication);
 
             showLoadingModal();
             try {
