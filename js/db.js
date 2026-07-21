@@ -1037,7 +1037,6 @@ const DB = {
             if (!times || times.length === 0) return null;
 
             const startDate = treatment.start_date ? new Date(treatment.start_date + 'T00:00:00') : null;
-            const endDate = treatment.end_date ? new Date(treatment.end_date + 'T00:00:00') : null;
 
             // Se nunca foi executado, pula horarios passados (usando referenceTime)
             // Se ja foi executado, busca o proximo horario na sequencia (sem pular)
@@ -1058,7 +1057,6 @@ const DB = {
                 candidate.setHours(0, 0, 0, 0);
 
                 if (startDate && candidate < startDate) continue;
-                if (endDate && candidate > endDate) continue;
 
                 const dayOfWeek = candidate.getDay();
                 const dayTimes = times
@@ -1358,6 +1356,40 @@ const DB = {
         }
     },
 
+    async _getTreatmentDisplayName(treatment) {
+        if (treatment?.medications?.name) return treatment.medications.name;
+        if (treatment?.medication_name) return treatment.medication_name;
+        if (treatment?.medication_id) {
+            try {
+                const med = await this.getMedication(treatment.medication_id);
+                if (med?.name) return med.name;
+            } catch (e) {
+                console.error('Error fetching medication name:', e);
+            }
+        }
+        return 'Tratamento';
+    },
+
+    async _deactivateTreatment(id) {
+        const payload = {
+            is_active: false,
+            updated_at: new Date().toISOString()
+        };
+        try {
+            const { data, error } = await supabase
+                .from('treatments')
+                .update(payload)
+                .eq('id', id)
+                .select()
+                .single();
+            if (error) throw error;
+            await OfflineDB.set('treatments', id, data);
+        } catch (error) {
+            console.error('Error deactivating treatment:', error);
+            await OfflineDB.queueForSync('treatments', 'update', { id, ...payload });
+        }
+    },
+
     async _ensureNextScheduleForTreatment(treatment, referenceTime = new Date()) {
         console.log('🔍 _ensureNextScheduleForTreatment called:', { treatmentId: treatment?.id, schedule_type: treatment?.schedule_type, is_active: treatment?.is_active, dependent_id: treatment?.dependent_id });
         if (!treatment || treatment.schedule_type === 'rescue' || treatment.is_active === false) {
@@ -1367,6 +1399,22 @@ const DB = {
         const nextDoseTime = await this._calculateNextDoseTime(treatment, referenceTime);
         console.log('🔍 _ensureNextScheduleForTreatment: nextDoseTime=', nextDoseTime);
         if (!nextDoseTime) return null;
+
+        if (treatment.end_date) {
+            const endOfEndDate = new Date(treatment.end_date + 'T23:59:59');
+            if (nextDoseTime > endOfEndDate) {
+                await this._deactivateTreatment(treatment.id);
+                treatment.is_active = false;
+                const name = await this._getTreatmentDisplayName(treatment);
+                const endDateText = new Date(treatment.end_date + 'T00:00:00').toLocaleDateString('pt-BR');
+                const message = typeof i18n !== 'undefined'
+                    ? i18n.t('treatment.endedNotification', { name, endDate: endDateText })
+                    : `O tratamento "${name}" foi encerrado em ${endDateText} e foi inativado automaticamente.`;
+                alert(message);
+                return null;
+            }
+        }
+
         const schedule = await this._findOrCreateNextSchedule(treatment.dependent_id, nextDoseTime);
         console.log('🔍 _ensureNextScheduleForTreatment: schedule=', schedule);
         if (schedule) {
@@ -1486,6 +1534,107 @@ const DB = {
         }
     },
 
+    async recordSingleIssueDose(dependentId, timeStr, treatmentDosages, notes, extraMedications = []) {
+        if (!dependentId) throw new Error('dependent_id is required');
+        if (!timeStr) throw new Error('schedule_time is required');
+
+        const todayStr = this._toISODate(new Date());
+        const takenAt = new Date().toISOString();
+
+        const payload = {
+            dependent_id: dependentId,
+            schedule_date: todayStr,
+            schedule_time: timeStr,
+            action: 'Taken',
+            notes: notes || null,
+            taken_at: takenAt,
+            is_single_issue: true
+        };
+
+        try {
+            const { data, error } = await supabase
+                .from('scheduling')
+                .insert(payload)
+                .select()
+                .single();
+
+            if (error) throw error;
+            await OfflineDB.set('scheduling', data.id, data);
+
+            // Link treatments with dosages
+            for (const item of treatmentDosages) {
+                if (!item.treatment_id || !item.medication_id || !item.dosage) continue;
+
+                const linkPayload = {
+                    scheduling_id: data.id,
+                    treatment_id: item.treatment_id,
+                    medication_id: item.medication_id,
+                    dosage: parseFloat(item.dosage) || 0
+                };
+
+                try {
+                    const { data: linkData, error: linkError } = await supabase
+                        .from('treatments_in_schedule')
+                        .insert(linkPayload)
+                        .select()
+                        .single();
+
+                    if (linkError) throw linkError;
+                    await OfflineDB.set('treatments_in_schedule', linkData.id, linkData);
+                } catch (linkError) {
+                    await OfflineDB.queueForSync('treatments_in_schedule', 'insert', linkPayload);
+                    console.error('Error linking treatment to single issue schedule:', linkError);
+                }
+            }
+
+            // Add extra medication links
+            if (extraMedications && extraMedications.length > 0) {
+                for (const extra of extraMedications) {
+                    if (!extra.medication_id || !extra.dosage) continue;
+
+                    const linkPayload = {
+                        scheduling_id: data.id,
+                        treatment_id: null,
+                        medication_id: extra.medication_id,
+                        dosage: parseFloat(extra.dosage) || 0
+                    };
+
+                    try {
+                        const { data: linkData, error: linkError } = await supabase
+                            .from('treatments_in_schedule')
+                            .insert(linkPayload)
+                            .select()
+                            .single();
+
+                        if (linkError) throw linkError;
+                        await OfflineDB.set('treatments_in_schedule', linkData.id, linkData);
+                    } catch (linkError) {
+                        await OfflineDB.queueForSync('treatments_in_schedule', 'insert', linkPayload);
+                        console.error('Error linking extra medication to single issue schedule:', linkError);
+                    }
+                }
+            }
+
+            // Update medication stock for all provided dosages
+            const allDosages = [
+                ...treatmentDosages.map(t => ({ medication_id: t.medication_id, dosage: t.dosage })),
+                ...extraMedications.map(e => ({ medication_id: e.medication_id, dosage: e.dosage }))
+            ];
+            for (const item of allDosages) {
+                if (!item.medication_id || !item.dosage) continue;
+                const dosage = parseFloat(item.dosage) || 0;
+                if (dosage > 0) {
+                    await this._updateMedicationStock(item.medication_id, -dosage);
+                }
+            }
+
+            return data;
+        } catch (error) {
+            console.error('Error recording single issue dose:', error);
+            throw error;
+        }
+    },
+
     async revertLastDose(dependentId) {
         if (!dependentId) throw new Error('dependent_id is required');
 
@@ -1515,6 +1664,28 @@ const DB = {
                         await this._updateMedicationStock(link.medication_id, dosage);
                     }
                 }
+            }
+
+            // Single issue schedules are deleted entirely instead of reverted to NEXT
+            if (lastScheduling.is_single_issue === true) {
+                const links = await this._getScheduleLinks(lastScheduling.id);
+                for (const link of links) {
+                    try {
+                        await supabase.from('treatments_in_schedule').delete().eq('id', link.id);
+                        await OfflineDB.delete('treatments_in_schedule', link.id);
+                    } catch (e) {
+                        await OfflineDB.queueForSync('treatments_in_schedule', 'delete', { id: link.id });
+                    }
+                }
+
+                try {
+                    await supabase.from('scheduling').delete().eq('id', lastScheduling.id);
+                    await OfflineDB.delete('scheduling', lastScheduling.id);
+                } catch (e) {
+                    await OfflineDB.queueForSync('scheduling', 'delete', { id: lastScheduling.id });
+                }
+
+                return { deleted: true, id: lastScheduling.id };
             }
 
             // Delete current NEXT schedules created after this action

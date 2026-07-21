@@ -219,6 +219,10 @@ const i18n = {
         'treatment.goal': { 'en': 'Treatment Goal', 'pt-BR': 'Objetivo do Tratamento', 'es': 'Objetivo del Tratamento' },
         'treatment.adminNotes': { 'en': 'Administration Notes', 'pt-BR': 'Observações de Administração', 'es': 'Observaciones de Administración' },
         'treatment.isActive': { 'en': 'Active Treatment', 'pt-BR': 'Tratamento Ativo', 'es': 'Tratamiento Activo' },
+        'treatment.status': { 'en': 'Status', 'pt-BR': 'Status', 'es': 'Estado' },
+        'treatment.active': { 'en': 'Active', 'pt-BR': 'Ativo', 'es': 'Activo' },
+        'treatment.inactive': { 'en': 'Inactive', 'pt-BR': 'Inativo', 'es': 'Inactivo' },
+        'treatment.endedNotification': { 'en': 'The treatment "{name}" ended on {endDate} and has been automatically deactivated.', 'pt-BR': 'O tratamento "{name}" foi encerrado em {endDate} e foi inativado automaticamente.', 'es': 'El tratamiento "{name}" finalizó el {endDate} y fue desactivado automáticamente.' },
         'treatment.autonomy': { 'en': 'Autonomy', 'pt-BR': 'Autonomia', 'es': 'Autonomía' },
         'treatment.via': { 'en': 'via', 'pt-BR': 'via', 'es': 'vía' },
         'treatment.daysRemaining': { 'en': 'Days Remaining', 'pt-BR': 'Dias Restantes', 'es': 'Días Restantes' },
@@ -266,6 +270,14 @@ const i18n = {
         'dashboard.taken': { 'en': 'Taken', 'pt-BR': 'Tomadas', 'es': 'Tomadas' },
         'dashboard.skipped': { 'en': 'Skipped', 'pt-BR': 'Puladas', 'es': 'Saltadas' },
         'dashboard.stockUnits': { 'en': '{units} in stock', 'pt-BR': '{units} em estoque', 'es': '{units} en stock' },
+        'dashboard.singleIssue': { 'en': 'TAKE SINGLE ISSUE', 'pt-BR': 'TOMAR AVULSO', 'es': 'TOMAR SUELTO' },
+
+        // SINGLE ISSUE
+        'singleIssue.title': { 'en': 'Confirm Medication Taken', 'pt-BR': 'Confirmar Medicação Tomada', 'es': 'Confirmar Medicación Tomada' },
+        'singleIssue.time': { 'en': 'Time', 'pt-BR': 'Horário', 'es': 'Horario' },
+        'singleIssue.rescueTreatments': { 'en': 'Rescue Treatments', 'pt-BR': 'Tratamentos de Resgate', 'es': 'Tratamientos de Rescate' },
+        'singleIssue.notes': { 'en': 'Notes (optional)', 'pt-BR': 'Observações (opcional)', 'es': 'Observaciones (opcional)' },
+        'singleIssue.noRescueTreatments': { 'en': 'No active rescue treatments', 'pt-BR': 'Nenhum tratamento de resgate ativo', 'es': 'Ningún tratamiento de rescate activo' },
 
         // SETTINGS
         'settings.language': { 'en': 'Language', 'pt-BR': 'Idioma', 'es': 'Idioma' },

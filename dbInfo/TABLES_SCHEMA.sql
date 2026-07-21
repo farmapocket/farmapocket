@@ -150,6 +150,7 @@ CREATE TABLE public.scheduling (
   dependent_id uuid,
   schedule_date date,
   taken_at timestamp with time zone,
+  is_single_issue boolean DEFAULT false,
   CONSTRAINT scheduling_pkey PRIMARY KEY (id),
   CONSTRAINT scheduling_dependent_id_fkey FOREIGN KEY (dependent_id) REFERENCES public.dependents(id)
 );

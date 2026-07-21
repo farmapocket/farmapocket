@@ -24,6 +24,16 @@
 - Histórico de informações de saúde (valores de glicemia, pressão, peso)
 ---
 - Leitura de receituário digital
+---
+- Tomar remédio fora do horário 
+---
+- Agrupar remédio se eu adicionar iguais na ação tomar
+---
+- Lembretes para medicação de resgate
+---
+- Layout para impressão da agenda semanal
+---
+- Mais de um laboratório preferido 
 .
 
 # Bugs conhecidos
