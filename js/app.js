@@ -78,11 +78,17 @@ function getUnitLabel(value) {
     return unit ? i18n.t(unit.key) : (value || 'un.');
 }
 
-function toggleShowAllDependents() {
+async function toggleShowAllDependents() {
     const toggle = document.getElementById('toggle-show-all-dependents');
     showAllDependentsDashboard = toggle ? toggle.checked : false;
-    loadTodaySchedule();
-    loadLastAction();
+
+    showLoadingModal();
+    try {
+        await loadTodaySchedule();
+        await loadLastAction();
+    } finally {
+        hideLoadingModal();
+    }
 }
 
 // ========== APP CONFIGURATION ==========

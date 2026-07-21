@@ -38,10 +38,6 @@
 ---
 - Não podemos ter estoque negativo: Se uma ação "Tomar" encontrar uma quantidade menor que a solicitada
 ---
-- No log das últimas ações, na tela "...Mais", preciso trazer a informação created_at da tabela scheduling 
----
-- Uma opção para receber ou não as notificações de tratamentos
----
 - Monetização
 ---
 - Migração para linguagem mobile
@@ -57,6 +53,10 @@
 
 # Últimas implementações:
 
+- No log das últimas ações, na tela "...Mais", preciso trazer a informação created_at da tabela scheduling 
+---
+- Uma opção para receber ou não as notificações de tratamentos
+---
 - Days de término do medicamento no card
 ---
 - Tipos diferentes de administração de medicamentos: Líquido, sublingual, soblingual
