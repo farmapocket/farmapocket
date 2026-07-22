@@ -10,10 +10,10 @@ DROP FUNCTION IF EXISTS public.calculate_next_dose_for_treatment(uuid, timestamp
 -- após as colunas schedule_date e taken_at terem sido adicionadas
 -- à tabela scheduling.
 --
--- Para cada tratamento ativo (exceto resgate), calcula a PRÓXIMA
--- DOSE PROGRAMADA a partir do último horário executado (Taken/Skipped).
--- Se nunca foi executado, usa o start_date/first_dose_time original,
--- sem pular horários passados.
+-- Para cada tratamento ativo (exceto resgate), calcula a DOSE DO DIA ATUAL
+-- no horário configurado do tratamento, independentemente do horário em que
+-- a função for executada. Se já houver uma dose executada (Taken/Skipped),
+-- calcula a próxima dose a partir do dia seguinte ao último horário executado.
 --
 -- Isso garante que, se o usuário ainda não tomou/pulou a dose das 8h,
 -- ela continue aparecendo no card como NEXT.
@@ -63,9 +63,12 @@ DECLARE
     v_best_time text;
     v_found boolean := false;
     v_slot record;
+    v_today date;
 BEGIN
     SELECT * INTO v_treatment FROM public.treatments WHERE id = p_treatment_id;
     IF NOT FOUND THEN RETURN; END IF;
+
+    v_today := timezone('America/Sao_Paulo', now())::date;
 
     v_start_date := v_treatment.start_date;
     v_end_date := v_treatment.end_date;
@@ -86,12 +89,12 @@ BEGIN
         v_best_date := NULL;
         v_best_time := NULL;
 
-        -- Se nunca foi executado, usa now() como referencia (pula passado)
+        -- Se nunca foi executado, usa o dia atual como referencia (sem pular horarios passados)
         -- Se ja foi executado, busca o proximo dia valido apos o ultimo
         IF v_last_date IS NOT NULL THEN
             v_candidate := (v_last_date + 1)::timestamp;
         ELSE
-            v_candidate := now();
+            v_candidate := v_today::timestamp;
         END IF;
 
         FOR i IN 0..28 LOOP
@@ -133,11 +136,12 @@ BEGIN
         v_candidate := timezone('UTC', (v_last_date || ' ' || v_last_time)::timestamp);
         v_candidate := v_candidate + (v_freq_hours || ' hours')::interval;
     ELSE
-        -- Nunca executado: primeiro horario futuro a partir de now()
-        v_candidate := timezone('UTC', (v_start_date || ' ' || v_first_dose_time)::timestamp);
-        WHILE v_candidate <= now() LOOP
-            v_candidate := v_candidate + (v_freq_hours || ' hours')::interval;
-        END LOOP;
+        -- Nunca executado: usa o dia atual (ou start_date se futuro) no first_dose_time, sem pular horarios passados
+        IF v_start_date < v_today THEN
+            v_candidate := timezone('UTC', (v_today || ' ' || v_first_dose_time)::timestamp);
+        ELSE
+            v_candidate := timezone('UTC', (v_start_date || ' ' || v_first_dose_time)::timestamp);
+        END IF;
     END IF;
 
     IF v_end_date IS NOT NULL AND v_candidate::date > v_end_date THEN RETURN; END IF;

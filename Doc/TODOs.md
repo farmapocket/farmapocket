@@ -25,8 +25,6 @@
 ---
 - Leitura de receituário digital
 ---
-- Tomar remédio fora do horário 
----
 - Agrupar remédio se eu adicionar iguais na ação tomar
 ---
 - Lembretes para medicação de resgate
@@ -62,7 +60,9 @@
 
 
 # Últimas implementações:
-
+---
+- Tomar remédio fora do horário 
+---
 - No log das últimas ações, na tela "...Mais", preciso trazer a informação created_at da tabela scheduling 
 ---
 - Uma opção para receber ou não as notificações de tratamentos

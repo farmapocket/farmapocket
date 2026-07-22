@@ -1749,6 +1749,26 @@ async function loadTreatments() {
             treatments = treatments.filter(t => t.is_active !== false);
         }
 
+        treatments.sort((a, b) => {
+            const rescueA = a.is_rescue === true ? 1 : 0;
+            const rescueB = b.is_rescue === true ? 1 : 0;
+            if (rescueA !== rescueB) return rescueA - rescueB;
+
+            const categoryA = a.subcategories?.categories?.name || a.category_name || '';
+            const categoryB = b.subcategories?.categories?.name || b.category_name || '';
+            if (categoryA < categoryB) return -1;
+            if (categoryA > categoryB) return 1;
+
+            const subcategoryA = a.subcategories?.name || a.subcategory_name || '';
+            const subcategoryB = b.subcategories?.name || b.subcategory_name || '';
+            if (subcategoryA < subcategoryB) return -1;
+            if (subcategoryA > subcategoryB) return 1;
+
+            const nameA = a.medications?.name || a.medication_name || '';
+            const nameB = b.medications?.name || b.medication_name || '';
+            return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+        });
+
         if (treatments.length === 0) {
             listEl.innerHTML = `
                 <div class="text-center py-8">
