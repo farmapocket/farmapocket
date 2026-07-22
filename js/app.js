@@ -1750,6 +1750,10 @@ async function loadTreatments() {
         }
 
         treatments.sort((a, b) => {
+            const activeA = a.is_active === true ? 1 : 0;
+            const activeB = b.is_active === true ? 1 : 0;
+            if (activeA !== activeB) return activeB - activeA;
+
             const rescueA = a.is_rescue === true ? 1 : 0;
             const rescueB = b.is_rescue === true ? 1 : 0;
             if (rescueA !== rescueB) return rescueA - rescueB;
