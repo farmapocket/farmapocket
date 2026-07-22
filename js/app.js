@@ -642,6 +642,7 @@ async function selectDependent(id) {
             if (pageId === 'medications') await loadMedications();
             if (pageId === 'treatments') await loadTreatments();
             if (pageId === 'professionals') await loadProfessionals();
+            if (pageId === 'prescriptions') await loadPrescriptions();
         } finally {
             hideLoadingModal();
         }
@@ -2373,8 +2374,6 @@ async function loadPrescriptions() {
         };
 
         listEl.innerHTML = prescriptions.map(p => {
-            const medName = p.medications?.name || p.medication_name || 'Medicamento';
-            const laboratoryName = p.medications?.laboratories?.name;
             const profName = p.healthcare_professionals?.name || p.professional_name || '';
             const profSpecialty = p.healthcare_professionals?.specialty || '';
             const profText = profName ? (profSpecialty ? `${profName} (${profSpecialty})` : profName) : '';
@@ -2383,12 +2382,21 @@ async function loadPrescriptions() {
             const status = p.status || 'Valid';
             const canUse = status === 'Valid';
 
+            const medications = p.medications_in_prescription || [];
+            const medicationsText = medications.length > 0
+                ? medications.map(m => {
+                    const name = m.medications?.name || m.medication_name || 'Medicamento';
+                    const amount = m.amount || 0;
+                    const unit = getUnitLabel(m.medications?.unit);
+                    return `${name} (${amount} ${unit})`;
+                }).join(', ')
+                : 'Nenhum medicamento';
+
             return `
             <div class="bg-white rounded-xl p-4 shadow-sm card-hover">
                 <div class="flex items-start justify-between mb-1">
                     <div class="flex-1 pr-2">
-                        <h3 class="text-lg font-bold text-gray-800">${medName}</h3>
-                        ${laboratoryName ? `<p class="text-sm text-gray-500">🏭 ${laboratoryName}</p>` : ''}
+                        <h3 class="text-lg font-bold text-gray-800">Receituário</h3>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-xs px-2 py-0.5 rounded-full ${statusClasses[status] || statusClasses['Valid']}">${statusLabels[status] || status}</span>
@@ -2400,7 +2408,7 @@ async function loadPrescriptions() {
                         </button>
                     </div>
                 </div>
-                <p class="text-base text-gray-600 mb-2">${p.units || 0} ${getUnitLabel(p.medications?.unit)}</p>
+                <p class="text-base text-gray-600 mb-2">${medicationsText}</p>
                 ${profText ? `<p class="text-sm text-gray-500 mb-1">👨‍⚕️ ${profText}</p>` : ''}
                 <div class="flex items-center justify-between mt-2">
                     <p class="text-sm text-gray-500">🗓️ ${status === 'Used' && usedDate ? `Utilizado em ${usedDate}` : (p.expiration_date ? `Vence em ${expDate}` : 'Sem data de validade')}</p>
@@ -2425,17 +2433,58 @@ async function loadPrescriptionOptions() {
         DB.getProfessionals(depId)
     ]);
 
-    const medSelect = document.querySelector('#form-prescription [name="medication_id"]');
+    window._prescriptionMedications = medications;
+
     const profSelect = document.querySelector('#form-prescription [name="prescribed_by"]');
-
-    medSelect.innerHTML = '<option value="">Selecione um medicamento...</option>' +
-        medications.map(m => `<option value="${m.id}">${m.name}</option>`).join('') +
-        `<option value="__new__">+ ${i18n.t('medication.addNew')}</option>`;
-
     profSelect.innerHTML = '<option value="">Selecione um profissional...</option>' +
         professionals.map(p => `<option value="${p.id}">${p.name}${p.specialty ? ` (${p.specialty})` : ''}</option>`).join('') +
         `<option value="__new__">+ ${i18n.t('professional.addNew')}</option>`;
     profSelect.onchange = () => handleProfessionalSelectChange(profSelect);
+}
+
+function addPrescriptionMedicationRow(medicationId = '', amount = '') {
+    const container = document.getElementById('prescription-medications-list');
+    const medications = window._prescriptionMedications || [];
+
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2 bg-gray-50 rounded-lg p-2';
+    row.innerHTML = `
+        <select class="prescription-medication-id flex-1 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white text-sm" onchange="handleMedicationSelectChange(this)">
+            <option value="">Selecione...</option>
+            ${medications.map(m => `<option value="${m.id}" ${m.id === medicationId ? 'selected' : ''}>${m.name}</option>`).join('')}
+            <option value="__new__">+ ${i18n.t('medication.addNew')}</option>
+        </select>
+        <input type="number" min="1" class="prescription-medication-amount w-20 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm" placeholder="Qtd" value="${amount}">
+        <button type="button" onclick="this.closest('.bg-gray-50').remove()" class="w-8 h-8 flex items-center justify-center text-red-500 hover:bg-red-50 rounded-lg" title="Remover">
+            ✕
+        </button>
+    `;
+    container.appendChild(row);
+}
+
+function clearPrescriptionMedicationRows() {
+    const container = document.getElementById('prescription-medications-list');
+    if (container) container.innerHTML = '';
+}
+
+function resetPrescriptionForm() {
+    const form = document.getElementById('form-prescription');
+    if (form) form.reset();
+    clearPrescriptionMedicationRows();
+    document.getElementById('prescription-used-date-wrapper').classList.add('hidden');
+    addPrescriptionMedicationRow();
+}
+
+function getPrescriptionMedicationsFromForm() {
+    const medications = [];
+    document.querySelectorAll('#prescription-medications-list .bg-gray-50').forEach(row => {
+        const medId = row.querySelector('.prescription-medication-id')?.value;
+        const amount = row.querySelector('.prescription-medication-amount')?.value;
+        if (medId && amount) {
+            medications.push({ medication_id: medId, amount: parseInt(amount) || 0 });
+        }
+    });
+    return medications;
 }
 
 function showAddPrescription() {
@@ -2444,11 +2493,11 @@ function showAddPrescription() {
         return;
     }
     currentEditingPrescriptionId = null;
-    document.getElementById('form-prescription').reset();
-    document.querySelector('#modal-prescription h3').textContent = i18n.t('prescription.addNew');
-    document.getElementById('prescription-used-date-wrapper').classList.add('hidden');
-    loadPrescriptionOptions();
-    openModal('modal-prescription');
+    loadPrescriptionOptions().then(() => {
+        resetPrescriptionForm();
+        document.querySelector('#modal-prescription h3').textContent = i18n.t('prescription.addNew');
+        openModal('modal-prescription');
+    });
 }
 
 async function editPrescription(id) {
@@ -2465,14 +2514,22 @@ async function editPrescription(id) {
 
     currentEditingPrescriptionId = id;
     await loadPrescriptionOptions();
+    resetPrescriptionForm();
 
     const form = document.getElementById('form-prescription');
-    form.querySelector('[name="medication_id"]').value = prescription.medication_id || '';
     form.querySelector('[name="prescribed_by"]').value = prescription.prescribed_by || '';
-    form.querySelector('[name="units"]').value = prescription.units || 0;
     form.querySelector('[name="expiration_date"]').value = prescription.expiration_date || '';
     form.querySelector('[name="status"]').value = prescription.status || 'Valid';
     form.querySelector('[name="used_date"]').value = prescription.used_date || '';
+
+    clearPrescriptionMedicationRows();
+    const medications = prescription.medications_in_prescription || [];
+    if (medications.length === 0 && (prescription.medication_id || prescription.units)) {
+        // Legacy fallback
+        addPrescriptionMedicationRow(prescription.medication_id, prescription.units || 1);
+    } else {
+        medications.forEach(m => addPrescriptionMedicationRow(m.medication_id, m.amount || ''));
+    }
 
     togglePrescriptionUsedDate(form.querySelector('[name="status"]'));
     document.querySelector('#modal-prescription h3').textContent = i18n.t('prescription.edit');
@@ -2506,9 +2563,14 @@ async function showUsePrescriptionModal(id) {
     }
 
     currentUsePrescriptionId = id;
-    document.getElementById('use-prescription-medication').textContent = prescription.medications?.name || prescription.medication_name || 'Medicamento';
-    const useMed = prescription.medications || {};
-    document.getElementById('use-prescription-units').textContent = `${prescription.units || 0} ${getUnitLabel(useMed.unit)}`;
+    const listEl = document.getElementById('use-prescription-medications');
+    const medications = prescription.medications_in_prescription || [];
+    listEl.innerHTML = medications.map(m => {
+        const name = m.medications?.name || m.medication_name || 'Medicamento';
+        const amount = m.amount || 0;
+        const unit = getUnitLabel(m.medications?.unit);
+        return `<li>${name} — ${amount} ${unit}</li>`;
+    }).join('');
     openModal('modal-use-prescription');
 }
 
@@ -3449,11 +3511,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const formData = new FormData(prescriptionForm);
             const status = formData.get('status');
+            const medications = getPrescriptionMedicationsFromForm();
+
+            if (medications.length === 0) {
+                alert('Adicione pelo menos um medicamento com quantidade.');
+                return;
+            }
+
             const prescription = {
                 dependent_id: AppState.getCurrentDependent(),
-                medication_id: formData.get('medication_id'),
                 prescribed_by: formData.get('prescribed_by') || null,
-                units: parseInt(formData.get('units')) || 0,
                 expiration_date: formData.get('expiration_date') || null,
                 status: status || 'Valid',
                 used_date: status === 'Used' ? (formData.get('used_date') || null) : null
@@ -3462,13 +3529,14 @@ document.addEventListener('DOMContentLoaded', () => {
             showLoadingModal();
             try {
                 if (currentEditingPrescriptionId) {
-                    await DB.updatePrescription(currentEditingPrescriptionId, prescription);
+                    await DB.updatePrescription(currentEditingPrescriptionId, prescription, medications);
                 } else {
-                    await DB.addPrescription(prescription);
+                    await DB.addPrescription(prescription, medications);
                 }
                 currentEditingPrescriptionId = null;
                 closeModal('modal-prescription');
                 prescriptionForm.reset();
+                clearPrescriptionMedicationRows();
                 document.getElementById('prescription-used-date-wrapper').classList.add('hidden');
                 await loadPrescriptions();
                 await loadDashboard();
@@ -3942,6 +4010,7 @@ window.editPrescription = editPrescription;
 window.deletePrescription = deletePrescription;
 window.showUsePrescriptionModal = showUsePrescriptionModal;
 window.confirmUsePrescription = confirmUsePrescription;
+window.addPrescriptionMedicationRow = addPrescriptionMedicationRow;
 window.togglePrescriptionUsedDate = togglePrescriptionUsedDate;
 window.toggleShowAllDependents = toggleShowAllDependents;
 window.showActivityLog = showActivityLog;

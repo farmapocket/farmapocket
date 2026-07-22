@@ -24,6 +24,7 @@ BEGIN
             'symptoms',
             'events',
             'prescriptions',
+            'medications_in_prescription',
             'scheduling',
             'treatments_in_schedule',
             'configuration',
@@ -45,6 +46,7 @@ ALTER TABLE medication_times_on_treatment ENABLE ROW LEVEL SECURITY;
 ALTER TABLE symptoms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE prescriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE medications_in_prescription ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scheduling ENABLE ROW LEVEL SECURITY;
 ALTER TABLE treatments_in_schedule ENABLE ROW LEVEL SECURITY;
 ALTER TABLE configuration ENABLE ROW LEVEL SECURITY;
@@ -356,6 +358,54 @@ CREATE POLICY prescriptions_delete_policy ON prescriptions
     USING (EXISTS (
         SELECT 1 FROM dependents d
         WHERE d.id = prescriptions.dependent_id
+        AND d.account_owner_id = auth.uid()
+    ));
+
+
+-- ============================================================
+-- MEDICATIONS IN PRESCRIPTION
+-- ============================================================
+-- A tabela medications_in_prescription nao possui dependent_id proprio.
+-- O acesso e controlado pela receita vinculada (prescription_id).
+CREATE POLICY medications_in_prescription_select_policy ON medications_in_prescription
+    FOR SELECT TO authenticated
+    USING (EXISTS (
+        SELECT 1 FROM prescriptions p
+        JOIN dependents d ON p.dependent_id = d.id
+        WHERE p.id = medications_in_prescription.prescription_id
+        AND d.account_owner_id = auth.uid()
+    ));
+
+CREATE POLICY medications_in_prescription_insert_policy ON medications_in_prescription
+    FOR INSERT TO authenticated
+    WITH CHECK (EXISTS (
+        SELECT 1 FROM prescriptions p
+        JOIN dependents d ON p.dependent_id = d.id
+        WHERE p.id = medications_in_prescription.prescription_id
+        AND d.account_owner_id = auth.uid()
+    ));
+
+CREATE POLICY medications_in_prescription_update_policy ON medications_in_prescription
+    FOR UPDATE TO authenticated
+    USING (EXISTS (
+        SELECT 1 FROM prescriptions p
+        JOIN dependents d ON p.dependent_id = d.id
+        WHERE p.id = medications_in_prescription.prescription_id
+        AND d.account_owner_id = auth.uid()
+    ))
+    WITH CHECK (EXISTS (
+        SELECT 1 FROM prescriptions p
+        JOIN dependents d ON p.dependent_id = d.id
+        WHERE p.id = medications_in_prescription.prescription_id
+        AND d.account_owner_id = auth.uid()
+    ));
+
+CREATE POLICY medications_in_prescription_delete_policy ON medications_in_prescription
+    FOR DELETE TO authenticated
+    USING (EXISTS (
+        SELECT 1 FROM prescriptions p
+        JOIN dependents d ON p.dependent_id = d.id
+        WHERE p.id = medications_in_prescription.prescription_id
         AND d.account_owner_id = auth.uid()
     ));
 

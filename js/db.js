@@ -659,14 +659,31 @@ const DB = {
                 .from('prescriptions')
                 .select(`
                     *,
-                    medications:medication_id (name, laboratories:laboratory_id (name)),
+                    medications_in_prescription (
+                        id,
+                        medication_id,
+                        amount,
+                        medications:medication_id (name, unit, laboratories:laboratory_id (name))
+                    ),
                     healthcare_professionals:prescribed_by (name, specialty)
                 `)
                 .eq('dependent_id', dependentId)
                 .order('expiration_date', { ascending: true });
 
             if (error) throw error;
-            return data || [];
+
+            // Normaliza dados legados que ainda possuem medication_id/units diretamente em prescriptions
+            return (data || []).map(p => {
+                if ((!p.medications_in_prescription || p.medications_in_prescription.length === 0) && (p.medication_id || p.units)) {
+                    p.medications_in_prescription = [{
+                        id: `legacy-${p.id}`,
+                        medication_id: p.medication_id,
+                        amount: p.units,
+                        medications: p.medications || { name: p.medication_name || 'Medicamento' }
+                    }];
+                }
+                return p;
+            });
 
         } catch (error) {
             const all = await OfflineDB.getAll('prescriptions');
@@ -679,21 +696,21 @@ const DB = {
 
         try {
             const { data, error } = await supabase
-                .from('prescriptions')
-                .select('medication_id, units, status')
-                .eq('dependent_id', dependentId)
-                .eq('status', 'Valid');
+                .from('medications_in_prescription')
+                .select('amount, medication_id, prescriptions!inner(status)')
+                .eq('prescriptions.status', 'Valid')
+                .eq('prescriptions.dependent_id', dependentId);
 
             if (error) throw error;
 
             const counts = {};
-            (data || []).forEach(p => {
-                if (p.medication_id) {
-                    if (!counts[p.medication_id]) {
-                        counts[p.medication_id] = { count: 0, totalUnits: 0 };
+            (data || []).forEach(item => {
+                if (item.medication_id) {
+                    if (!counts[item.medication_id]) {
+                        counts[item.medication_id] = { count: 0, totalUnits: 0 };
                     }
-                    counts[p.medication_id].count++;
-                    counts[p.medication_id].totalUnits += parseInt(p.units) || 0;
+                    counts[item.medication_id].count++;
+                    counts[item.medication_id].totalUnits += parseInt(item.amount) || 0;
                 }
             });
             return counts;
@@ -714,13 +731,16 @@ const DB = {
         }
     },
 
-    async addPrescription(prescription) {
+    async addPrescription(prescription, medications = []) {
         if (!prescription.dependent_id) throw new Error('dependent_id is required');
-        if (!prescription.medication_id) throw new Error('medication_id is required');
+        if (!medications.length) throw new Error('Pelo menos um medicamento é necessário');
 
         const payload = {
-            ...prescription,
-            units: parseInt(prescription.units) || 0
+            dependent_id: prescription.dependent_id,
+            prescribed_by: prescription.prescribed_by || null,
+            expiration_date: prescription.expiration_date || null,
+            status: prescription.status || 'Valid',
+            used_date: prescription.used_date || null
         };
 
         try {
@@ -731,19 +751,60 @@ const DB = {
                 .single();
 
             if (error) throw error;
+
+            for (const med of medications) {
+                if (!med.medication_id || !med.amount) continue;
+                const medPayload = {
+                    prescription_id: data.id,
+                    medication_id: med.medication_id,
+                    amount: parseInt(med.amount) || 0
+                };
+
+                let linkData = null;
+                try {
+                    const result = await supabase
+                        .from('medications_in_prescription')
+                        .insert(medPayload)
+                        .select()
+                        .single();
+                    if (result.error) throw result.error;
+                    linkData = result.data;
+                } catch (linkError) {
+                    await OfflineDB.queueForSync('medications_in_prescription', 'insert', medPayload);
+                    console.error('Error linking medication to prescription (supabase):', linkError);
+                    continue;
+                }
+
+                try {
+                    await OfflineDB.set('medications_in_prescription', linkData.id, linkData);
+                } catch (offlineError) {
+                    console.error('Error storing medication link offline:', offlineError);
+                }
+            }
+
             await OfflineDB.set('prescriptions', data.id, data);
             return data;
 
         } catch (error) {
             await OfflineDB.queueForSync('prescriptions', 'insert', payload);
+            for (const med of medications) {
+                if (!med.medication_id || !med.amount) continue;
+                await OfflineDB.queueForSync('medications_in_prescription', 'insert', {
+                    prescription_id: payload.id || 'pending',
+                    medication_id: med.medication_id,
+                    amount: parseInt(med.amount) || 0
+                });
+            }
             throw error;
         }
     },
 
-    async updatePrescription(id, updates) {
+    async updatePrescription(id, updates, medications = []) {
         const payload = {
-            ...updates,
-            units: updates.units !== undefined ? parseInt(updates.units) : undefined
+            prescribed_by: updates.prescribed_by || null,
+            expiration_date: updates.expiration_date || null,
+            status: updates.status || 'Valid',
+            used_date: updates.used_date || null
         };
 
         try {
@@ -755,6 +816,53 @@ const DB = {
                 .single();
 
             if (error) throw error;
+
+            // Remove existing medication links and re-insert
+            try {
+                const { data: existingLinks, error: existingError } = await supabase
+                    .from('medications_in_prescription')
+                    .select('id')
+                    .eq('prescription_id', id);
+                if (!existingError && existingLinks) {
+                    for (const link of existingLinks) {
+                        await supabase.from('medications_in_prescription').delete().eq('id', link.id);
+                        await OfflineDB.delete('medications_in_prescription', link.id);
+                    }
+                }
+            } catch (e) {
+                console.error('Error removing old prescription medications:', e);
+            }
+
+            for (const med of medications) {
+                if (!med.medication_id || !med.amount) continue;
+                const medPayload = {
+                    prescription_id: id,
+                    medication_id: med.medication_id,
+                    amount: parseInt(med.amount) || 0
+                };
+
+                let linkData = null;
+                try {
+                    const result = await supabase
+                        .from('medications_in_prescription')
+                        .insert(medPayload)
+                        .select()
+                        .single();
+                    if (result.error) throw result.error;
+                    linkData = result.data;
+                } catch (linkError) {
+                    await OfflineDB.queueForSync('medications_in_prescription', 'insert', medPayload);
+                    console.error('Error linking medication to prescription (supabase):', linkError);
+                    continue;
+                }
+
+                try {
+                    await OfflineDB.set('medications_in_prescription', linkData.id, linkData);
+                } catch (offlineError) {
+                    console.error('Error storing medication link offline:', offlineError);
+                }
+            }
+
             await OfflineDB.set('prescriptions', id, data);
             return data;
 
@@ -766,6 +874,23 @@ const DB = {
 
     async deletePrescription(id) {
         try {
+            // Delete medication links first
+            const { data: links, error: linksError } = await supabase
+                .from('medications_in_prescription')
+                .select('id')
+                .eq('prescription_id', id);
+
+            if (!linksError && links) {
+                for (const link of links) {
+                    try {
+                        await supabase.from('medications_in_prescription').delete().eq('id', link.id);
+                        await OfflineDB.delete('medications_in_prescription', link.id);
+                    } catch (e) {
+                        await OfflineDB.queueForSync('medications_in_prescription', 'delete', { id: link.id });
+                    }
+                }
+            }
+
             const { error } = await supabase
                 .from('prescriptions')
                 .delete()
@@ -786,10 +911,10 @@ const DB = {
         let prescription = null;
 
         try {
-            // Fetch prescription with medication
+            // Fetch prescription with all medications
             const { data: prescriptionData, error: prescriptionError } = await supabase
                 .from('prescriptions')
-                .select('*, medications(medication_id:id, stock_quantity, stock_last_updated)')
+                .select('*, medications_in_prescription(medication_id, amount, medications(name, stock_quantity, stock_last_updated))')
                 .eq('id', id)
                 .single();
 
@@ -799,27 +924,36 @@ const DB = {
             if (!prescription) throw new Error('Receituário não encontrado');
             if (prescription.status === 'Used') throw new Error('Receituário já foi utilizado');
 
-            const medicationId = prescription.medication_id;
-            const units = parseInt(prescription.units) || 0;
-
-            // Update medication stock
-            const { data: medication, error: medicationError } = await supabase
-                .from('medications')
-                .select('stock_quantity')
-                .eq('id', medicationId)
-                .single();
-
-            if (medicationError) throw medicationError;
-
-            const newStock = (medication.stock_quantity || 0) + units;
+            const medications = prescription.medications_in_prescription || [];
             const now = new Date().toISOString();
 
-            const { error: updateMedError } = await supabase
-                .from('medications')
-                .update({ stock_quantity: newStock, stock_last_updated: now })
-                .eq('id', medicationId);
+            for (const med of medications) {
+                if (!med.medication_id || !med.amount) continue;
+                const amount = parseInt(med.amount) || 0;
 
-            if (updateMedError) throw updateMedError;
+                const { data: medication, error: medicationError } = await supabase
+                    .from('medications')
+                    .select('stock_quantity')
+                    .eq('id', med.medication_id)
+                    .single();
+
+                if (medicationError) throw medicationError;
+
+                const newStock = (medication.stock_quantity || 0) + amount;
+
+                const { error: updateMedError } = await supabase
+                    .from('medications')
+                    .update({ stock_quantity: newStock, stock_last_updated: now })
+                    .eq('id', med.medication_id);
+
+                if (updateMedError) throw updateMedError;
+
+                await OfflineDB.set('medications', med.medication_id, {
+                    ...medication,
+                    stock_quantity: newStock,
+                    stock_last_updated: now
+                });
+            }
 
             // Update prescription status
             const { data: updatedPrescription, error: updatePresError } = await supabase
@@ -831,19 +965,19 @@ const DB = {
 
             if (updatePresError) throw updatePresError;
 
-            // Update offline stores
-            await OfflineDB.set('medications', medicationId, {
-                ...medication,
-                stock_quantity: newStock,
-                stock_last_updated: now
-            });
             await OfflineDB.set('prescriptions', id, updatedPrescription);
 
             return updatedPrescription;
 
         } catch (error) {
             await OfflineDB.queueForSync('prescriptions', 'update', { id, status: 'Used', used_date: new Date().toISOString() });
-            await OfflineDB.queueForSync('medications', 'update', { id: prescription?.medication_id, stock_quantity: null }); // stock will be resolved online
+            if (prescription?.medications_in_prescription) {
+                for (const med of prescription.medications_in_prescription) {
+                    if (med.medication_id) {
+                        await OfflineDB.queueForSync('medications', 'update', { id: med.medication_id, stock_quantity: null });
+                    }
+                }
+            }
             throw error;
         }
     },
@@ -2204,45 +2338,76 @@ const DB = {
         const dependents = await this.getDependents();
         if (dependents.length === 0) return [];
 
+        const depIds = dependents.map(d => d.id);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const thresholdDate = new Date(today);
+        thresholdDate.setDate(thresholdDate.getDate() + 30); // Próximos 30 dias
+        const thresholdStr = thresholdDate.toISOString().split('T')[0];
+
         try {
-            const depIds = dependents.map(d => d.id);
-            const [{ data: expiringRows, error }, { data: allValid, error: countError }] = await Promise.all([
-                supabase
-                    .from('v_prescription_status')
-                    .select('*')
-                    .eq('computed_status', 'Valid')
-                    .eq('expiring_soon', true)
-                    .in('dependent_id', depIds)
-                    .order('expiration_date', { ascending: true }),
-                supabase
-                    .from('prescriptions')
-                    .select('medication_id, status')
-                    .eq('status', 'Valid')
-                    .in('dependent_id', depIds)
-            ]);
+            // Busca receitas válidas com validade próxima ou já vencidas, incluindo seus medicamentos
+            const { data: prescriptions, error } = await supabase
+                .from('prescriptions')
+                .select(`
+                    *,
+                    medications_in_prescription (
+                        medication_id,
+                        amount,
+                        medications:medication_id (name)
+                    ),
+                    healthcare_professionals:prescribed_by (name, specialty),
+                    dependents:dependent_id (name)
+                `)
+                .eq('status', 'Valid')
+                .in('dependent_id', depIds)
+                .lte('expiration_date', thresholdStr)
+                .order('expiration_date', { ascending: true });
 
             if (error) throw error;
-            if (countError) throw countError;
 
             // Conta receitas válidas por medicamento
+            const { data: allValidMeds, error: countError } = await supabase
+                .from('medications_in_prescription')
+                .select('medication_id, prescriptions!inner(status)')
+                .eq('prescriptions.status', 'Valid')
+                .in('prescriptions.dependent_id', depIds);
+
+            if (countError) throw countError;
+
             const counts = {};
-            (allValid || []).forEach(p => {
-                if (!p.medication_id) return;
-                counts[p.medication_id] = (counts[p.medication_id] || 0) + 1;
+            (allValidMeds || []).forEach(item => {
+                if (item.medication_id) {
+                    counts[item.medication_id] = (counts[item.medication_id] || 0) + 1;
+                }
             });
 
             // Mantém apenas a receita mais próxima do vencimento para cada medicamento
             const seenMedications = new Set();
-            const result = (expiringRows || []).filter(row => {
-                if (seenMedications.has(row.medication_id)) return false;
-                seenMedications.add(row.medication_id);
-                return true;
-            }).map(row => ({
-                ...row,
-                prescription_count: counts[row.medication_id] || 1,
-                days_until_expiration: row.days_until_expiration ??
-                    (row.expiration_date ? Math.max(Math.ceil((new Date(row.expiration_date) - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)), 0) : null)
-            }));
+            const result = [];
+
+            (prescriptions || []).forEach(p => {
+                const meds = p.medications_in_prescription || [];
+                const daysUntil = p.expiration_date
+                    ? Math.max(Math.ceil((new Date(p.expiration_date) - today) / (1000 * 60 * 60 * 24)), 0)
+                    : null;
+
+                meds.forEach(m => {
+                    if (!m.medication_id || seenMedications.has(m.medication_id)) return;
+                    seenMedications.add(m.medication_id);
+
+                    result.push({
+                        medication_id: m.medication_id,
+                        medication_name: m.medications?.name || 'Medicamento',
+                        dependent_name: p.dependents?.name || '',
+                        professional_name: p.healthcare_professionals?.name || '',
+                        professional_specialty: p.healthcare_professionals?.specialty || '',
+                        prescription_count: counts[m.medication_id] || 1,
+                        days_until_expiration: daysUntil,
+                        expiration_date: p.expiration_date
+                    });
+                });
+            });
 
             return result;
 

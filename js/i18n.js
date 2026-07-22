@@ -139,6 +139,8 @@ const i18n = {
         'prescription.addNew': { 'en': 'Add New Prescription', 'pt-BR': 'Adicionar Receituário', 'es': 'Agregar Nueva Receta' },
         'prescription.edit': { 'en': 'Edit Prescription', 'pt-BR': 'Editar Receituário', 'es': 'Editar Receta' },
         'prescription.medication': { 'en': 'Medication', 'pt-BR': 'Medicamento', 'es': 'Medicamento' },
+        'prescription.medications': { 'en': 'Medications', 'pt-BR': 'Medicamentos', 'es': 'Medicamentos' },
+        'prescription.addMedication': { 'en': '+ Add Medication', 'pt-BR': '+ Adicionar medicamento', 'es': '+ Agregar medicamento' },
         'prescription.professional': { 'en': 'Prescribed By', 'pt-BR': 'Prescrito Por', 'es': 'Recetado Por' },
         'prescription.units': { 'en': 'Units', 'pt-BR': 'Unidades', 'es': 'Unidades' },
         'prescription.expirationDate': { 'en': 'Expiration Date', 'pt-BR': 'Data de Validade', 'es': 'Fecha de Vencimiento' },

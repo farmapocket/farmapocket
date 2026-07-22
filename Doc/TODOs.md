@@ -4,7 +4,11 @@
 ---
 - Gestão dos remédios avulsos
 ---
+- Lista pura de tratamentos ativos (sem ser cards - todos os dependentes versão plus)
+---
 - verificar questão legar de registro de propriedade intelectual
+---
+- Mecânica de uso de receita
 ---
 - Ao incluir uma medicação, sugerir a criação de um tratamento
 ---
@@ -29,7 +33,7 @@
 ---
 - Lembretes para medicação de resgate
 ---
-- Layout para impressão da agenda semanal
+- Layout para impressão da agenda semanal (todos os dependentes versão plus)
 ---
 - Mais de um laboratório preferido 
 .

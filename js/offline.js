@@ -6,18 +6,17 @@
 const OfflineDB = {
     db: null,
     DB_NAME: 'FarmaPocketDB',
-    DB_VERSION: 7,
+    DB_VERSION: 9,
 
     // Inicializar IndexedDB
     async init() {
-        return new Promise((resolve, reject) => {
+        if (this.db) return this.db;
+
+        const openDB = () => new Promise((resolve, reject) => {
             const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
 
             request.onerror = () => reject(request.error);
-            request.onsuccess = () => {
-                this.db = request.result;
-                resolve(this.db);
-            };
+            request.onsuccess = () => resolve(request.result);
 
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
@@ -43,6 +42,9 @@ const OfflineDB = {
                 }
                 if (!db.objectStoreNames.contains('prescriptions')) {
                     db.createObjectStore('prescriptions', { keyPath: 'id' });
+                }
+                if (!db.objectStoreNames.contains('medications_in_prescription')) {
+                    db.createObjectStore('medications_in_prescription', { keyPath: 'id' });
                 }
                 if (!db.objectStoreNames.contains('scheduling')) {
                     db.createObjectStore('scheduling', { keyPath: 'id' });
@@ -82,6 +84,40 @@ const OfflineDB = {
                 }
             };
         });
+
+        try {
+            let db = await openDB();
+
+            // Fallback: se alguma store esperada nao existe, deleta e recria o banco
+            const requiredStores = [
+                'dependents', 'medications', 'healthcare_professionals', 'treatments',
+                'symptoms', 'events', 'prescriptions', 'medications_in_prescription',
+                'scheduling', 'treatments_in_schedule', 'medication_times_on_treatment',
+                'categories', 'subcategories', 'laboratories', 'configuration',
+                'syncQueue', 'auth'
+            ];
+            const missing = requiredStores.filter(s => !db.objectStoreNames.contains(s));
+
+            if (missing.length > 0) {
+                console.warn('IndexedDB missing stores, recreating:', missing);
+                db.close();
+                await new Promise((resolve, reject) => {
+                    const deleteRequest = indexedDB.deleteDatabase(this.DB_NAME);
+                    deleteRequest.onsuccess = () => resolve();
+                    deleteRequest.onerror = () => reject(deleteRequest.error);
+                    deleteRequest.onblocked = () => {
+                        console.warn('IndexedDB delete blocked, waiting...');
+                    };
+                });
+                db = await openDB();
+            }
+
+            this.db = db;
+            return this.db;
+        } catch (error) {
+            console.error('Failed to initialize OfflineDB:', error);
+            throw error;
+        }
     },
 
     // ========== CRUD BÁSICO ==========

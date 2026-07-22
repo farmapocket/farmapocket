@@ -130,16 +130,13 @@ CREATE TABLE public.prescriptions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   dependent_id uuid,
   prescribed_by uuid,
-  medication_id uuid,
-  units integer NOT NULL,
   expiration_date date,
   status text DEFAULT 'Valid'::text CHECK (status = ANY (ARRAY['Valid'::text, 'Expired'::text, 'Used'::text])),
   used_date date,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT prescriptions_pkey PRIMARY KEY (id),
   CONSTRAINT prescriptions_dependent_id_fkey FOREIGN KEY (dependent_id) REFERENCES public.dependents(id),
-  CONSTRAINT prescriptions_prescribed_by_fkey FOREIGN KEY (prescribed_by) REFERENCES public.healthcare_professionals(id),
-  CONSTRAINT prescriptions_medication_id_fkey FOREIGN KEY (medication_id) REFERENCES public.medications(id)
+  CONSTRAINT prescriptions_prescribed_by_fkey FOREIGN KEY (prescribed_by) REFERENCES public.healthcare_professionals(id)
 );
 CREATE TABLE public.scheduling (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -204,4 +201,14 @@ CREATE TABLE public.configuration (
   CONSTRAINT configuration_pkey PRIMARY KEY (id),
   CONSTRAINT configuration_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES auth.users(id),
   CONSTRAINT configuration_selected_dependent_id_fkey FOREIGN KEY (selected_dependent_id) REFERENCES public.dependents(id)
+);
+CREATE TABLE public.medications_in_prescription (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  prescription_id uuid,
+  medication_id uuid,
+  amount integer,
+  CONSTRAINT medications_in_prescription_pkey PRIMARY KEY (id),
+  CONSTRAINT medications_in_prescription_prescription_id_fkey FOREIGN KEY (prescription_id) REFERENCES public.prescriptions(id),
+  CONSTRAINT medications_in_prescription_medication_id_fkey FOREIGN KEY (medication_id) REFERENCES public.medications(id)
 );

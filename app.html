@@ -833,12 +833,6 @@
             </div>
             <form id="form-prescription" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="prescription.medication">Medicamento</label>
-                    <select name="medication_id" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white medication-select" onchange="handleMedicationSelectChange(this)">
-                        <option value="">Selecione um medicamento...</option>
-                    </select>
-                </div>
-                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="prescription.professional">Profissional</label>
                     <select name="prescribed_by" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white">
                         <option value="">Selecione um profissional...</option>
@@ -846,25 +840,28 @@
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="prescription.units">Unidades</label>
-                        <input type="number" name="units" min="1" required class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none" placeholder="Ex: 30">
-                    </div>
-                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="prescription.expirationDate">Validade</label>
                         <input type="date" name="expiration_date" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
                     </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="prescription.status">Status</label>
-                    <select name="status" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white" onchange="togglePrescriptionUsedDate(this)">
-                        <option value="Valid" data-i18n="prescription.statusValid">Válida</option>
-                        <option value="Expired" data-i18n="prescription.statusExpired">Vencida</option>
-                        <option value="Used" data-i18n="prescription.statusUsed">Utilizada</option>
-                    </select>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="prescription.status">Status</label>
+                        <select name="status" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white" onchange="togglePrescriptionUsedDate(this)">
+                            <option value="Valid" data-i18n="prescription.statusValid">Válida</option>
+                            <option value="Expired" data-i18n="prescription.statusExpired">Vencida</option>
+                            <option value="Used" data-i18n="prescription.statusUsed">Utilizada</option>
+                        </select>
+                    </div>
                 </div>
                 <div id="prescription-used-date-wrapper" class="hidden">
                     <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="prescription.usedDate">Data de Utilização</label>
                     <input type="date" name="used_date" class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-sm font-medium text-gray-700" data-i18n="prescription.medications">Medicamentos</label>
+                        <button type="button" onclick="addPrescriptionMedicationRow()" class="text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded-lg font-medium hover:bg-sky-200 transition-colors" data-i18n="prescription.addMedication">+ Adicionar</button>
+                    </div>
+                    <div id="prescription-medications-list" class="space-y-2"></div>
                 </div>
                 <button type="submit" class="w-full py-3 bg-sky-500 text-white rounded-lg font-medium hover:bg-sky-600 transition-colors" data-i18n="common.save">Salvar</button>
             </form>
@@ -881,10 +878,8 @@
             <div class="space-y-4">
                 <p class="text-gray-600" data-i18n="prescription.useConfirm">Deseja utilizar este receituário? As unidades serão adicionadas ao estoque.</p>
                 <div class="bg-gray-50 rounded-lg p-4">
-                    <p class="text-sm text-gray-500" data-i18n="prescription.medication">Medicamento</p>
-                    <p id="use-prescription-medication" class="font-medium text-gray-800">--</p>
-                    <p class="text-sm text-gray-500 mt-2" data-i18n="prescription.units">Unidades</p>
-                    <p id="use-prescription-units" class="font-medium text-gray-800">--</p>
+                    <p class="text-sm text-gray-500" data-i18n="prescription.medications">Medicamentos</p>
+                    <ul id="use-prescription-medications" class="mt-1 space-y-1 font-medium text-gray-800"></ul>
                 </div>
                 <div class="flex gap-3">
                     <button type="button" onclick="closeModal('modal-use-prescription')" class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors" data-i18n="common.cancel">Cancelar</button>
