@@ -1379,10 +1379,11 @@ async function showSingleIssueModal() {
     currentSingleIssueTreatments = rescueTreatments;
 
     const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
     const timeStr = now.toTimeString().slice(0, 5); // HH:MM
 
-    document.getElementById('single-issue-time').textContent = timeStr;
-    document.getElementById('single-issue-time-input').value = timeStr;
+    document.getElementById('single-issue-date').value = dateStr;
+    document.getElementById('single-issue-time').value = timeStr;
 
     const container = document.getElementById('single-issue-treatments');
     if (rescueTreatments.length === 0) {
@@ -1392,9 +1393,13 @@ async function showSingleIssueModal() {
             const med = t.medications || {};
             const unitText = formatDose(1, med).replace(formatDosage(1), '').trim() || 'un.';
             const name = t.medications?.name || t.medication_name || 'Medicamento';
+            const notes = t.administration_notes || t.admin_notes || '';
             return `
             <div class="flex items-center gap-2 bg-gray-50 rounded-lg p-2" data-treatment-id="${t.id}">
-                <span class="flex-1 font-medium text-gray-800 text-sm">${name}</span>
+                <div class="flex-1 min-w-0">
+                    <span class="block font-medium text-gray-800 text-sm">${name}</span>
+                    ${notes ? `<span class="block text-xs text-gray-400 whitespace-normal break-words">${notes}</span>` : ''}
+                </div>
                 <input type="number" min="0" step="0.1" name="dosage_${t.id}" class="w-20 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm" placeholder="Qtd">
                 <span class="text-sm text-gray-500">${unitText}</span>
             </div>
@@ -3777,8 +3782,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const depId = AppState.getCurrentDependent();
             if (!depId) return;
 
-            const timeInput = document.getElementById('single-issue-time-input');
+            const dateInput = document.getElementById('single-issue-date');
+            const timeInput = document.getElementById('single-issue-time');
+            const dateStr = dateInput?.value || new Date().toISOString().split('T')[0];
             const timeStr = timeInput?.value || new Date().toTimeString().slice(0, 5);
+            const takenAt = new Date(`${dateStr}T${timeStr}`).toISOString();
             const formData = new FormData(singleIssueForm);
             const notes = formData.get('notes');
 
@@ -3810,9 +3818,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             showLoadingModal();
             try {
-                await DB.recordSingleIssueDose(depId, timeStr, treatmentDosages, notes, extraMedications);
+                await DB.recordSingleIssueDose(depId, dateStr, timeStr, treatmentDosages, notes, extraMedications, takenAt);
                 closeModal('modal-single-issue');
                 singleIssueForm.reset();
+                if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+                if (timeInput) timeInput.value = new Date().toTimeString().slice(0, 5);
                 currentSingleIssueTreatments = [];
                 document.getElementById('single-issue-extra-medications').innerHTML = '';
                 await loadTodaySchedule();

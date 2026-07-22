@@ -276,6 +276,7 @@ const i18n = {
 
         // SINGLE ISSUE
         'singleIssue.title': { 'en': 'Confirm Medication Taken', 'pt-BR': 'Confirmar Medicação Tomada', 'es': 'Confirmar Medicación Tomada' },
+        'singleIssue.date': { 'en': 'Date', 'pt-BR': 'Data', 'es': 'Fecha' },
         'singleIssue.time': { 'en': 'Time', 'pt-BR': 'Horário', 'es': 'Horario' },
         'singleIssue.rescueTreatments': { 'en': 'Rescue Treatments', 'pt-BR': 'Tratamentos de Resgate', 'es': 'Tratamientos de Rescate' },
         'singleIssue.notes': { 'en': 'Notes (optional)', 'pt-BR': 'Observações (opcional)', 'es': 'Observaciones (opcional)' },

@@ -1668,20 +1668,20 @@ const DB = {
         }
     },
 
-    async recordSingleIssueDose(dependentId, timeStr, treatmentDosages, notes, extraMedications = []) {
+    async recordSingleIssueDose(dependentId, dateStr, timeStr, treatmentDosages, notes, extraMedications = [], takenAt) {
         if (!dependentId) throw new Error('dependent_id is required');
+        if (!dateStr) throw new Error('schedule_date is required');
         if (!timeStr) throw new Error('schedule_time is required');
 
-        const todayStr = this._toISODate(new Date());
-        const takenAt = new Date().toISOString();
+        const finalTakenAt = takenAt || new Date().toISOString();
 
         const payload = {
             dependent_id: dependentId,
-            schedule_date: todayStr,
+            schedule_date: dateStr,
             schedule_time: timeStr,
             action: 'Taken',
             notes: notes || null,
-            taken_at: takenAt,
+            taken_at: finalTakenAt,
             is_single_issue: true
         };
 
