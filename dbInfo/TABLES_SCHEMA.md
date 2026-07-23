@@ -60,7 +60,7 @@
 | `is_controlled` | `bool` |  Nullable |
 | `is_continuous_use` | `bool` |  Nullable |
 | `laboratory_id` | `uuid` |  Nullable |
-| `stock_quantity` | `int4` |  Nullable |
+| `stock_quantity` | `numeric(10,2)` |  Nullable |
 | `stock_last_updated` | `timestamptz` |  Nullable |
 | `created_at` | `timestamptz` |  Nullable |
 | `updated_at` | `timestamptz` |  Nullable |

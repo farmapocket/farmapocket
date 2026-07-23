@@ -1049,6 +1049,8 @@ const DB = {
                 .select('*')
                 .eq('dependent_id', dependentId)
                 .neq('action', 'NEXT')
+                .order('schedule_date', { ascending: false })
+                .order('schedule_time', { ascending: false })
                 .order('created_at', { ascending: false })
                 .limit(1);
 
@@ -1064,7 +1066,11 @@ const DB = {
             const all = await OfflineDB.getAll('scheduling');
             const filtered = all
                 .filter(s => s.dependent_id === dependentId && s.action !== 'NEXT')
-                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                .sort((a, b) => {
+                    const da = `${a.schedule_date || ''}T${a.schedule_time || ''}`;
+                    const db = `${b.schedule_date || ''}T${b.schedule_time || ''}`;
+                    return db.localeCompare(da) || new Date(b.created_at) - new Date(a.created_at);
+                });
             if (filtered.length === 0) return null;
             return { scheduling: filtered[0], items: [] };
         }
@@ -1328,7 +1334,7 @@ const DB = {
         try {
             const medication = await this.getMedication(medicationId);
             if (!medication) return;
-            const newStock = Math.max(0, (medication.stock_quantity || 0) + delta);
+            const newStock = Math.max(0, Math.round(((medication.stock_quantity || 0) + delta) * 100) / 100);
             await this.updateMedication(medicationId, {
                 stock_quantity: newStock,
                 stock_last_updated: new Date().toISOString()
@@ -1779,6 +1785,8 @@ const DB = {
                 .select('*')
                 .eq('dependent_id', dependentId)
                 .neq('action', 'NEXT')
+                .order('schedule_date', { ascending: false })
+                .order('schedule_time', { ascending: false })
                 .order('created_at', { ascending: false })
                 .limit(1);
 

@@ -3075,7 +3075,7 @@ async function loadInventoryUpdate() {
                 </td>
                 <td class="px-4 py-3 w-32">
                     <div class="flex items-center gap-2">
-                        <input type="number" min="0" step="1" value="${med.stock_quantity || 0}"
+                        <input type="number" min="0" step="0.01" value="${med.stock_quantity || 0}"
                             class="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none text-right"
                             onchange="markInventoryRowChanged(this)">
                         <span class="text-xs text-gray-500 whitespace-nowrap">${getUnitLabel(med.unit)}</span>
@@ -3145,7 +3145,7 @@ async function saveInventoryUpdate() {
         for (const row of rows) {
             const id = row.dataset.medId;
             const input = row.querySelector('input[type="number"]');
-            const stockQuantity = parseInt(input.value) || 0;
+            const stockQuantity = parseFloat(input.value) || 0;
 
             try {
                 await DB.updateMedication(id, { stock_quantity: stockQuantity });
@@ -3237,7 +3237,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 laboratory_id: formData.get('laboratory_id') || null,
                 is_controlled: formData.has('is_controlled'),
                 is_continuous_use: formData.has('is_continuous_use'),
-                stock_quantity: parseInt(formData.get('stock_quantity')) || 0,
+                stock_quantity: parseFloat(formData.get('stock_quantity')) || 0,
                 expiring_date: formData.get('expiring_date') || null,
                 unit: formData.get('unit') || 'un.',
                 method_of_administration: (formData.get('method_of_administration') || '').toString().toLowerCase() || null
