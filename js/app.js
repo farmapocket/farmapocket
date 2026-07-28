@@ -829,8 +829,13 @@ function safeSetHtml(id, html) {
 async function loadDashboard() {
     console.log('📊 loadDashboard() started');
     try {
-        // Stats
-        const stats = await DB.getDashboardStats();
+        // Fetch independent data sources in parallel
+        const [stats, lowStock, expiring] = await Promise.all([
+            DB.getDashboardStats(),
+            DB.getLowStockAlerts(),
+            DB.getExpiringPrescriptions()
+        ]);
+
         console.log('📊 Dashboard stats loaded:', stats);
         safeSetText('stat-dependents', stats.dependents);
         safeSetText('stat-medications', stats.medications);
@@ -845,7 +850,6 @@ async function loadDashboard() {
         safeSetText('today-date', today);
 
         // Low stock alerts
-        const lowStock = await DB.getLowStockAlerts();
         console.log('📊 Low stock alerts loaded:', lowStock.length);
         if (lowStock.length > 0) {
             const sections = {
@@ -880,7 +884,6 @@ async function loadDashboard() {
         }
 
         // Expiring prescriptions
-        const expiring = await DB.getExpiringPrescriptions();
         console.log('📊 Expiring prescriptions loaded:', expiring.length);
         if (expiring.length > 0) {
             safeSetHtml('expiring-prescriptions', expiring.map(item => {
@@ -1060,14 +1063,16 @@ async function loadTodaySchedule() {
             return;
         }
 
-        const cardsHtml = [];
-        for (const dep of dependentsToShow) {
+        const scheduleResults = await Promise.all(dependentsToShow.map(async (dep) => {
             const schedules = await DB.getNextDoseSchedules(dep.id, 1);
             if (schedules && schedules.length > 0) {
                 const prescriptionCounts = await DB.getPrescriptionCountsByMedication(dep.id);
-                cardsHtml.push(renderScheduleCard(schedules[0], dep.name, prescriptionCounts));
+                return renderScheduleCard(schedules[0], dep.name, prescriptionCounts);
             }
-        }
+            return null;
+        }));
+
+        const cardsHtml = scheduleResults.filter(Boolean);
 
         if (cardsHtml.length === 0) {
             scheduleEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4" data-i18n="dashboard.noSchedule">Nenhum medicamento agendado</p>';
@@ -1105,13 +1110,13 @@ async function loadLastAction() {
             return;
         }
 
-        const cardsHtml = [];
-        for (const dep of dependentsToShow) {
+        const cardsHtml = (await Promise.all(dependentsToShow.map(async (dep) => {
             const lastAction = await DB.getLastAction(dep.id);
             if (lastAction && lastAction.scheduling) {
-                cardsHtml.push(renderLastActionCard(lastAction, dep.name));
+                return renderLastActionCard(lastAction, dep.name);
             }
-        }
+            return null;
+        }))).filter(Boolean);
 
         if (cardsHtml.length === 0) {
             actionEl.innerHTML = `<p class="text-gray-400 text-sm text-center py-4" data-i18n="dashboard.noLastAction">Nenhuma ação registrada</p>`;
@@ -3762,7 +3767,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 doseActionForm.reset();
                 document.getElementById('dose-action-extra-medications').innerHTML = '';
                 currentDoseSchedule = null;
-                await loadTodaySchedule();
                 await loadDashboard();
 
             } catch (error) {

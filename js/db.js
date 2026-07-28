@@ -4,6 +4,9 @@
 // ============================================================
 
 const DB = {
+    // Simple in-memory cache for treatment times to avoid repeated Supabase calls
+    _treatmentTimesCache: {},
+
     // ========== DEPENDENTS ==========
 
     async getDependents() {
@@ -574,6 +577,9 @@ const DB = {
 
     async getTreatmentTimes(treatmentId) {
         if (!treatmentId) return [];
+        if (this._treatmentTimesCache[treatmentId]) {
+            return this._treatmentTimesCache[treatmentId];
+        }
 
         try {
             const { data, error } = await supabase
@@ -584,11 +590,15 @@ const DB = {
                 .order('time', { ascending: true });
 
             if (error) throw error;
-            return data || [];
+            const result = data || [];
+            this._treatmentTimesCache[treatmentId] = result;
+            return result;
 
         } catch (error) {
             const all = await OfflineDB.getAll('medication_times_on_treatment');
-            return all.filter(mt => mt.treatment_id === treatmentId);
+            const result = all.filter(mt => mt.treatment_id === treatmentId);
+            this._treatmentTimesCache[treatmentId] = result;
+            return result;
         }
     },
 
@@ -613,6 +623,7 @@ const DB = {
             for (const item of (data || [])) {
                 await OfflineDB.set('medication_times_on_treatment', item.id, item);
             }
+            delete this._treatmentTimesCache[treatmentId];
             return data || [];
 
         } catch (error) {
@@ -638,6 +649,7 @@ const DB = {
                 await OfflineDB.delete('medication_times_on_treatment', item.id);
             }
 
+            delete this._treatmentTimesCache[treatmentId];
             if (Array.isArray(times) && times.length > 0) {
                 return await this.addTreatmentTimes(treatmentId, times);
             }
@@ -1301,26 +1313,45 @@ const DB = {
                 .select('*')
                 .eq('scheduling_id', scheduleId);
             if (error) throw error;
+            if (!links || links.length === 0) return [];
 
-            const enriched = await Promise.all((links || []).map(async (link) => {
+            // Batch-fetch related treatments and medications to avoid N+1 queries
+            const treatmentIds = [...new Set(links.map(l => l.treatment_id).filter(Boolean))];
+            const medicationIds = [...new Set(links.map(l => l.medication_id).filter(Boolean))];
+
+            const [treatmentsResult, medicationsResult] = await Promise.all([
+                treatmentIds.length > 0
+                    ? supabase.from('treatments').select('*').in('id', treatmentIds)
+                    : { data: [] },
+                medicationIds.length > 0
+                    ? supabase.from('medications').select('*').in('id', medicationIds)
+                    : { data: [] }
+            ]);
+
+            if (treatmentsResult.error) throw treatmentsResult.error;
+            if (medicationsResult.error) throw medicationsResult.error;
+
+            const treatmentsMap = new Map((treatmentsResult.data || []).map(t => [t.id, t]));
+            const medicationsMap = new Map((medicationsResult.data || []).map(m => [m.id, m]));
+
+            const enriched = links.map(link => {
+                const result = { ...link };
                 if (link.treatment_id) {
-                    const treatment = await this.getTreatment(link.treatment_id);
+                    const treatment = treatmentsMap.get(link.treatment_id);
                     if (treatment) {
-                        return {
-                            ...link,
-                            treatments: {
-                                ...treatment,
-                                medications: treatment.medication_id ? await this.getMedication(treatment.medication_id) : null
-                            }
-                        };
+                        const medication = treatment.medication_id ? medicationsMap.get(treatment.medication_id) : null;
+                        result.treatments = medication ? { ...treatment, medications: medication } : treatment;
                     }
                 }
-                if (link.medication_id) {
-                    const medication = await this.getMedication(link.medication_id);
-                    return { ...link, medications: medication };
+                if (link.medication_id && !result.treatments?.medications) {
+                    const medication = medicationsMap.get(link.medication_id);
+                    if (medication) {
+                        result.medications = medication;
+                    }
                 }
-                return link;
-            }));
+                return result;
+            });
+
             return enriched;
         } catch (error) {
             console.error('Error fetching schedule links:', error);
@@ -1341,6 +1372,54 @@ const DB = {
             });
         } catch (error) {
             console.error('Error updating medication stock:', error);
+        }
+    },
+
+    async _updateMedicationStocks(items) {
+        // items: [{ medication_id, delta }]
+        if (!items || items.length === 0) return;
+        const validItems = items.filter(i => i.medication_id && i.delta !== 0);
+        if (validItems.length === 0) return;
+
+        const medicationIds = [...new Set(validItems.map(i => i.medication_id))];
+        try {
+            const { data: medications, error } = await supabase
+                .from('medications')
+                .select('*')
+                .in('id', medicationIds);
+            if (error) throw error;
+
+            const medicationsMap = new Map((medications || []).map(m => [m.id, m]));
+            const now = new Date().toISOString();
+
+            await Promise.all(validItems.map(async (item) => {
+                const medication = medicationsMap.get(item.medication_id);
+                if (!medication) return;
+                const newStock = Math.max(0, Math.round(((medication.stock_quantity || 0) + item.delta) * 100) / 100);
+                try {
+                    const { data, error: updateError } = await supabase
+                        .from('medications')
+                        .update({ stock_quantity: newStock, stock_last_updated: now })
+                        .eq('id', item.medication_id)
+                        .select()
+                        .single();
+                    if (updateError) throw updateError;
+                    await OfflineDB.set('medications', item.medication_id, data);
+                } catch (updateError) {
+                    await OfflineDB.queueForSync('medications', 'update', {
+                        id: item.medication_id,
+                        stock_quantity: newStock,
+                        stock_last_updated: now
+                    });
+                    console.error('Error updating medication stock in batch:', updateError);
+                }
+            }));
+        } catch (error) {
+            console.error('Error fetching medications for batch stock update:', error);
+            // Fallback to individual updates
+            for (const item of validItems) {
+                await this._updateMedicationStock(item.medication_id, item.delta);
+            }
         }
     },
 
@@ -1646,25 +1725,39 @@ const DB = {
             }
 
             // Update medication stock for all linked items when Taken
+            let links = [];
             if (action === 'Taken') {
-                const links = await this._getScheduleLinks(scheduleId);
-                for (const link of links) {
-                    const dosage = parseFloat(link.dosage) || 0;
-                    if (dosage > 0) {
-                        await this._updateMedicationStock(link.medication_id, -dosage);
-                    }
-                }
+                links = await this._getScheduleLinks(scheduleId);
+                const stockUpdates = links
+                    .map(link => ({ medication_id: link.medication_id, delta: -(parseFloat(link.dosage) || 0) }))
+                    .filter(item => item.medication_id && item.delta !== 0);
+                await this._updateMedicationStocks(stockUpdates);
             }
 
             // Create next NEXT schedules for each linked treatment
-            const links = await this._getScheduleLinks(scheduleId);
+            if (links.length === 0) {
+                links = await this._getScheduleLinks(scheduleId);
+            }
             const treatmentIds = [...new Set(links.filter(l => l.treatment_id).map(l => l.treatment_id))];
-            for (const treatmentId of treatmentIds) {
-                const treatment = await this.getTreatment(treatmentId);
+            let treatmentsMap = new Map();
+            if (treatmentIds.length > 0) {
+                try {
+                    const { data: treatmentsData, error: treatmentsError } = await supabase
+                        .from('treatments')
+                        .select('*')
+                        .in('id', treatmentIds);
+                    if (treatmentsError) throw treatmentsError;
+                    (treatmentsData || []).forEach(t => treatmentsMap.set(t.id, t));
+                } catch (e) {
+                    console.error('Error batch-fetching treatments for next schedules:', e);
+                }
+            }
+            await Promise.all(treatmentIds.map(async (treatmentId) => {
+                const treatment = treatmentsMap.get(treatmentId) || await this.getTreatment(treatmentId);
                 if (treatment && treatment.is_active !== false) {
                     await this._ensureNextScheduleForTreatment(treatment);
                 }
-            }
+            }));
 
             return updatedSchedule;
 
